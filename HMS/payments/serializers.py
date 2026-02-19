@@ -62,12 +62,12 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'id', 'invoice_number', 'created_at', 'updated_at'
         ]
     
-    def get_days_until_due(self, obj):
+    def get_days_until_due(self, obj) -> int:
         from datetime import datetime, date
         delta = obj.due_date - date.today()
         return delta.days if delta.days > 0 else 0
     
-    def get_is_overdue(self, obj):
+    def get_is_overdue(self, obj) -> bool:
         return obj.is_overdue()
 
 
@@ -87,10 +87,9 @@ class RefundRequestSerializer(serializers.ModelSerializer):
             'refund_amount', 'reason', 'description', 'status',
             'requested_at', 'approved_at', 'processed_at',
             'rejection_reason', 'processed_by', 'processed_by_name',
-            'created_at'
         ]
         read_only_fields = [
-            'id', 'requested_at', 'approved_at', 'processed_at', 'created_at'
+            'id', 'requested_at', 'approved_at', 'processed_at'
         ]
 
 

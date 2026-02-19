@@ -18,18 +18,18 @@ class PropertySerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
         fields = [
-            'id', 'name', 'description', 'location', 'address',
+            'id', 'name', 'location', 'address',
             'city', 'postal_code', 'country', 'phone_number', 'email',
             'website', 'total_rooms', 'star_rating', 'manager',
             'manager_name', 'rooms_count', 'available_rooms',
-            'is_active', 'metadata', 'created_at', 'updated_at'
+            'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'rooms_count', 'available_rooms']
     
-    def get_rooms_count(self, obj):
+    def get_rooms_count(self, obj) -> int:
         return obj.rooms.count()
     
-    def get_available_rooms(self, obj):
+    def get_available_rooms(self, obj) -> int:
         return obj.available_rooms()
 
 
@@ -48,7 +48,7 @@ class TravelAgencySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
-    def get_active_contracts(self, obj):
+    def get_active_contracts(self, obj) -> int:
         from contracts.models import Contract
         return Contract.objects.filter(
             travel_agency=obj,
@@ -62,12 +62,15 @@ class PropertyDetailSerializer(PropertySerializer):
     rooms = serializers.SerializerMethodField()
     employees = serializers.SerializerMethodField()
     
-    def get_rooms(self, obj):
+    def get_rooms(self, obj) -> list[dict]:
         from room.serializers import RoomBasicSerializer
         rooms = obj.rooms.all()
         return RoomBasicSerializer(rooms, many=True).data
     
-    def get_employees(self, obj):
+    def get_employees(self, obj) -> list[dict]:
         from accounts.serializers import EmployeeSerializer
         employees = obj.employees.all()
         return EmployeeSerializer(employees, many=True).data
+
+    class Meta(PropertySerializer.Meta):
+        fields = PropertySerializer.Meta.fields + ['rooms', 'employees']

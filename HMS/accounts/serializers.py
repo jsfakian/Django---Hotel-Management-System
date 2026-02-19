@@ -41,7 +41,7 @@ class GuestSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
     
-    def get_user_full_name(self, obj):
+    def get_user_full_name(self, obj) -> str:
         if obj.user:
             return f"{obj.user.first_name} {obj.user.last_name}"
         return f"{obj.first_name} {obj.last_name}"
@@ -63,7 +63,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
     
-    def get_user_detail(self, obj):
+    def get_user_detail(self, obj) -> dict | None:
         if obj.user:
             return {
                 'id': obj.user.id,

@@ -5,6 +5,7 @@ Per Task 4: API Design Specifications
 """
 
 from rest_framework import serializers
+from decimal import Decimal
 from room.models import Room, Booking, Dependees, Refund, RoomService
 
 
@@ -35,7 +36,7 @@ class RoomDetailedSerializer(RoomBasicSerializer):
         ]
         read_only_fields = RoomBasicSerializer.Meta.read_only_fields + ['created_at', 'updated_at']
     
-    def get_availability(self, obj):
+    def get_availability(self, obj) -> bool:
         """Check room availability for requested dates"""
         request = self.context.get('request')
         if request and hasattr(request, 'query_params'):
@@ -85,15 +86,15 @@ class BookingSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
-    def get_guest_name(self, obj):
+    def get_guest_name(self, obj) -> str:
         if obj.guest:
             return f"{obj.guest.first_name} {obj.guest.last_name}"
         return "Unknown"
     
-    def get_total_price(self, obj):
+    def get_total_price(self, obj) -> Decimal:
         return obj.actual_price or obj.base_price
     
-    def get_nights_count(self, obj):
+    def get_nights_count(self, obj) -> int:
         delta = obj.check_out_date - obj.check_in_date
         return delta.days
 
@@ -134,7 +135,7 @@ class BookingDetailedSerializer(BookingSerializer):
     
     room_detail = RoomDetailedSerializer(source='room', read_only=True)
     services = RoomServiceSerializer(source='room_services', many=True, read_only=True)
-    refunds = RefundSerializer(source='refunds', many=True, read_only=True)
+    refunds = RefundSerializer(many=True, read_only=True)
     
     class Meta(BookingSerializer.Meta):
         fields = BookingSerializer.Meta.fields + ['services', 'refunds']

@@ -39,15 +39,15 @@ class ContractSerializer(serializers.ModelSerializer):
             'travel_agency_signed_at', 'created_at', 'updated_at'
         ]
     
-    def get_is_active(self, obj):
+    def get_is_active(self, obj) -> bool:
         """Check if contract is currently active"""
         return obj.is_active()
     
-    def get_is_expired(self, obj):
+    def get_is_expired(self, obj) -> bool:
         """Check if contract has expired"""
         return obj.is_expired()
     
-    def get_days_until_expiry(self, obj):
+    def get_days_until_expiry(self, obj) -> int:
         """Calculate days until expiry"""
         from datetime import date
         delta = obj.end_date - date.today()
@@ -67,14 +67,14 @@ class ContractDetailedSerializer(ContractSerializer):
             'bookings_count'
         ]
     
-    def get_document_url(self, obj):
+    def get_document_url(self, obj) -> str | None:
         if obj.document_file:
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.document_file.url)
         return None
     
-    def get_bookings_count(self, obj):
+    def get_bookings_count(self, obj) -> int:
         """Count bookings made through this contract"""
         from room.models import Booking
         return Booking.objects.filter(

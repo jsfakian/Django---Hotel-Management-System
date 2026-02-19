@@ -29,6 +29,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     notification_type_name = serializers.CharField(
         source='notification_type.name', read_only=True
     )
+    is_new = serializers.SerializerMethodField()
     
     class Meta:
         model = Notification
@@ -41,6 +42,9 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'created_at', 'expires_at', 'is_new'
         ]
+
+    def get_is_new(self, obj) -> bool:
+        return obj.is_new()
 
 
 class EmailNotificationSerializer(serializers.ModelSerializer):
@@ -71,9 +75,10 @@ class SMSNotificationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'notification', 'user', 'user_name',
             'message', 'phone_number', 'status', 'sent_at',
-            'delivery_status', 'created_at'
+            'delivered_at', 'failed_reason', 'external_message_id',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'sent_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'sent_at', 'delivered_at']
 
 
 class NotificationDetailedSerializer(NotificationSerializer):

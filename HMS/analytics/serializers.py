@@ -78,12 +78,12 @@ class DashboardOperationalStatusSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
     
-    def get_total_rooms(self, obj):
+    def get_total_rooms(self, obj) -> int:
         """Calculate total rooms"""
         return (obj.occupied_count + obj.vacant_count + 
                 obj.cleaning_count + obj.maintenance_count + obj.blocked_count)
     
-    def get_occupancy_percentage(self, obj):
+    def get_occupancy_percentage(self, obj) -> float:
         """Calculate occupancy percentage"""
         total = self.get_total_rooms(obj)
         if total == 0:
@@ -438,7 +438,7 @@ class OccupancyForecastSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
     
-    def get_days_ahead(self, obj):
+    def get_days_ahead(self, obj) -> int:
         """Calculate days between forecast date and target date"""
         return (obj.target_date - obj.forecast_date).days
 
@@ -473,7 +473,7 @@ class RevenueForecastSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
     
-    def get_days_ahead(self, obj):
+    def get_days_ahead(self, obj) -> int:
         """Calculate days between forecast date and target date"""
         return (obj.target_date - obj.forecast_date).days
 
@@ -512,7 +512,7 @@ class CancellationPredictionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'prediction_date', 'prediction_time']
     
-    def get_days_to_checkin(self, obj):
+    def get_days_to_checkin(self, obj) -> int | None:
         """Calculate days until check-in if booking exists"""
         if obj.booking and obj.booking.check_in_date:
             from datetime import date
@@ -554,7 +554,7 @@ class NoShowPredictionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'prediction_date', 'prediction_time']
     
-    def get_days_to_checkin(self, obj):
+    def get_days_to_checkin(self, obj) -> int | None:
         """Calculate days until check-in if booking exists"""
         if obj.booking and obj.booking.check_in_date:
             from datetime import date
