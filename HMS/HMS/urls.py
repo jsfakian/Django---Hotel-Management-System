@@ -16,14 +16,20 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from accounts.views import *
 from room.views import *
 from hotel.views import *
+from bookings.views import *
+from contracts.views import *
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name="home"),
+
+    path('properties/', include('properties.urls')),
+    path('payments/', include('payments.urls')),
+    path('notifications/', include('notifications.urls')),
 
     path('login/', login_page, name="login"),
     path('logout/', logout_user, name="logout"),
@@ -72,4 +78,11 @@ urlpatterns = [
          deleteAnnouncement, name="deleteAnnouncement"),
     path('deleteBooking/<str:pk>/', deleteBooking, name="deleteBooking"),
     path('completeTask/<str:pk>/', completeTask, name="completeTask"),
+
+    path("dynamic-price/<int:hotel_id>/", get_dynamic_price, name="dynamic-price"),
+
+    path("contracts/", contract_list_create, name="contract-list-create"),
+    path("contracts/<int:contract_id>/", contract_detail, name="contract-detail"),
+    path("contracts/<int:contract_id>/sign/", sign_contract, name="sign-contract"),
+    path("contracts/<int:contract_id>/download_pdf/", download_contract_pdf, name="download-contract"),
 ]

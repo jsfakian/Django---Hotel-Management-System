@@ -1,0 +1,123 @@
+from django import forms
+from .models import Payment, Invoice, RefundRequest
+
+
+class PaymentForm(forms.ModelForm):
+    """Form for processing payments"""
+    
+    card_number = forms.CharField(
+        max_length=19,
+        min_length=13,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': '1234 5678 9012 3456',
+            'pattern': '[0-9 ]*',
+            'autocomplete': 'cc-number'
+        })
+    )
+    
+    card_name = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Cardholder Name',
+            'autocomplete': 'cc-name'
+        })
+    )
+    
+    expiry_date = forms.CharField(
+        max_length=5,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'MM/YY',
+            'pattern': '[0-9/]*',
+            'autocomplete': 'cc-exp'
+        })
+    )
+    
+    cvc = forms.CharField(
+        max_length=4,
+        min_length=3,
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'CVC',
+            'autocomplete': 'cc-csc'
+        })
+    )
+    
+    class Meta:
+        model = Payment
+        fields = ['payment_method', 'amount']
+        widgets = {
+            'payment_method': forms.Select(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'readonly': True,
+                'step': '0.01'
+            }),
+        }
+
+
+class PaymentVerificationForm(forms.Form):
+    """Form for verifying payment with code"""
+    
+    verification_code = forms.CharField(
+        max_length=6,
+        min_length=6,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control text-center',
+            'placeholder': '000000',
+            'autocomplete': 'off',
+            'pattern': '[0-9]{6}',
+            'autofocus': True
+        }),
+        label='Enter the 6-digit verification code sent to your email'
+    )
+
+
+class RefundRequestForm(forms.ModelForm):
+    """Form for requesting refunds"""
+    
+    class Meta:
+        model = RefundRequest
+        fields = ['reason', 'description']
+        widgets = {
+            'reason': forms.Select(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Please explain the reason for your refund request...'
+            }),
+        }
+
+
+class InvoiceFilterForm(forms.Form):
+    """Form for filtering invoices"""
+    
+    STATUS_CHOICES = [('', 'All Statuses')] + list(Invoice.STATUS_CHOICES)
+    
+    status = forms.ChoiceField(
+        required=False,
+        choices=STATUS_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    start_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        })
+    )
+    
+    end_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        })
+    )

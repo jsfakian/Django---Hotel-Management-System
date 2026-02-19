@@ -1,0 +1,11 @@
+property_id,name,city,country,star_rating,total_rooms,property_type,founded_year,manager_email
+PROP001,Nephele Hotel 1,Athens,Greece,4,30,Luxury Resort,2010,manager1@nephele.com
+PROP002,Nephele Hotel 2,Thessaloniki,Greece,3,30,Beach Resort,1993,manager2@nephele.com
+PROP003,Nephele Hotel 3,Mykonos,Greece,4,30,Business Hotel,1990,manager3@nephele.com
+PROP004,Nephele Hotel 4,Santorini,Greece,4,30,Business Hotel,2013,manager4@nephele.com
+PROP005,Nephele Hotel 5,Crete,Greece,3,30,Beach Resort,1998,manager5@nephele.com
+PROP006,Nephele Hotel 6,Rhodes,Greece,4,30,Beach Resort,1997,manager6@nephele.com
+PROP007,Nephele Hotel 7,Corfu,Greece,4,30,Boutique Hotel,1997,manager7@nephele.com
+PROP008,Nephele Hotel 8,Naxos,Greece,3,30,Beach Resort,1994,manager8@nephele.com
+PROP009,Nephele Hotel 9,Paros,Greece,5,30,Boutique Hotel,2013,manager9@nephele.com
+PROP010,Nephele Hotel 10,Milos,Greece,3,30,Beach Resort,1993,manager10@nephele.com

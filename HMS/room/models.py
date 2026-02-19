@@ -20,6 +20,15 @@ class Room(models.Model):
     price = models.FloatField()
     statusStartDate = models.DateField(null=True)
     statusEndDate = models.DateField(null=True)
+    
+    # Link to property (optional for backward compatibility)
+    property = models.ForeignKey(
+        'properties.Property',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='rooms'
+    )
 
     def __str__(self):
         return str(self.number)

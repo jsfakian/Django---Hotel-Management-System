@@ -1,0 +1,301 @@
+room_id,property_id,room_number,room_type,floor,capacity,view_type,size_sqm,base_price_per_night,amenities,last_renovation
+PROP001_R0001,PROP001,1,Standard,5,4,Sea View,41,302,Hairdryer|WiFi|Iron|AC|Breakfast Included|Desk,2023
+PROP001_R0002,PROP001,2,Deluxe,5,1,Mountain View,78,219,Pool Access|Desk|Safe|Iron|Balcony,2021
+PROP001_R0003,PROP001,3,Standard,2,4,Mountain View,74,293,Balcony|Bathrobe|Hairdryer|WiFi|Heating|Pool Access|Gym Access|Parking|Desk|AC|Spa|Iron,2016
+PROP001_R0004,PROP001,4,Deluxe,4,3,Standard,70,184,Desk|Hairdryer|Gym Access|Mini Bar|Parking|WiFi,2022
+PROP001_R0005,PROP001,5,Standard,5,3,Sea View,23,138,Bathrobe|AC|Balcony|Parking|Safe|Mini Bar,2020
+PROP001_R0006,PROP001,6,Penthouse,5,2,Sea View,28,395,Heating|WiFi|Safe|Breakfast Included|Parking|AC|Bathrobe|Hairdryer,2021
+PROP001_R0007,PROP001,7,Standard,3,4,Garden View,79,477,Desk|Heating|Gym Access|Hairdryer|Breakfast Included|Safe|Parking|AC|Iron|Mini Bar|Bathrobe|Balcony,2017
+PROP001_R0008,PROP001,8,Deluxe,4,3,Mountain View,97,130,Balcony|Iron|Safe|Desk|TV|Breakfast Included|Gym Access|WiFi|Hairdryer|Pool Access|Bathrobe,2020
+PROP001_R0009,PROP001,9,Standard,4,4,Garden View,21,439,Heating|Breakfast Included|Mini Bar|Desk|Gym Access|Iron|Spa|Pool Access|Hairdryer,2017
+PROP001_R0010,PROP001,10,Standard,3,4,Standard,82,451,Spa|Desk|Balcony|Hairdryer|Parking|Mini Bar|Pool Access,2024
+PROP001_R0011,PROP001,11,Suite,4,2,Sea View,81,319,Spa|Heating|Balcony|TV|AC|WiFi|Desk|Iron|Hairdryer|Pool Access,2021
+PROP001_R0012,PROP001,12,Suite,5,3,Garden View,81,345,Bathrobe|Pool Access|Mini Bar|Spa|Balcony|Parking,2023
+PROP001_R0013,PROP001,13,Suite,1,1,Sea View,72,329,Balcony|Bathrobe|Safe|Gym Access|AC|Parking,2021
+PROP001_R0014,PROP001,14,Deluxe,2,4,Garden View,60,206,WiFi|Desk|Iron|Parking|Balcony|Heating|Hairdryer|AC|Bathrobe|Pool Access|Gym Access|Spa,2024
+PROP001_R0015,PROP001,15,Suite,2,1,City View,90,58,Desk|Bathrobe|Heating|Balcony|Iron|WiFi|Mini Bar,2020
+PROP001_R0016,PROP001,16,Suite,4,4,Mountain View,27,212,Breakfast Included|Iron|Gym Access|Bathrobe|Parking,2018
+PROP001_R0017,PROP001,17,Suite,1,3,Standard,60,77,Heating|AC|Desk|Spa|Iron|Balcony|TV|Mini Bar,2022
+PROP001_R0018,PROP001,18,Family,5,4,Garden View,53,82,Balcony|TV|Hairdryer|Mini Bar|Pool Access|Breakfast Included|Iron,2018
+PROP001_R0019,PROP001,19,Standard,3,3,Standard,63,409,Desk|Spa|Balcony|Iron|AC|Breakfast Included|Safe|TV|Gym Access|WiFi|Parking,2023
+PROP001_R0020,PROP001,20,Standard,2,3,City View,66,180,WiFi|AC|Desk|Safe|TV|Breakfast Included|Iron|Hairdryer,2020
+PROP001_R0021,PROP001,21,Suite,1,2,Mountain View,28,256,Balcony|Safe|Spa|Breakfast Included|TV|Heating|Mini Bar|Hairdryer,2018
+PROP001_R0022,PROP001,22,Deluxe,4,2,Garden View,96,228,Pool Access|AC|Iron|Safe|TV|Gym Access|Desk|Mini Bar|Spa|Balcony|Bathrobe,2015
+PROP001_R0023,PROP001,23,Standard,1,3,City View,71,145,Bathrobe|Desk|Gym Access|TV|AC,2018
+PROP001_R0024,PROP001,24,Deluxe,2,1,Standard,34,220,Iron|Heating|Pool Access|TV|Parking|Spa|Breakfast Included|AC,2022
+PROP001_R0025,PROP001,25,Standard,5,1,Mountain View,47,115,AC|Safe|Balcony|WiFi|TV|Breakfast Included,2017
+PROP001_R0026,PROP001,26,Deluxe,4,2,City View,25,333,TV|Breakfast Included|Hairdryer|Pool Access|WiFi|Heating|Bathrobe|Desk|Mini Bar|Safe|Iron|Spa,2021
+PROP001_R0027,PROP001,27,Suite,5,4,Garden View,49,495,Parking|Breakfast Included|TV|Iron|WiFi|Mini Bar|Balcony|Desk|Gym Access|Safe|Pool Access|Hairdryer,2022
+PROP001_R0028,PROP001,28,Deluxe,5,2,Garden View,81,274,AC|Balcony|TV|Heating|Hairdryer|Mini Bar|Desk,2018
+PROP001_R0029,PROP001,29,Standard,4,3,City View,96,282,Spa|Mini Bar|Iron|WiFi|Hairdryer|AC,2021
+PROP001_R0030,PROP001,30,Standard,5,2,Mountain View,28,367,Balcony|Breakfast Included|Safe|Desk|Gym Access|Iron|Parking|Pool Access|Heating|Bathrobe,2019
+PROP002_R0001,PROP002,1,Standard,4,3,Sea View,63,201,Heating|WiFi|Spa|Mini Bar|Bathrobe|AC|Safe|Balcony|Breakfast Included|Parking,2019
+PROP002_R0002,PROP002,2,Family,2,2,City View,71,162,Heating|Iron|Breakfast Included|Gym Access|Parking|TV|Spa|Balcony|Desk|Mini Bar,2023
+PROP002_R0003,PROP002,3,Standard,1,2,Garden View,31,344,Breakfast Included|Iron|Heating|Parking|AC|Desk|Balcony|Hairdryer|Bathrobe,2019
+PROP002_R0004,PROP002,4,Deluxe,5,1,Standard,75,130,Safe|Breakfast Included|TV|Hairdryer|Parking|Balcony|Spa|Desk,2015
+PROP002_R0005,PROP002,5,Standard,1,2,Sea View,73,392,Balcony|WiFi|Iron|Gym Access|Heating|Safe|Parking|Desk|Spa|Mini Bar|Bathrobe,2021
+PROP002_R0006,PROP002,6,Standard,5,1,City View,38,175,Breakfast Included|AC|Desk|Heating|Balcony,2015
+PROP002_R0007,PROP002,7,Standard,3,4,Sea View,51,247,Hairdryer|Heating|WiFi|Parking|Gym Access|TV|Desk,2018
+PROP002_R0008,PROP002,8,Standard,2,4,Mountain View,75,172,Desk|Bathrobe|Balcony|Pool Access|Mini Bar|Heating,2018
+PROP002_R0009,PROP002,9,Standard,2,2,Standard,89,444,Hairdryer|WiFi|Heating|Desk|Gym Access|Pool Access|Breakfast Included,2019
+PROP002_R0010,PROP002,10,Suite,2,4,City View,92,173,Bathrobe|Hairdryer|WiFi|Spa|Breakfast Included|Desk,2022
+PROP002_R0011,PROP002,11,Deluxe,3,4,Standard,22,197,Spa|Breakfast Included|WiFi|Safe|Iron|Pool Access|Gym Access|Parking|AC,2019
+PROP002_R0012,PROP002,12,Standard,3,4,Mountain View,86,196,Safe|WiFi|AC|Parking|Heating|Mini Bar|Bathrobe|Iron|Hairdryer|TV|Breakfast Included,2020
+PROP002_R0013,PROP002,13,Standard,3,3,Garden View,52,473,Breakfast Included|Pool Access|Mini Bar|TV|Parking|WiFi|Iron|Safe|Bathrobe|Heating|Spa,2016
+PROP002_R0014,PROP002,14,Deluxe,3,2,City View,30,490,Breakfast Included|Desk|Parking|Balcony|Hairdryer|Safe|Pool Access|Gym Access|Mini Bar|Bathrobe,2019
+PROP002_R0015,PROP002,15,Standard,5,3,Sea View,26,301,Pool Access|TV|Safe|Iron|Hairdryer|Heating|Mini Bar,2024
+PROP002_R0016,PROP002,16,Standard,3,4,City View,79,418,WiFi|Parking|Iron|Breakfast Included|Pool Access|Mini Bar|Safe|Gym Access|Spa|Bathrobe|Desk,2018
+PROP002_R0017,PROP002,17,Standard,5,4,Garden View,88,86,Gym Access|Safe|AC|Parking|Balcony|Iron|Mini Bar|TV|Hairdryer|Pool Access|Spa|Heating,2018
+PROP002_R0018,PROP002,18,Family,2,3,City View,38,353,WiFi|TV|Breakfast Included|Spa|Mini Bar|AC|Bathrobe,2021
+PROP002_R0019,PROP002,19,Suite,5,4,City View,43,165,Bathrobe|Spa|Pool Access|Breakfast Included|Heating|Safe|WiFi|AC,2021
+PROP002_R0020,PROP002,20,Standard,2,4,Garden View,57,153,Iron|WiFi|Balcony|Breakfast Included|AC|Spa|Heating,2022
+PROP002_R0021,PROP002,21,Deluxe,5,3,City View,44,398,Iron|Mini Bar|Hairdryer|Desk|Balcony|Pool Access|Bathrobe|Spa|Heating|Gym Access,2022
+PROP002_R0022,PROP002,22,Standard,4,2,Sea View,85,359,Spa|Hairdryer|Safe|Parking|Balcony|TV|Breakfast Included|Bathrobe|Iron,2016
+PROP002_R0023,PROP002,23,Deluxe,3,1,City View,52,117,Balcony|Gym Access|Iron|TV|AC|Heating|Safe|Breakfast Included,2021
+PROP002_R0024,PROP002,24,Standard,2,1,Garden View,27,184,Heating|Pool Access|Iron|Gym Access|Balcony|Spa|Hairdryer|WiFi,2018
+PROP002_R0025,PROP002,25,Suite,4,4,City View,67,492,WiFi|Hairdryer|Bathrobe|Mini Bar|Pool Access|Spa|TV|Gym Access|Parking|Desk|Breakfast Included,2021
+PROP002_R0026,PROP002,26,Deluxe,5,3,Standard,70,487,TV|Breakfast Included|Parking|Pool Access|Spa|WiFi|Bathrobe|Gym Access,2021
+PROP002_R0027,PROP002,27,Family,2,3,Sea View,40,335,Parking|Mini Bar|Balcony|WiFi|Pool Access|Iron|Safe|Bathrobe|AC|Gym Access|Breakfast Included|Spa,2022
+PROP002_R0028,PROP002,28,Deluxe,2,3,City View,88,366,Balcony|Pool Access|Gym Access|Breakfast Included|Spa,2020
+PROP002_R0029,PROP002,29,Deluxe,3,4,Mountain View,83,98,Balcony|Bathrobe|Hairdryer|Pool Access|Parking|AC|Spa|WiFi|TV|Heating|Safe,2016
+PROP002_R0030,PROP002,30,Standard,1,4,Garden View,49,95,Spa|Breakfast Included|Hairdryer|WiFi|Mini Bar,2017
+PROP003_R0001,PROP003,1,Family,2,3,Garden View,56,329,TV|Safe|AC|Mini Bar|Breakfast Included|Spa|Parking,2020
+PROP003_R0002,PROP003,2,Standard,2,2,Standard,79,165,Gym Access|Parking|AC|Mini Bar|WiFi|Iron,2024
+PROP003_R0003,PROP003,3,Standard,4,1,City View,86,177,Pool Access|AC|Mini Bar|Desk|Safe|Breakfast Included|Iron|Parking|Hairdryer|TV|Balcony,2015
+PROP003_R0004,PROP003,4,Deluxe,3,2,Sea View,86,409,Desk|AC|Balcony|Safe|Gym Access|WiFi|Pool Access|Spa|Iron|Breakfast Included|Heating,2022
+PROP003_R0005,PROP003,5,Standard,2,2,Sea View,46,435,Gym Access|Desk|Balcony|Safe|Parking|Mini Bar|Hairdryer|Spa|Bathrobe|Breakfast Included|TV,2024
+PROP003_R0006,PROP003,6,Standard,3,4,City View,28,348,Spa|Hairdryer|AC|Parking|TV|Breakfast Included|Desk|Pool Access|Gym Access|WiFi,2022
+PROP003_R0007,PROP003,7,Suite,3,3,Standard,61,296,TV|Breakfast Included|Gym Access|Bathrobe|Parking|Hairdryer|Desk,2024
+PROP003_R0008,PROP003,8,Deluxe,3,2,City View,43,62,Pool Access|AC|Breakfast Included|Desk|TV,2022
+PROP003_R0009,PROP003,9,Standard,5,3,City View,55,222,TV|Safe|Desk|Spa|Bathrobe|WiFi|AC|Parking,2018
+PROP003_R0010,PROP003,10,Standard,4,4,Garden View,34,141,Mini Bar|Safe|TV|Gym Access|Spa|Balcony|Iron|Bathrobe,2021
+PROP003_R0011,PROP003,11,Deluxe,5,4,Mountain View,44,235,Desk|TV|Spa|Parking|Bathrobe|Iron|Breakfast Included|AC|Mini Bar|Heating,2016
+PROP003_R0012,PROP003,12,Deluxe,5,1,Sea View,77,391,Pool Access|Breakfast Included|Desk|Spa|Parking|Mini Bar|Balcony,2024
+PROP003_R0013,PROP003,13,Standard,3,2,Mountain View,79,150,Pool Access|Parking|Breakfast Included|Gym Access|Heating|Iron,2015
+PROP003_R0014,PROP003,14,Deluxe,5,1,Garden View,24,152,Balcony|WiFi|Iron|TV|Parking|Heating|Spa,2016
+PROP003_R0015,PROP003,15,Standard,1,1,Garden View,66,404,TV|Spa|Iron|Gym Access|Heating|WiFi|Parking|Hairdryer|AC,2016
+PROP003_R0016,PROP003,16,Deluxe,4,4,Standard,49,196,Heating|Mini Bar|Safe|Hairdryer|WiFi|TV|Bathrobe|Parking|AC|Spa|Desk|Balcony,2021
+PROP003_R0017,PROP003,17,Suite,5,3,Mountain View,77,488,Bathrobe|Spa|Iron|Parking|Mini Bar|Pool Access|TV|WiFi,2024
+PROP003_R0018,PROP003,18,Standard,1,2,Standard,81,328,Pool Access|Parking|Safe|AC|Heating|Breakfast Included|Desk|Balcony,2016
+PROP003_R0019,PROP003,19,Deluxe,2,4,Standard,20,107,Hairdryer|Spa|Desk|Mini Bar|Iron,2019
+PROP003_R0020,PROP003,20,Family,1,3,Sea View,67,138,Mini Bar|Desk|Parking|Iron|Spa|AC|Breakfast Included|Hairdryer,2024
+PROP003_R0021,PROP003,21,Deluxe,2,1,City View,35,238,Breakfast Included|Balcony|TV|Safe|Heating|Parking|Desk|AC|WiFi|Iron|Mini Bar,2024
+PROP003_R0022,PROP003,22,Suite,5,3,Standard,41,398,Iron|AC|Spa|Desk|Parking|Pool Access|Bathrobe|Balcony|Hairdryer,2022
+PROP003_R0023,PROP003,23,Deluxe,1,4,Sea View,35,484,Hairdryer|Desk|Gym Access|Mini Bar|Parking,2015
+PROP003_R0024,PROP003,24,Suite,1,1,Standard,97,269,WiFi|Bathrobe|Safe|Parking|Mini Bar|TV|Heating|Spa,2023
+PROP003_R0025,PROP003,25,Standard,4,1,Garden View,88,253,Gym Access|Mini Bar|Pool Access|Safe|Spa|AC|Desk|TV|Hairdryer,2020
+PROP003_R0026,PROP003,26,Standard,3,2,Standard,58,149,Gym Access|TV|Pool Access|Desk|Spa|Parking,2021
+PROP003_R0027,PROP003,27,Standard,5,2,Standard,42,299,Iron|AC|Gym Access|Parking|Hairdryer,2016
+PROP003_R0028,PROP003,28,Deluxe,4,1,Garden View,53,229,Iron|Pool Access|WiFi|Breakfast Included|Balcony,2020
+PROP003_R0029,PROP003,29,Deluxe,5,2,Mountain View,77,145,Iron|Bathrobe|WiFi|Breakfast Included|Parking|Balcony|Heating|Desk|Spa|Gym Access|TV|Hairdryer,2015
+PROP003_R0030,PROP003,30,Family,5,1,Standard,23,65,Gym Access|Parking|Balcony|WiFi|Hairdryer|Pool Access|AC|Breakfast Included,2016
+PROP004_R0001,PROP004,1,Standard,4,3,Sea View,51,389,Parking|Spa|Desk|TV|Balcony|Bathrobe,2021
+PROP004_R0002,PROP004,2,Deluxe,4,2,Mountain View,52,466,Spa|TV|Balcony|Heating|Pool Access|Breakfast Included|Mini Bar|Hairdryer|Bathrobe|Desk|WiFi|Iron,2021
+PROP004_R0003,PROP004,3,Suite,3,3,Standard,31,372,WiFi|Parking|Desk|Iron|Mini Bar|Hairdryer|Spa|Heating|Safe,2023
+PROP004_R0004,PROP004,4,Suite,4,4,Sea View,62,93,Safe|Balcony|Bathrobe|Iron|Pool Access|Spa|Gym Access|Breakfast Included|Hairdryer|Parking,2021
+PROP004_R0005,PROP004,5,Standard,2,4,Sea View,54,264,AC|Gym Access|Desk|Spa|Hairdryer|Pool Access|Safe|Heating|Bathrobe|WiFi|TV,2023
+PROP004_R0006,PROP004,6,Standard,5,4,Standard,45,139,Breakfast Included|Hairdryer|Iron|Spa|AC|Balcony|Bathrobe|WiFi|Heating|TV,2017
+PROP004_R0007,PROP004,7,Standard,1,3,City View,26,245,Balcony|Gym Access|Mini Bar|Desk|Pool Access|Safe|AC|Iron|Bathrobe|Heating|TV|Breakfast Included,2023
+PROP004_R0008,PROP004,8,Deluxe,1,2,Standard,94,462,Spa|Safe|Iron|Parking|Breakfast Included|AC,2021
+PROP004_R0009,PROP004,9,Standard,1,1,Standard,55,443,Iron|Heating|Desk|Parking|WiFi|Hairdryer,2020
+PROP004_R0010,PROP004,10,Deluxe,1,4,Mountain View,68,148,Desk|Gym Access|Pool Access|Heating|Breakfast Included|Balcony|Hairdryer|Bathrobe|Safe,2017
+PROP004_R0011,PROP004,11,Deluxe,1,2,City View,43,200,Spa|TV|Mini Bar|Heating|Breakfast Included|Iron|Parking|Safe|Hairdryer|Gym Access|WiFi,2022
+PROP004_R0012,PROP004,12,Family,3,1,Garden View,74,62,Heating|Spa|Gym Access|Mini Bar|Parking|Safe|Pool Access,2019
+PROP004_R0013,PROP004,13,Suite,4,3,City View,49,322,Pool Access|TV|Hairdryer|Spa|AC|Breakfast Included|Iron|Gym Access|Parking,2019
+PROP004_R0014,PROP004,14,Deluxe,1,4,City View,32,236,Balcony|WiFi|Mini Bar|Safe|Desk|Iron|Hairdryer|Spa|Parking|Pool Access|AC,2024
+PROP004_R0015,PROP004,15,Standard,3,4,Garden View,80,282,Pool Access|Mini Bar|Parking|Safe|Desk|Bathrobe|Heating|AC,2015
+PROP004_R0016,PROP004,16,Suite,3,1,Garden View,97,272,AC|Mini Bar|Gym Access|Desk|Heating|TV|Parking|Hairdryer|Pool Access|Safe|Spa|Balcony,2023
+PROP004_R0017,PROP004,17,Penthouse,3,3,Sea View,35,422,Gym Access|Parking|Hairdryer|Spa|Iron|TV|AC|Bathrobe|Mini Bar,2017
+PROP004_R0018,PROP004,18,Standard,2,4,City View,71,428,Desk|AC|Bathrobe|Pool Access|WiFi|Parking|Balcony|Iron|Spa|Heating|Gym Access,2019
+PROP004_R0019,PROP004,19,Standard,5,1,City View,58,158,Desk|AC|Safe|Breakfast Included|Spa|WiFi|Mini Bar|Balcony|Gym Access|Parking|Iron,2016
+PROP004_R0020,PROP004,20,Family,4,2,Sea View,24,212,Hairdryer|AC|Heating|WiFi|Bathrobe|Parking|Spa|Iron|Balcony,2018
+PROP004_R0021,PROP004,21,Family,5,3,Mountain View,37,288,Bathrobe|Spa|Gym Access|Safe|Desk|Balcony|Pool Access,2024
+PROP004_R0022,PROP004,22,Standard,2,2,Sea View,36,302,Breakfast Included|Hairdryer|Spa|Mini Bar|Pool Access|Parking|WiFi|Gym Access|TV|Iron|Desk,2018
+PROP004_R0023,PROP004,23,Suite,3,2,Standard,59,219,Desk|Balcony|Safe|Gym Access|WiFi|Pool Access,2019
+PROP004_R0024,PROP004,24,Deluxe,2,3,Sea View,85,54,Iron|AC|Safe|Breakfast Included|Hairdryer|Desk,2024
+PROP004_R0025,PROP004,25,Deluxe,1,2,Mountain View,27,414,Safe|Breakfast Included|Heating|Bathrobe|Mini Bar,2018
+PROP004_R0026,PROP004,26,Deluxe,1,4,City View,90,266,Pool Access|Hairdryer|Iron|Breakfast Included|Gym Access|Heating|Mini Bar|WiFi,2019
+PROP004_R0027,PROP004,27,Deluxe,2,4,Garden View,50,324,Balcony|Bathrobe|Heating|AC|Safe|WiFi|Hairdryer,2015
+PROP004_R0028,PROP004,28,Suite,3,2,Mountain View,93,395,Safe|WiFi|Heating|Parking|Iron|Hairdryer|Pool Access|Balcony,2016
+PROP004_R0029,PROP004,29,Standard,1,2,Mountain View,64,190,Iron|Bathrobe|Gym Access|Balcony|Mini Bar|AC|Spa|TV|Breakfast Included|Parking|WiFi|Pool Access,2019
+PROP004_R0030,PROP004,30,Deluxe,4,2,Sea View,39,366,AC|Spa|Hairdryer|Pool Access|Bathrobe,2016
+PROP005_R0001,PROP005,1,Suite,4,3,City View,22,397,Heating|Iron|AC|Gym Access|Mini Bar|TV|Hairdryer|Safe|Parking|Spa|Bathrobe|Pool Access,2023
+PROP005_R0002,PROP005,2,Penthouse,3,3,Garden View,44,361,Mini Bar|Spa|Balcony|TV|Pool Access|AC|Safe|Hairdryer|Breakfast Included|Iron|Desk,2018
+PROP005_R0003,PROP005,3,Deluxe,4,1,Sea View,63,222,Iron|Pool Access|TV|Desk|AC|Gym Access|Hairdryer|Safe|Parking|Heating,2017
+PROP005_R0004,PROP005,4,Penthouse,4,1,Standard,99,423,Heating|Hairdryer|AC|Iron|Pool Access|Bathrobe,2020
+PROP005_R0005,PROP005,5,Family,2,4,Standard,55,276,Safe|TV|AC|Pool Access|Gym Access,2021
+PROP005_R0006,PROP005,6,Deluxe,1,1,Sea View,66,282,Mini Bar|Gym Access|AC|TV|Balcony|Breakfast Included|Heating|Spa|Safe,2016
+PROP005_R0007,PROP005,7,Standard,3,3,City View,73,423,Breakfast Included|Bathrobe|Parking|Mini Bar|TV|Pool Access|Balcony|Iron|WiFi|Hairdryer,2019
+PROP005_R0008,PROP005,8,Deluxe,1,3,City View,94,61,Balcony|Desk|Bathrobe|Parking|Gym Access|Iron|WiFi,2017
+PROP005_R0009,PROP005,9,Penthouse,2,4,Garden View,43,205,Heating|TV|Desk|Safe|WiFi|AC|Balcony|Breakfast Included|Pool Access|Mini Bar|Spa,2020
+PROP005_R0010,PROP005,10,Standard,2,2,Garden View,55,139,Mini Bar|Desk|Gym Access|Bathrobe|TV|Iron|AC|WiFi|Heating|Safe,2024
+PROP005_R0011,PROP005,11,Deluxe,1,4,Sea View,47,269,Balcony|Spa|Safe|Pool Access|Iron|Mini Bar,2022
+PROP005_R0012,PROP005,12,Deluxe,4,4,Mountain View,82,194,Pool Access|Bathrobe|Balcony|AC|Gym Access|TV|Iron|Parking|Spa,2023
+PROP005_R0013,PROP005,13,Standard,3,1,Garden View,96,269,Spa|Pool Access|Mini Bar|WiFi|Bathrobe,2018
+PROP005_R0014,PROP005,14,Standard,3,1,Mountain View,25,131,Parking|Bathrobe|TV|Hairdryer|Gym Access|AC|WiFi|Spa,2021
+PROP005_R0015,PROP005,15,Deluxe,2,1,City View,85,59,Bathrobe|Balcony|Desk|Breakfast Included|Iron|Hairdryer|Gym Access,2016
+PROP005_R0016,PROP005,16,Family,4,2,Mountain View,24,168,Hairdryer|WiFi|Spa|AC|Gym Access,2024
+PROP005_R0017,PROP005,17,Deluxe,4,2,City View,37,273,Hairdryer|Parking|AC|Pool Access|WiFi|Gym Access|Heating|Spa|Safe|Desk|Breakfast Included,2016
+PROP005_R0018,PROP005,18,Penthouse,2,3,Standard,45,112,Bathrobe|Balcony|AC|Pool Access|Parking|Gym Access|Breakfast Included|Safe|Heating|WiFi|Desk,2016
+PROP005_R0019,PROP005,19,Deluxe,5,3,Mountain View,68,466,Desk|Gym Access|TV|Safe|Heating|Breakfast Included|AC|Hairdryer,2019
+PROP005_R0020,PROP005,20,Deluxe,2,3,City View,40,360,Parking|Bathrobe|Iron|Safe|AC|Heating|Spa,2022
+PROP005_R0021,PROP005,21,Family,5,1,Standard,24,407,Safe|Hairdryer|TV|Gym Access|Heating|Spa|AC|Iron|Balcony|Bathrobe|Desk|Pool Access,2024
+PROP005_R0022,PROP005,22,Family,1,3,Standard,72,214,Heating|Parking|Spa|Hairdryer|WiFi|Desk|Gym Access|Iron|AC|Mini Bar,2016
+PROP005_R0023,PROP005,23,Suite,5,3,City View,97,415,Iron|Mini Bar|Balcony|Bathrobe|Desk|WiFi|Spa|Breakfast Included|Gym Access|Parking|Hairdryer,2023
+PROP005_R0024,PROP005,24,Standard,2,1,Standard,23,495,Iron|AC|Bathrobe|Gym Access|Desk,2016
+PROP005_R0025,PROP005,25,Family,5,4,Sea View,91,88,AC|Breakfast Included|Desk|Spa|Bathrobe|Balcony|Safe,2024
+PROP005_R0026,PROP005,26,Deluxe,2,2,Mountain View,69,317,Desk|Iron|Parking|Pool Access|Bathrobe|Gym Access|Mini Bar|WiFi|Safe|Balcony,2020
+PROP005_R0027,PROP005,27,Suite,1,4,Standard,76,450,Mini Bar|Parking|Desk|Safe|TV|Heating|Gym Access|AC|Bathrobe|Spa|Pool Access,2021
+PROP005_R0028,PROP005,28,Standard,2,3,Standard,33,115,Mini Bar|Balcony|Pool Access|Safe|Gym Access|Heating,2023
+PROP005_R0029,PROP005,29,Suite,1,3,Garden View,57,355,Desk|WiFi|Gym Access|Parking|Heating|Breakfast Included|Hairdryer|Spa|Safe|AC|Pool Access,2017
+PROP005_R0030,PROP005,30,Deluxe,1,2,Mountain View,70,496,Breakfast Included|Balcony|Bathrobe|Iron|Desk|Hairdryer|WiFi|Gym Access|Heating,2024
+PROP006_R0001,PROP006,1,Suite,4,1,City View,98,79,Gym Access|Heating|Hairdryer|Desk|Mini Bar|Iron|Spa,2015
+PROP006_R0002,PROP006,2,Deluxe,4,3,City View,24,334,Spa|TV|Mini Bar|Parking|Desk|Iron|Breakfast Included|Balcony|Hairdryer|Heating,2022
+PROP006_R0003,PROP006,3,Standard,2,4,City View,93,322,Iron|Spa|Bathrobe|Parking|Pool Access|Balcony|Safe|Desk|Heating|Mini Bar,2018
+PROP006_R0004,PROP006,4,Standard,5,4,Standard,53,311,Balcony|WiFi|Safe|Spa|Gym Access|TV|AC,2023
+PROP006_R0005,PROP006,5,Deluxe,1,1,Mountain View,62,289,Heating|Bathrobe|TV|Parking|Spa|Balcony|Hairdryer|Pool Access|AC,2018
+PROP006_R0006,PROP006,6,Standard,4,3,City View,42,232,WiFi|Pool Access|TV|Iron|Balcony|Gym Access|Breakfast Included|Bathrobe|AC|Heating,2018
+PROP006_R0007,PROP006,7,Deluxe,1,3,Garden View,23,233,Breakfast Included|Hairdryer|Desk|Safe|Gym Access|Heating|Bathrobe|WiFi|Parking|Pool Access,2022
+PROP006_R0008,PROP006,8,Deluxe,2,4,Mountain View,46,142,Iron|Mini Bar|WiFi|AC|Hairdryer|Parking|Breakfast Included|Heating|Pool Access|Desk|Balcony|Bathrobe,2019
+PROP006_R0009,PROP006,9,Penthouse,1,1,Sea View,70,452,Spa|Pool Access|Safe|Bathrobe|Mini Bar,2022
+PROP006_R0010,PROP006,10,Suite,1,2,Garden View,61,366,TV|Mini Bar|Balcony|WiFi|Safe|Hairdryer,2024
+PROP006_R0011,PROP006,11,Standard,2,2,City View,24,282,Mini Bar|Pool Access|WiFi|TV|Gym Access|Breakfast Included|Bathrobe,2021
+PROP006_R0012,PROP006,12,Deluxe,2,2,Sea View,68,127,Desk|AC|Balcony|Hairdryer|Bathrobe|TV,2023
+PROP006_R0013,PROP006,13,Standard,1,3,City View,45,298,TV|WiFi|Safe|Pool Access|Gym Access|Parking|Iron|Desk|AC|Heating|Spa,2016
+PROP006_R0014,PROP006,14,Deluxe,5,2,Mountain View,82,97,Parking|WiFi|Gym Access|Balcony|Hairdryer|Safe|Heating|Spa|Bathrobe|Desk,2017
+PROP006_R0015,PROP006,15,Standard,2,2,Garden View,20,57,Iron|WiFi|Parking|Breakfast Included|TV|Bathrobe,2015
+PROP006_R0016,PROP006,16,Suite,3,1,Garden View,98,352,Bathrobe|Hairdryer|Balcony|Spa|Parking|WiFi|Breakfast Included|Desk|Gym Access,2015
+PROP006_R0017,PROP006,17,Deluxe,3,2,Sea View,47,127,Breakfast Included|Bathrobe|Gym Access|Pool Access|Iron|Spa|Desk|Hairdryer|Heating,2022
+PROP006_R0018,PROP006,18,Deluxe,4,1,Sea View,33,236,Balcony|Bathrobe|AC|Desk|Pool Access|Hairdryer|Iron|Heating|Parking|TV,2016
+PROP006_R0019,PROP006,19,Standard,1,3,Mountain View,42,287,Mini Bar|Parking|Spa|TV|Desk|Pool Access|Heating|Hairdryer|Gym Access|Breakfast Included,2015
+PROP006_R0020,PROP006,20,Suite,3,4,Standard,37,343,Balcony|Safe|Bathrobe|WiFi|AC|Iron|Pool Access|Gym Access|Heating|Hairdryer|Desk,2024
+PROP006_R0021,PROP006,21,Deluxe,4,3,City View,47,251,Parking|AC|Breakfast Included|Bathrobe|Safe,2020
+PROP006_R0022,PROP006,22,Deluxe,3,1,Sea View,63,74,AC|Mini Bar|Heating|Safe|Spa|Gym Access|Bathrobe|Desk|TV|Parking|Balcony,2023
+PROP006_R0023,PROP006,23,Family,3,4,City View,87,443,Safe|TV|Parking|Breakfast Included|AC|WiFi|Heating|Spa|Pool Access|Hairdryer|Iron,2019
+PROP006_R0024,PROP006,24,Suite,3,1,Sea View,53,160,Pool Access|Mini Bar|Parking|Desk|Spa|Breakfast Included|AC|Heating|Iron|Safe|Bathrobe|TV,2016
+PROP006_R0025,PROP006,25,Suite,3,1,Garden View,61,474,Heating|Balcony|Iron|Parking|Bathrobe|TV|Safe|Gym Access|Breakfast Included|WiFi,2018
+PROP006_R0026,PROP006,26,Standard,2,4,Sea View,83,275,TV|WiFi|Gym Access|Balcony|Mini Bar|Hairdryer|Spa|Bathrobe,2017
+PROP006_R0027,PROP006,27,Standard,5,3,Standard,89,278,Heating|Parking|Pool Access|Desk|Bathrobe|Spa,2023
+PROP006_R0028,PROP006,28,Family,4,1,Standard,89,119,Heating|TV|Gym Access|Safe|AC|Spa|Bathrobe|Balcony|Hairdryer|Desk|Parking,2024
+PROP006_R0029,PROP006,29,Standard,2,4,Mountain View,81,367,Hairdryer|Balcony|TV|WiFi|AC|Iron|Heating,2019
+PROP006_R0030,PROP006,30,Suite,2,4,City View,22,292,Safe|Iron|Desk|Breakfast Included|Gym Access|Balcony|Parking,2016
+PROP007_R0001,PROP007,1,Standard,3,1,Garden View,43,272,Balcony|Heating|Safe|Parking|Mini Bar|TV|AC|Hairdryer,2017
+PROP007_R0002,PROP007,2,Family,5,4,Garden View,94,53,Gym Access|Safe|Mini Bar|Desk|Hairdryer|TV|Bathrobe,2015
+PROP007_R0003,PROP007,3,Standard,1,2,City View,70,111,AC|Safe|Bathrobe|Mini Bar|Parking|Iron,2018
+PROP007_R0004,PROP007,4,Family,5,3,Mountain View,27,75,WiFi|Spa|Safe|Balcony|Parking|Hairdryer|Desk|Iron|Breakfast Included|Pool Access|Gym Access,2021
+PROP007_R0005,PROP007,5,Standard,3,4,Standard,89,459,Heating|Desk|WiFi|TV|Spa|Pool Access|Iron|Mini Bar|Breakfast Included|Bathrobe|Parking|AC,2020
+PROP007_R0006,PROP007,6,Standard,3,3,Garden View,39,162,Bathrobe|Heating|TV|Gym Access|Balcony|Desk|AC|Hairdryer|Breakfast Included|Spa,2016
+PROP007_R0007,PROP007,7,Deluxe,3,1,Sea View,33,369,Spa|Heating|AC|WiFi|Parking|Pool Access|Mini Bar|Safe|Breakfast Included|Balcony|Hairdryer|Iron,2024
+PROP007_R0008,PROP007,8,Standard,3,2,Mountain View,96,308,Gym Access|Spa|Balcony|Iron|Bathrobe|Parking|Desk|WiFi,2016
+PROP007_R0009,PROP007,9,Standard,4,2,Sea View,24,456,Spa|Breakfast Included|Mini Bar|Gym Access|WiFi|Desk|Parking|TV|Balcony|Heating|Hairdryer|Safe,2016
+PROP007_R0010,PROP007,10,Deluxe,4,2,Standard,59,179,Balcony|Desk|Gym Access|Bathrobe|Pool Access|Hairdryer|WiFi,2021
+PROP007_R0011,PROP007,11,Standard,1,3,Standard,92,322,Desk|Balcony|Parking|AC|Pool Access|Iron|Spa|Safe,2019
+PROP007_R0012,PROP007,12,Standard,5,3,Mountain View,68,118,Parking|AC|Pool Access|Gym Access|Bathrobe|Balcony,2020
+PROP007_R0013,PROP007,13,Suite,2,4,Sea View,97,422,Bathrobe|Balcony|WiFi|Hairdryer|TV|Heating|Gym Access|Spa,2023
+PROP007_R0014,PROP007,14,Suite,4,1,Sea View,95,84,Parking|Gym Access|Mini Bar|Iron|Heating|Pool Access|Hairdryer,2019
+PROP007_R0015,PROP007,15,Family,5,4,Garden View,83,398,TV|Desk|Mini Bar|Parking|Spa|WiFi|Gym Access|Hairdryer|AC|Breakfast Included,2024
+PROP007_R0016,PROP007,16,Standard,3,1,Standard,33,365,TV|Parking|Safe|Bathrobe|Mini Bar,2024
+PROP007_R0017,PROP007,17,Standard,2,1,Standard,24,388,TV|Heating|Balcony|Safe|Desk,2024
+PROP007_R0018,PROP007,18,Deluxe,4,2,Garden View,61,138,Spa|WiFi|Mini Bar|Desk|AC|Breakfast Included|Iron,2022
+PROP007_R0019,PROP007,19,Deluxe,3,4,Mountain View,57,402,Parking|Pool Access|Desk|Breakfast Included|Iron|Balcony|Mini Bar|Spa|WiFi|Gym Access|AC,2023
+PROP007_R0020,PROP007,20,Suite,2,3,City View,44,194,TV|Balcony|Pool Access|Gym Access|Heating|Spa|Iron|Bathrobe|Mini Bar|Safe,2019
+PROP007_R0021,PROP007,21,Family,5,3,Sea View,97,358,Pool Access|Breakfast Included|Parking|Balcony|Hairdryer|Iron|Desk|Mini Bar|Safe|Gym Access|TV|Spa,2020
+PROP007_R0022,PROP007,22,Family,4,3,Mountain View,89,183,Balcony|Parking|AC|Mini Bar|Safe|TV|Pool Access|Bathrobe|Gym Access|Desk,2017
+PROP007_R0023,PROP007,23,Standard,3,3,Sea View,83,64,Mini Bar|Desk|AC|Gym Access|Spa,2019
+PROP007_R0024,PROP007,24,Family,4,1,Garden View,46,469,Pool Access|Hairdryer|Balcony|Parking|Iron|Bathrobe|Heating|AC,2024
+PROP007_R0025,PROP007,25,Penthouse,5,1,City View,46,488,Spa|WiFi|Safe|Balcony|Breakfast Included|Hairdryer|Desk|Iron,2016
+PROP007_R0026,PROP007,26,Standard,4,4,Sea View,29,54,TV|AC|Safe|Bathrobe|Heating|WiFi|Balcony|Desk|Pool Access|Gym Access,2022
+PROP007_R0027,PROP007,27,Family,4,1,Standard,50,352,Mini Bar|Gym Access|Parking|Safe|WiFi|AC|TV|Breakfast Included,2023
+PROP007_R0028,PROP007,28,Suite,1,4,Garden View,75,64,Hairdryer|Iron|TV|Heating|WiFi|Pool Access|Spa,2017
+PROP007_R0029,PROP007,29,Suite,3,1,Standard,66,373,WiFi|Parking|Mini Bar|Hairdryer|AC,2020
+PROP007_R0030,PROP007,30,Suite,3,2,Mountain View,55,341,TV|Iron|Heating|Balcony|Spa|Parking|Breakfast Included|AC|Gym Access|Bathrobe|Desk|Mini Bar,2019
+PROP008_R0001,PROP008,1,Suite,2,3,Standard,39,60,Safe|Bathrobe|Parking|Mini Bar|TV,2018
+PROP008_R0002,PROP008,2,Penthouse,2,4,Sea View,65,412,Hairdryer|Balcony|Gym Access|AC|Pool Access|Safe|Bathrobe|Heating|Iron|Breakfast Included|Spa,2018
+PROP008_R0003,PROP008,3,Standard,1,1,Sea View,79,220,Bathrobe|Breakfast Included|Spa|TV|Parking|Gym Access|Desk|WiFi|Mini Bar,2020
+PROP008_R0004,PROP008,4,Family,2,4,Garden View,24,425,Breakfast Included|Spa|Parking|Heating|Pool Access,2023
+PROP008_R0005,PROP008,5,Standard,3,3,Sea View,50,427,Mini Bar|Gym Access|TV|Breakfast Included|Bathrobe|Heating,2022
+PROP008_R0006,PROP008,6,Standard,2,3,Standard,97,345,Desk|Pool Access|TV|Balcony|Spa|Bathrobe|Breakfast Included|Mini Bar|AC|Parking|Safe|Iron,2020
+PROP008_R0007,PROP008,7,Suite,1,3,City View,65,150,AC|Hairdryer|Balcony|Iron|Breakfast Included|Mini Bar,2023
+PROP008_R0008,PROP008,8,Penthouse,2,2,Garden View,73,362,Safe|Hairdryer|Balcony|Spa|AC|TV|Breakfast Included,2024
+PROP008_R0009,PROP008,9,Standard,4,2,Mountain View,59,448,Iron|Bathrobe|WiFi|Spa|Heating|Balcony,2021
+PROP008_R0010,PROP008,10,Deluxe,4,1,Standard,28,251,Iron|Safe|Bathrobe|Parking|Desk,2015
+PROP008_R0011,PROP008,11,Suite,4,1,Sea View,60,340,WiFi|Desk|Breakfast Included|Mini Bar|AC|TV|Pool Access|Gym Access|Iron,2023
+PROP008_R0012,PROP008,12,Deluxe,1,1,Sea View,94,343,TV|WiFi|Parking|Pool Access|Heating|Desk,2021
+PROP008_R0013,PROP008,13,Standard,3,2,Mountain View,53,396,Iron|Hairdryer|Pool Access|TV|AC|Safe|Balcony|Heating|Gym Access|WiFi|Desk,2023
+PROP008_R0014,PROP008,14,Deluxe,4,3,Mountain View,70,231,Spa|Hairdryer|WiFi|Bathrobe|Iron|Parking|TV,2023
+PROP008_R0015,PROP008,15,Standard,4,3,Garden View,89,393,Spa|Breakfast Included|TV|Gym Access|Heating|Parking|Iron|AC|WiFi|Pool Access|Bathrobe,2021
+PROP008_R0016,PROP008,16,Standard,5,1,Mountain View,41,203,Spa|Breakfast Included|AC|Hairdryer|Mini Bar,2015
+PROP008_R0017,PROP008,17,Standard,4,1,City View,90,386,Spa|Desk|WiFi|Pool Access|TV,2018
+PROP008_R0018,PROP008,18,Penthouse,5,1,Garden View,82,238,AC|Heating|Balcony|Parking|Breakfast Included|Mini Bar|Gym Access|Safe,2018
+PROP008_R0019,PROP008,19,Standard,3,3,City View,32,264,Spa|Pool Access|Parking|Hairdryer|WiFi|Balcony|Mini Bar,2017
+PROP008_R0020,PROP008,20,Deluxe,4,4,Mountain View,81,81,AC|Gym Access|Safe|Hairdryer|Pool Access|Balcony|Iron|Desk|Bathrobe|TV|Heating|Breakfast Included,2017
+PROP008_R0021,PROP008,21,Deluxe,5,1,Standard,49,193,Spa|Hairdryer|Breakfast Included|Parking|Desk|Heating|TV|WiFi|Pool Access|Iron|Bathrobe|Gym Access,2017
+PROP008_R0022,PROP008,22,Deluxe,4,2,City View,97,420,Balcony|Breakfast Included|Gym Access|Safe|AC|Spa|Hairdryer|Desk,2023
+PROP008_R0023,PROP008,23,Deluxe,2,2,Garden View,57,484,Balcony|Pool Access|Safe|Mini Bar|Bathrobe,2015
+PROP008_R0024,PROP008,24,Standard,1,1,Standard,74,408,Pool Access|Spa|Breakfast Included|Gym Access|Parking|WiFi|Hairdryer|Mini Bar,2016
+PROP008_R0025,PROP008,25,Suite,4,2,Sea View,53,429,Pool Access|TV|Breakfast Included|Balcony|Gym Access|Parking|Iron|Spa,2023
+PROP008_R0026,PROP008,26,Suite,3,3,Garden View,51,227,Balcony|Gym Access|TV|Spa|Bathrobe|AC|Desk|Iron|Breakfast Included,2020
+PROP008_R0027,PROP008,27,Family,3,4,City View,76,296,AC|Mini Bar|Hairdryer|Breakfast Included|Desk|Heating|WiFi|Parking|Pool Access|Safe|TV,2018
+PROP008_R0028,PROP008,28,Standard,3,3,Mountain View,91,103,Bathrobe|Mini Bar|Hairdryer|Breakfast Included|Spa|Balcony|Gym Access|Parking,2022
+PROP008_R0029,PROP008,29,Standard,4,1,Mountain View,70,146,Gym Access|Desk|Bathrobe|TV|Heating|Iron|Balcony|Spa|Safe|Parking|Hairdryer|WiFi,2023
+PROP008_R0030,PROP008,30,Deluxe,1,4,Sea View,54,145,AC|Bathrobe|WiFi|Pool Access|Heating|Safe,2018
+PROP009_R0001,PROP009,1,Penthouse,1,4,Mountain View,35,214,WiFi|Breakfast Included|Balcony|Spa|Gym Access|TV|Mini Bar,2024
+PROP009_R0002,PROP009,2,Standard,4,2,Sea View,26,379,WiFi|TV|Balcony|Hairdryer|Pool Access|Iron|Safe|Bathrobe|Parking|Spa|Heating|Mini Bar,2023
+PROP009_R0003,PROP009,3,Standard,4,3,Standard,38,161,Breakfast Included|Iron|AC|Balcony|Heating|TV|Safe,2024
+PROP009_R0004,PROP009,4,Standard,5,4,Standard,79,131,Desk|Parking|Bathrobe|Pool Access|AC|Gym Access|Hairdryer|Spa|Breakfast Included,2018
+PROP009_R0005,PROP009,5,Family,3,3,Standard,39,60,AC|TV|Pool Access|Hairdryer|Bathrobe|Balcony,2022
+PROP009_R0006,PROP009,6,Standard,1,2,Mountain View,31,69,Gym Access|AC|Spa|Pool Access|Safe,2020
+PROP009_R0007,PROP009,7,Deluxe,5,2,City View,72,477,AC|Breakfast Included|Iron|Desk|Mini Bar|Spa,2019
+PROP009_R0008,PROP009,8,Standard,1,2,Garden View,43,130,Balcony|Iron|TV|Mini Bar|Safe|WiFi,2017
+PROP009_R0009,PROP009,9,Family,3,4,Mountain View,33,58,Pool Access|Mini Bar|Heating|Bathrobe|Desk,2021
+PROP009_R0010,PROP009,10,Deluxe,1,1,City View,92,295,Gym Access|Mini Bar|Breakfast Included|Iron|Pool Access|Safe|Balcony|TV|Desk,2017
+PROP009_R0011,PROP009,11,Deluxe,1,2,Garden View,45,491,AC|TV|Pool Access|Breakfast Included|Iron|Gym Access|Mini Bar|Hairdryer|Safe|WiFi,2019
+PROP009_R0012,PROP009,12,Family,4,2,Standard,94,375,Spa|Gym Access|Balcony|Pool Access|Bathrobe|Heating|Mini Bar|Desk|AC|Hairdryer|Parking|Safe,2018
+PROP009_R0013,PROP009,13,Family,1,1,Sea View,60,471,Balcony|Heating|Pool Access|Desk|Safe|Iron,2021
+PROP009_R0014,PROP009,14,Standard,3,1,City View,95,136,Breakfast Included|AC|WiFi|Parking|Spa|Gym Access|Bathrobe|Iron|Heating|Hairdryer,2017
+PROP009_R0015,PROP009,15,Standard,4,2,Standard,46,362,Hairdryer|AC|WiFi|Iron|Gym Access|Balcony|Bathrobe|Desk|Pool Access|TV|Heating|Breakfast Included,2021
+PROP009_R0016,PROP009,16,Standard,1,3,Sea View,31,286,Gym Access|Safe|Pool Access|Heating|Bathrobe|Parking|Iron|Mini Bar,2022
+PROP009_R0017,PROP009,17,Deluxe,2,3,Sea View,64,450,Gym Access|Pool Access|Parking|Iron|Hairdryer|Spa,2016
+PROP009_R0018,PROP009,18,Deluxe,3,4,Sea View,65,113,Spa|Desk|Safe|TV|Mini Bar|Iron|Breakfast Included|Bathrobe|AC,2017
+PROP009_R0019,PROP009,19,Deluxe,3,2,Mountain View,84,356,Bathrobe|Gym Access|Hairdryer|Mini Bar|Pool Access,2020
+PROP009_R0020,PROP009,20,Standard,4,3,Sea View,48,198,Hairdryer|TV|Iron|Safe|Mini Bar|Heating|Parking|Gym Access|Breakfast Included|Spa,2020
+PROP009_R0021,PROP009,21,Suite,2,3,Garden View,78,344,Safe|Parking|Desk|Hairdryer|TV|Spa|Mini Bar|Breakfast Included|Gym Access|Balcony|Heating,2021
+PROP009_R0022,PROP009,22,Deluxe,3,2,Sea View,74,160,Pool Access|Mini Bar|Balcony|Heating|Safe|Hairdryer,2015
+PROP009_R0023,PROP009,23,Penthouse,4,2,Standard,75,338,Iron|Bathrobe|Parking|Desk|AC|Pool Access|Spa|Heating,2019
+PROP009_R0024,PROP009,24,Standard,2,3,Garden View,81,414,Parking|Desk|Pool Access|Bathrobe|Hairdryer|AC|Spa|Mini Bar|Iron,2023
+PROP009_R0025,PROP009,25,Standard,5,1,Sea View,85,122,AC|Bathrobe|Gym Access|Desk|Balcony|Mini Bar|TV|Safe|Breakfast Included|Hairdryer|Pool Access,2020
+PROP009_R0026,PROP009,26,Standard,2,1,City View,80,476,Bathrobe|TV|Gym Access|Iron|Pool Access,2016
+PROP009_R0027,PROP009,27,Deluxe,1,1,Mountain View,22,278,Balcony|Breakfast Included|TV|Desk|Hairdryer|Bathrobe,2024
+PROP009_R0028,PROP009,28,Standard,5,3,Sea View,31,324,Iron|Gym Access|Pool Access|Spa|Safe|Mini Bar|Balcony|Heating,2020
+PROP009_R0029,PROP009,29,Standard,1,3,Mountain View,68,494,Breakfast Included|Parking|Pool Access|AC|Bathrobe|Heating|Gym Access|Iron|Mini Bar|TV|Desk|Balcony,2022
+PROP009_R0030,PROP009,30,Suite,3,1,City View,66,61,Breakfast Included|Spa|Desk|Hairdryer|Iron|Gym Access|AC|Parking|WiFi|Pool Access|Safe|Bathrobe,2015
+PROP010_R0001,PROP010,1,Deluxe,3,4,Mountain View,27,198,Gym Access|Iron|Desk|Breakfast Included|Balcony|Heating,2023
+PROP010_R0002,PROP010,2,Suite,2,1,City View,31,192,Hairdryer|Spa|Breakfast Included|Bathrobe|Pool Access|Safe|Heating|Mini Bar|Desk|TV,2015
+PROP010_R0003,PROP010,3,Deluxe,5,1,Standard,45,96,Iron|Mini Bar|Pool Access|Hairdryer|WiFi|Breakfast Included|Safe|Parking,2016
+PROP010_R0004,PROP010,4,Standard,5,4,City View,42,331,Gym Access|TV|Iron|Breakfast Included|Spa|AC,2019
+PROP010_R0005,PROP010,5,Deluxe,4,2,Standard,26,186,Bathrobe|Mini Bar|Pool Access|Iron|AC|Gym Access|Safe|Spa|Heating|Hairdryer,2019
+PROP010_R0006,PROP010,6,Standard,5,4,Sea View,78,264,Parking|Gym Access|AC|Breakfast Included|TV|Hairdryer,2017
+PROP010_R0007,PROP010,7,Suite,3,3,Garden View,58,451,Bathrobe|Pool Access|Mini Bar|Heating|Hairdryer|Iron|Safe,2017
+PROP010_R0008,PROP010,8,Deluxe,4,3,City View,33,208,Gym Access|Spa|Parking|Heating|Bathrobe|TV|Iron,2024
+PROP010_R0009,PROP010,9,Deluxe,1,4,Garden View,64,147,WiFi|Spa|Heating|Breakfast Included|Pool Access|Balcony|Safe|Iron|Desk|Gym Access,2022
+PROP010_R0010,PROP010,10,Family,4,3,Sea View,74,413,TV|Heating|AC|Mini Bar|WiFi|Breakfast Included|Parking|Desk|Bathrobe|Hairdryer|Spa|Iron,2017
+PROP010_R0011,PROP010,11,Deluxe,4,4,City View,23,398,Breakfast Included|Mini Bar|AC|Parking|Balcony|Gym Access|Desk|WiFi|Spa|Bathrobe|Hairdryer|TV,2016
+PROP010_R0012,PROP010,12,Deluxe,2,1,Sea View,52,65,AC|Spa|Parking|Gym Access|TV|Iron|Desk|Breakfast Included|Balcony,2024
+PROP010_R0013,PROP010,13,Deluxe,3,4,Sea View,74,276,Gym Access|Mini Bar|Heating|Bathrobe|Breakfast Included|Desk|WiFi|TV|Parking|Spa|Pool Access,2017
+PROP010_R0014,PROP010,14,Family,3,2,Mountain View,32,190,Mini Bar|TV|Parking|Balcony|Safe|AC|Heating|Pool Access|WiFi,2019
+PROP010_R0015,PROP010,15,Deluxe,2,4,Mountain View,58,351,Spa|Heating|Desk|Gym Access|Breakfast Included|Safe|Pool Access,2022
+PROP010_R0016,PROP010,16,Deluxe,2,2,City View,81,294,Hairdryer|Pool Access|Spa|AC|Safe|Bathrobe|Iron|Balcony|Parking,2020
+PROP010_R0017,PROP010,17,Deluxe,4,4,Garden View,29,463,Safe|Mini Bar|WiFi|Bathrobe|Desk|AC|Spa|Gym Access|TV|Pool Access|Parking|Breakfast Included,2018
+PROP010_R0018,PROP010,18,Deluxe,4,3,Garden View,24,114,TV|Parking|Gym Access|Iron|Hairdryer|Balcony|Mini Bar|Heating,2024
+PROP010_R0019,PROP010,19,Standard,4,3,Standard,33,425,AC|WiFi|TV|Safe|Spa|Iron|Hairdryer|Heating|Desk|Breakfast Included,2015
+PROP010_R0020,PROP010,20,Standard,4,4,Sea View,81,342,Parking|Iron|Safe|TV|Heating|Bathrobe|AC|Gym Access,2019
+PROP010_R0021,PROP010,21,Standard,1,1,Standard,98,122,Gym Access|WiFi|Pool Access|Safe|Parking|Breakfast Included|Hairdryer|AC|Balcony|Iron,2018
+PROP010_R0022,PROP010,22,Standard,4,1,Garden View,31,236,Parking|Mini Bar|Breakfast Included|Balcony|Safe|Spa,2015
+PROP010_R0023,PROP010,23,Family,1,1,Standard,62,429,Breakfast Included|Hairdryer|Pool Access|Desk|Heating|Spa|AC|TV|Iron|WiFi,2016
+PROP010_R0024,PROP010,24,Deluxe,1,4,Mountain View,81,382,Desk|Iron|Parking|Heating|Pool Access|Bathrobe|Safe|AC|WiFi|Hairdryer,2017
+PROP010_R0025,PROP010,25,Penthouse,4,3,Garden View,23,108,Pool Access|Safe|Desk|Heating|TV|Mini Bar|Spa|Breakfast Included|AC|WiFi,2017
+PROP010_R0026,PROP010,26,Deluxe,1,1,Standard,93,156,Desk|Pool Access|Gym Access|Bathrobe|Heating|Breakfast Included|Parking|AC|Safe|Mini Bar|Iron,2024
+PROP010_R0027,PROP010,27,Standard,5,2,City View,22,425,WiFi|Hairdryer|Iron|Safe|Parking|Breakfast Included|Balcony|Mini Bar|Bathrobe,2021
+PROP010_R0028,PROP010,28,Deluxe,3,1,City View,28,148,Spa|TV|Pool Access|AC|Breakfast Included,2022
+PROP010_R0029,PROP010,29,Deluxe,5,1,Standard,54,227,WiFi|Gym Access|Iron|Heating|Pool Access|Mini Bar,2021
+PROP010_R0030,PROP010,30,Deluxe,3,1,Mountain View,51,276,TV|Bathrobe|AC|WiFi|Mini Bar|Hairdryer|Iron,2019

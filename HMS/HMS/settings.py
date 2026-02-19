@@ -25,7 +25,7 @@ SECRET_KEY = 'on9*bf65je3#4+jphqufropk!s9*i&$*54@_9t8^6+c)iro2&q'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [ '147.52.71.221', 'centaur.med.uoc.gr' ]
 
 
 # Application definition
@@ -40,11 +40,17 @@ INSTALLED_APPS = [
 
     # third part
     'phonenumber_field',
+    'rest_framework',
 
     # own
+    'properties',
+    'payments',
+    'notifications',
     'hotel',
     'accounts',
     'room',
+    'bookings',
+    'contracts',
 ]
 
 MIDDLEWARE = [
@@ -55,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'accounts.permissions.RoleBasedAccessMiddleware',
 ]
 
 ROOT_URLCONF = 'HMS.urls'
@@ -70,6 +77,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'accounts.context_processors.user_context',
             ],
         },
     },
