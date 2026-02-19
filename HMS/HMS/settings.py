@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_filters',
     'drf_spectacular',  # OpenAPI/Swagger documentation
 
     # Our apps
@@ -290,5 +291,37 @@ SPECTACULAR_SETTINGS = {
     'CONTACT': {
         'name': 'NEPHELE Support',
         'email': 'support@nephele.io',
+    },
+}
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'True') == 'True'
+CELERY_TASK_EAGER_PROPAGATES = True
+
+CELERY_BEAT_SCHEDULE = {
+    'analytics-nightly-etl': {
+        'task': 'analytics.tasks.nightly_etl_pipeline',
+        'schedule': timedelta(days=1),
+    },
+    'analytics-process-scheduled-reports': {
+        'task': 'analytics.tasks.process_pending_scheduled_reports',
+        'schedule': timedelta(hours=1),
+    },
+    'analytics-cleanup-old-reports': {
+        'task': 'analytics.tasks.cleanup_old_reports',
+        'schedule': timedelta(days=1),
+    },
+    'task3-weekly-model-training': {
+        'task': 'bookings.tasks.train_task3_models',
+        'schedule': timedelta(days=7),
     },
 }

@@ -10,6 +10,9 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from HMS.api_viewsets import (
+    UserViewSet,
+    GuestViewSet,
+    EmployeeViewSet,
     PropertyViewSet,
     TravelAgencyViewSet,
     RoomViewSet,
@@ -30,6 +33,9 @@ from HMS.api_viewsets import (
 # Create router for ViewSets
 router = DefaultRouter()
 
+router.register(r'users', UserViewSet, basename='users')
+router.register(r'guests', GuestViewSet, basename='guests')
+router.register(r'employees', EmployeeViewSet, basename='employees')
 router.register(r'properties', PropertyViewSet, basename='properties')
 router.register(r'travel-agencies', TravelAgencyViewSet, basename='travel-agencies')
 router.register(r'rooms', RoomViewSet, basename='rooms')
@@ -50,6 +56,9 @@ urlpatterns = [
     # API Documentation
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/swagger/', SpectacularSwaggerView.as_view(url_name='api:schema'), name='swagger_ui'),
+
+    # Bookings supplemental endpoints (dynamic pricing & recommendations)
+    path('bookings/', include('bookings.urls')),
     
     # Routers
     path('', include(router.urls)),

@@ -6,11 +6,12 @@ REST API endpoints for dashboard data and analytics.
 
 from datetime import datetime, timedelta
 from django.db.models import Sum, Avg, Count, Q
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
+from drf_spectacular.utils import extend_schema, inline_serializer
 
 from properties.models import Property
 from room.models import Booking
@@ -54,6 +55,26 @@ def _user_group_names(user):
         return set()
     return set(user.groups.values_list('name', flat=True))
 
+
+def _user_is_analytics_admin(user):
+    group_names = _user_group_names(user)
+    return user.is_staff or bool(group_names.intersection({'manager', 'executive', 'admin'}))
+
+
+def _accessible_property_queryset(user):
+    if _user_is_analytics_admin(user):
+        return Property.objects.all()
+
+    queryset = Property.objects.none()
+
+    if hasattr(user, 'managed_properties'):
+        queryset = queryset | user.managed_properties.all()
+
+    if hasattr(user, 'employee_profile') and user.employee_profile.property_id:
+        queryset = queryset | Property.objects.filter(id=user.employee_profile.property_id)
+
+    return queryset.distinct()
+
 class ExecutiveDashboardViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Executive Dashboard endpoint
@@ -75,8 +96,7 @@ class ExecutiveDashboardViewSet(viewsets.ReadOnlyModelViewSet):
         
         # Return only properties user has access to
         user = self.request.user
-        group_names = _user_group_names(user)
-        if user.is_staff or bool(group_names.intersection({'manager', 'executive', 'admin'})):
+        if _user_is_analytics_admin(user):
             return self.queryset
         
         return self.queryset.none()
@@ -313,7 +333,7 @@ class GuestAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         ).order_by('-analytics_date').first()
         
         if not analytics:
-            return Response(analytics.guest_segments)
+            return Response({'property_id': property_id, 'segments': {}}, status=status.HTTP_200_OK)
         
         return Response({
             'property_id': property_id,
@@ -415,6 +435,16 @@ class AnalyticsDashboardViewSet(viewsets.ViewSet):
     """
     permission_classes = [IsAuthenticated, AnalyticsPermission]
     
+    @extend_schema(
+        responses=inline_serializer(
+            name='AnalyticsDashboardSummaryResponse',
+            fields={
+                'property_id': serializers.CharField(),
+                'dashboard_type': serializers.CharField(),
+                'data': serializers.DictField(child=serializers.JSONField()),
+            },
+        )
+    )
     @action(detail=False, methods=['get'])
     def summary(self, request):
         """Get summary data for all dashboards"""
@@ -511,10 +541,8 @@ class ScheduledReportViewSet(viewsets.ModelViewSet):
         
         # Filter by user permissions
         user = self.request.user
-        group_names = _user_group_names(user)
-        if not (user.is_staff or bool(group_names.intersection({'manager', 'executive', 'admin'}))):
-            # Restrict to properties user has access to
-            queryset = queryset.filter(property__in=user.properties.all())
+        if not _user_is_analytics_admin(user):
+            queryset = queryset.filter(property__in=_accessible_property_queryset(user))
         
         return queryset.order_by('-is_active', 'schedule_time')
     
@@ -648,7 +676,7 @@ class ReportExecutionViewSet(viewsets.ReadOnlyModelViewSet):
         from .tasks import send_report_email
         
         task = send_report_email.delay(
-            report_execution_id=report_execution.id,
+            execution_id=report_execution.id,
             recipients=recipients
         )
         
@@ -688,7 +716,10 @@ class OccupancyForecastViewSet(viewsets.ReadOnlyModelViewSet):
         if property_id:
             queryset = queryset.filter(property_id=property_id)
         
-        return queryset.filter(property__managers=self.request.user).order_by('-target_date')
+        if _user_is_analytics_admin(self.request.user):
+            return queryset.order_by('-target_date')
+
+        return queryset.filter(property__in=_accessible_property_queryset(self.request.user)).order_by('-target_date')
     
     @action(detail=False, methods=['get'])
     def by_property(self, request):
@@ -704,7 +735,12 @@ class OccupancyForecastViewSet(viewsets.ReadOnlyModelViewSet):
         
         forecasts = OccupancyForecast.objects.filter(
             property_id=property_id
-        ).order_by('-target_date')[:50]
+        )
+
+        if not _user_is_analytics_admin(request.user):
+            forecasts = forecasts.filter(property__in=_accessible_property_queryset(request.user))
+
+        forecasts = forecasts.order_by('-target_date')[:50]
         
         serializer = self.get_serializer(forecasts, many=True)
         return Response(serializer.data)
@@ -725,6 +761,9 @@ class OccupancyForecastViewSet(viewsets.ReadOnlyModelViewSet):
         
         if property_id:
             queryset = queryset.filter(property_id=property_id)
+
+        if not _user_is_analytics_admin(request.user):
+            queryset = queryset.filter(property__in=_accessible_property_queryset(request.user))
         
         queryset = queryset.order_by('target_date')
         
@@ -759,7 +798,10 @@ class RevenueForecastViewSet(viewsets.ReadOnlyModelViewSet):
         if property_id:
             queryset = queryset.filter(property_id=property_id)
         
-        return queryset.filter(property__managers=self.request.user).order_by('-target_date')
+        if _user_is_analytics_admin(self.request.user):
+            return queryset.order_by('-target_date')
+
+        return queryset.filter(property__in=_accessible_property_queryset(self.request.user)).order_by('-target_date')
     
     @action(detail=False, methods=['get'])
     def next_30_days(self, request):
@@ -777,6 +819,9 @@ class RevenueForecastViewSet(viewsets.ReadOnlyModelViewSet):
         
         if property_id:
             queryset = queryset.filter(property_id=property_id)
+
+        if not _user_is_analytics_admin(request.user):
+            queryset = queryset.filter(property__in=_accessible_property_queryset(request.user))
         
         queryset = queryset.order_by('target_date')
         
@@ -811,7 +856,10 @@ class CancellationPredictionViewSet(viewsets.ReadOnlyModelViewSet):
         if property_id:
             queryset = queryset.filter(property_id=property_id)
         
-        return queryset.filter(property__managers=self.request.user).order_by('-cancellation_risk_score')
+        if _user_is_analytics_admin(self.request.user):
+            return queryset.order_by('-cancellation_risk_score')
+
+        return queryset.filter(property__in=_accessible_property_queryset(self.request.user)).order_by('-cancellation_risk_score')
     
     @action(detail=False, methods=['get'])
     def high_risk(self, request):
@@ -826,6 +874,9 @@ class CancellationPredictionViewSet(viewsets.ReadOnlyModelViewSet):
         
         if property_id:
             queryset = queryset.filter(property_id=property_id)
+
+        if not _user_is_analytics_admin(request.user):
+            queryset = queryset.filter(property__in=_accessible_property_queryset(request.user))
         
         queryset = queryset.order_by('-cancellation_risk_score')
         
@@ -860,7 +911,10 @@ class NoShowPredictionViewSet(viewsets.ReadOnlyModelViewSet):
         if property_id:
             queryset = queryset.filter(property_id=property_id)
         
-        return queryset.filter(property__managers=self.request.user).order_by('-noshow_risk_score')
+        if _user_is_analytics_admin(self.request.user):
+            return queryset.order_by('-noshow_risk_score')
+
+        return queryset.filter(property__in=_accessible_property_queryset(self.request.user)).order_by('-noshow_risk_score')
     
     @action(detail=False, methods=['get'])
     def high_risk(self, request):
@@ -875,6 +929,9 @@ class NoShowPredictionViewSet(viewsets.ReadOnlyModelViewSet):
         
         if property_id:
             queryset = queryset.filter(property_id=property_id)
+
+        if not _user_is_analytics_admin(request.user):
+            queryset = queryset.filter(property__in=_accessible_property_queryset(request.user))
         
         queryset = queryset.order_by('-noshow_risk_score')
         
@@ -892,9 +949,13 @@ class NoShowPredictionViewSet(viewsets.ReadOnlyModelViewSet):
         
         property_id = request.query_params.get('property_id')
         
-        queryset = NoShowPrediction.objects.filter(
-            property_id=property_id
-        )
+        queryset = NoShowPrediction.objects.all()
+
+        if property_id:
+            queryset = queryset.filter(property_id=property_id)
+
+        if not _user_is_analytics_admin(request.user):
+            queryset = queryset.filter(property__in=_accessible_property_queryset(request.user))
         
         # Group by risk level
         low_risk = queryset.filter(risk_level='low').count()
@@ -943,7 +1004,10 @@ class ForecastingModelMetricsViewSet(viewsets.ReadOnlyModelViewSet):
         if property_id:
             queryset = queryset.filter(property_id=property_id)
         
-        return queryset.filter(property__managers=self.request.user).order_by('-evaluation_date')
+        if _user_is_analytics_admin(self.request.user):
+            return queryset.order_by('-evaluation_date')
+
+        return queryset.filter(property__in=_accessible_property_queryset(self.request.user)).order_by('-evaluation_date')
     
     @action(detail=False, methods=['get'])
     def health_check(self, request):
@@ -952,9 +1016,13 @@ class ForecastingModelMetricsViewSet(viewsets.ReadOnlyModelViewSet):
         
         property_id = request.query_params.get('property_id')
         
-        queryset = ForecastingModelMetrics.objects.filter(
-            property_id=property_id
-        )
+        queryset = ForecastingModelMetrics.objects.all()
+
+        if property_id:
+            queryset = queryset.filter(property_id=property_id)
+
+        if not _user_is_analytics_admin(request.user):
+            queryset = queryset.filter(property__in=_accessible_property_queryset(request.user))
         
         # Get latest metrics for each model
         latest_metrics = {}

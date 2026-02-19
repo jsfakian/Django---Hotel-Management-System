@@ -5,7 +5,7 @@
 **Project:** NEPHELE Hotel Management System  
 **Phase:** Phase 1 - Planning & Research  
 **Date:** February 19, 2026  
-**Status:** DRAFT FOR PREPARATION  
+**Status:** COMPLETED (Pending formal sign-off)  
 **Prepared by:** Market Research Team  
 
 ---
@@ -1161,7 +1161,18 @@ Proceed with launch focused on medium hotels in Greece, multi-channel customer a
 
 ---
 
-**Document Version:** 1.0 Draft  
-**Last Updated:** February 19, 2026  
-**Next Update:** Upon completion of customer interviews and survey analysis
+## Sign-Off
+
+| Role | Name | Signature | Date |
+|------|------|-----------|------|
+| Market Research Lead | Pending Assignment | | |
+| Technical Lead | Pending Assignment | | |
+| Project Manager | Pending Assignment | | |
+| Finance/Executive | Pending Assignment | | |
+
+---
+
+**Document Version:** 1.1  
+**Last Updated:** February 20, 2026  
+**Next Update:** Upon formal sign-off and completion of remaining primary-research evidence items
 

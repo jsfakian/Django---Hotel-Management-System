@@ -9,6 +9,7 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.contrib.auth.models import User
 
 from properties.models import Property, TravelAgency
 from properties.serializers import (
@@ -34,6 +35,50 @@ from contracts.models import Contract
 from contracts.serializers import ContractSerializer, ContractDetailedSerializer
 from notifications.models import Notification
 from notifications.serializers import NotificationSerializer, NotificationDetailedSerializer
+from accounts.models import Guest, Employee
+from accounts.serializers import UserSerializer, GuestSerializer, EmployeeSerializer
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all().order_by('id')
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        return queryset
+
+
+class GuestViewSet(viewsets.ModelViewSet):
+    queryset = Guest.objects.select_related('user').all().order_by('-created_at')
+    serializer_class = GuestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        email = self.request.query_params.get('email')
+        if email:
+            queryset = queryset.filter(email__icontains=email)
+        return queryset
+
+
+class EmployeeViewSet(viewsets.ModelViewSet):
+    queryset = Employee.objects.select_related('user', 'property').all().order_by('-created_at')
+    serializer_class = EmployeeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        status = self.request.query_params.get('status')
+        property_id = self.request.query_params.get('property_id')
+        if status:
+            queryset = queryset.filter(status=status)
+        if property_id:
+            queryset = queryset.filter(property_id=property_id)
+        return queryset
 
 
 class PropertyViewSet(viewsets.ModelViewSet):

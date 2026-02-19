@@ -4,6 +4,7 @@ Analytics Tests
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from properties.models import Property
 from .models import (
     DashboardExecutiveMetrics,
@@ -49,12 +50,11 @@ class DashboardMetricsTestCase(TestCase):
     
     def test_operational_status_creation(self):
         """Test creating operational status"""
-        import datetime
-        
+
         status = DashboardOperationalStatus.objects.create(
             property=self.property,
             status_date='2026-02-19',
-            status_time=datetime.datetime.now(),
+            status_time=timezone.now(),
             occupied_count=42,
             vacant_count=8,
             cleaning_count=0,

@@ -3,9 +3,19 @@ from django.http import HttpResponse, JsonResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from drf_spectacular.utils import extend_schema, OpenApiTypes
 from .models import Contract
 from .serializers import ContractSerializer, ContractSignSerializer
 
+@extend_schema(
+    methods=['GET'],
+    responses=ContractSerializer(many=True),
+)
+@extend_schema(
+    methods=['POST'],
+    request=ContractSerializer,
+    responses=ContractSerializer,
+)
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def contract_list_create(request):
@@ -25,6 +35,19 @@ def contract_list_create(request):
             return JsonResponse(serializer.data, status=status.HTTP_201_CREATED)
         return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@extend_schema(
+    methods=['GET'],
+    responses=ContractSerializer,
+)
+@extend_schema(
+    methods=['PUT'],
+    request=ContractSerializer,
+    responses=ContractSerializer,
+)
+@extend_schema(
+    methods=['DELETE'],
+    responses={204: OpenApiTypes.OBJECT},
+)
 @api_view(["GET", "PUT", "DELETE"])
 @permission_classes([IsAuthenticated])
 def contract_detail(request, contract_id):
@@ -47,6 +70,10 @@ def contract_detail(request, contract_id):
         contract.delete()
         return JsonResponse({"message": "Contract deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+@extend_schema(
+    request=ContractSignSerializer,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def sign_contract(request, contract_id):
@@ -68,6 +95,9 @@ def sign_contract(request, contract_id):
         return JsonResponse({"message": "Contract signed successfully"})
     return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@extend_schema(
+    responses={(200, 'application/pdf'): OpenApiTypes.BINARY},
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def download_contract_pdf(request, contract_id):
