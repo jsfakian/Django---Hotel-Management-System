@@ -6,21 +6,28 @@ import django.utils.timezone
 def rebuild_room_schema(apps, schema_editor):
     connection = schema_editor.connection
     cursor = connection.cursor()
+    is_sqlite = connection.vendor == 'sqlite'
 
-    if connection.vendor == 'sqlite':
+    if is_sqlite:
         cursor.execute('PRAGMA foreign_keys = OFF;')
 
-    cursor.execute('DROP TABLE IF EXISTS room_roomservice;')
-    cursor.execute('DROP TABLE IF EXISTS room_roomservices;')
-    cursor.execute('DROP TABLE IF EXISTS room_refund;')
-    cursor.execute('DROP TABLE IF EXISTS room_dependees;')
-    cursor.execute('DROP TABLE IF EXISTS room_booking;')
-    cursor.execute('DROP TABLE IF EXISTS room_room;')
+    drop_suffix = '' if is_sqlite else ' CASCADE'
+
+    cursor.execute(f'DROP TABLE IF EXISTS room_roomservice{drop_suffix};')
+    cursor.execute(f'DROP TABLE IF EXISTS room_roomservices{drop_suffix};')
+    cursor.execute(f'DROP TABLE IF EXISTS room_refund{drop_suffix};')
+    cursor.execute(f'DROP TABLE IF EXISTS room_dependees{drop_suffix};')
+    cursor.execute(f'DROP TABLE IF EXISTS room_booking{drop_suffix};')
+    cursor.execute(f'DROP TABLE IF EXISTS room_room{drop_suffix};')
+
+    pk_sql = 'INTEGER PRIMARY KEY AUTOINCREMENT' if is_sqlite else 'BIGSERIAL PRIMARY KEY'
+    datetime_sql = 'DATETIME' if is_sqlite else 'TIMESTAMP'
+    json_default_sql = "TEXT NOT NULL DEFAULT '[]'" if is_sqlite else "JSONB NOT NULL DEFAULT '[]'::jsonb"
 
     cursor.execute(
-        '''
+        f'''
         CREATE TABLE room_room (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {pk_sql},
             room_number VARCHAR(50) NOT NULL UNIQUE,
             floor INTEGER NOT NULL,
             room_type VARCHAR(50) NOT NULL,
@@ -31,18 +38,18 @@ def rebuild_room_schema(apps, schema_editor):
             status VARCHAR(20) NOT NULL DEFAULT 'available',
             status_start_date DATE NULL,
             status_end_date DATE NULL,
-            amenities TEXT NOT NULL DEFAULT '[]',
+            amenities {json_default_sql},
             property_id BIGINT NULL REFERENCES properties_property(id) ON DELETE CASCADE,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL
+            created_at {datetime_sql} NOT NULL,
+            updated_at {datetime_sql} NOT NULL
         );
         '''
     )
 
     cursor.execute(
-        '''
+        f'''
         CREATE TABLE room_booking (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {pk_sql},
             check_in_date DATE NOT NULL,
             check_out_date DATE NOT NULL,
             date_of_reservation DATE NOT NULL,
@@ -55,33 +62,33 @@ def rebuild_room_schema(apps, schema_editor):
             room_id INTEGER NOT NULL REFERENCES room_room(id) ON DELETE CASCADE,
             guest_id BIGINT NULL REFERENCES accounts_guest(id) ON DELETE CASCADE,
             travel_agency_id BIGINT NULL REFERENCES properties_travelagency(id) ON DELETE SET NULL,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL
+            created_at {datetime_sql} NOT NULL,
+            updated_at {datetime_sql} NOT NULL
         );
         '''
     )
 
     cursor.execute(
-        '''
+        f'''
         CREATE TABLE room_dependees (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {pk_sql},
             name VARCHAR(100) NOT NULL,
             relationship VARCHAR(50) NOT NULL DEFAULT '',
-            created_at DATETIME NOT NULL,
+            created_at {datetime_sql} NOT NULL,
             booking_id INTEGER NOT NULL REFERENCES room_booking(id) ON DELETE CASCADE
         );
         '''
     )
 
     cursor.execute(
-        '''
+        f'''
         CREATE TABLE room_refund (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {pk_sql},
             reason TEXT NOT NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'pending',
             refund_amount DECIMAL(10,2) NULL,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL,
+            created_at {datetime_sql} NOT NULL,
+            updated_at {datetime_sql} NOT NULL,
             guest_id BIGINT NOT NULL REFERENCES accounts_guest(id) ON DELETE CASCADE,
             booking_id INTEGER NOT NULL REFERENCES room_booking(id) ON DELETE CASCADE
         );
@@ -89,16 +96,16 @@ def rebuild_room_schema(apps, schema_editor):
     )
 
     cursor.execute(
-        '''
+        f'''
         CREATE TABLE room_roomservice (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id {pk_sql},
             service_type VARCHAR(50) NOT NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'pending',
             description TEXT NOT NULL DEFAULT '',
             price DECIMAL(10,2) NOT NULL DEFAULT 0,
             created_date DATE NOT NULL,
-            created_at DATETIME NOT NULL,
-            completed_at DATETIME NULL,
+            created_at {datetime_sql} NOT NULL,
+            completed_at {datetime_sql} NULL,
             booking_id INTEGER NULL REFERENCES room_booking(id) ON DELETE CASCADE,
             room_id INTEGER NOT NULL REFERENCES room_room(id) ON DELETE CASCADE
         );
@@ -113,7 +120,7 @@ def rebuild_room_schema(apps, schema_editor):
     cursor.execute('CREATE INDEX room_roomservice_room_status_idx ON room_roomservice(room_id, status);')
     cursor.execute('CREATE INDEX room_roomservice_created_idx ON room_roomservice(created_at);')
 
-    if connection.vendor == 'sqlite':
+    if is_sqlite:
         cursor.execute('PRAGMA foreign_keys = ON;')
 
 

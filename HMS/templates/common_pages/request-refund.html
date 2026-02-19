@@ -1,0 +1,18 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <h3 class="mb-3">Request Refund</h3>
+    <div class="card">
+        <div class="card-body">
+            <p class="text-muted">Payment {{ payment.reference_code }} • {{ payment.amount }} {{ payment.currency }}</p>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button class="btn btn-danger" type="submit">Submit Refund Request</button>
+                <a class="btn btn-outline-secondary" href="{% url 'payment-history' %}">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

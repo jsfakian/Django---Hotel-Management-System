@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="96" viewBox="0 0 320 96" fill="none">
+  <defs>
+    <linearGradient id="g1" x1="8" y1="8" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="8" width="84" height="84" rx="18" fill="#0F172A"/>
+  <rect x="12" y="16" width="68" height="68" rx="14" fill="url(#g1)"/>
+  <path d="M26 64V36h10l7 13 7-13h10v28h-8V49l-9 15-9-15v15h-8Z" fill="#fff"/>
+  <path d="M27 29l19-11 19 11" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <text x="104" y="50" fill="#0F172A" font-family="Arial, sans-serif" font-size="28" font-weight="700">NEPHELE</text>
+  <text x="104" y="74" fill="#334155" font-family="Arial, sans-serif" font-size="16" font-weight="600">Hotel Management System</text>
+</svg>

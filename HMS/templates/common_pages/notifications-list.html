@@ -1,0 +1,55 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Notifications</h3>
+        <div>
+            <a class="btn btn-outline-dark btn-sm" href="{% url 'notification-preferences' %}">Preferences</a>
+            <form method="post" action="{% url 'mark-all-as-read' %}" class="d-inline">
+                {% csrf_token %}
+                <button class="btn btn-dark btn-sm" type="submit">Mark all as read</button>
+            </form>
+        </div>
+    </div>
+
+    <p class="text-muted">Unread: {{ unread_count }}</p>
+
+    <form method="get" class="card card-body mb-3">
+        <div class="form-row align-items-end">
+            <div class="col-md-4">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="">All</option>
+                    <option value="unread" {% if status_filter == 'unread' %}selected{% endif %}>Unread</option>
+                    <option value="read" {% if status_filter == 'read' %}selected{% endif %}>Read</option>
+                    <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option>
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-outline-dark btn-block" type="submit">Apply</button></div>
+        </div>
+    </form>
+
+    {% for n in notifications %}
+    <div class="card mb-2">
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h6 class="mb-1">{{ n.title }}</h6>
+                    <p class="mb-1 text-muted">{{ n.message }}</p>
+                    <small>{{ n.created_at }} • {{ n.get_status_display }}</small>
+                </div>
+                <div>
+                    {% if n.status == 'unread' %}
+                    <form method="post" action="{% url 'mark-as-read' n.id %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" type="submit">Read</button></form>
+                    {% endif %}
+                    <form method="post" action="{% url 'delete-notification' n.id %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="card"><div class="card-body text-muted">No notifications found.</div></div>
+    {% endfor %}
+</div>
+{% endblock %}

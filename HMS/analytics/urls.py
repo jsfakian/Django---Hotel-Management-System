@@ -42,5 +42,40 @@ router.register(r'noshow-predictions', NoShowPredictionViewSet, basename='noshow
 router.register(r'forecast-metrics', ForecastingModelMetricsViewSet, basename='forecast-metrics')
 
 urlpatterns = [
+    path(
+        'occupancy-forecasts/next-30-days/',
+        OccupancyForecastViewSet.as_view({'get': 'next_30_days'}),
+        name='occupancy-forecasts-next-30-days',
+    ),
+    path(
+        'revenue-forecasts/next-30-days/',
+        RevenueForecastViewSet.as_view({'get': 'next_30_days'}),
+        name='revenue-forecasts-next-30-days',
+    ),
+    path(
+        'cancellation-predictions/high-risk/',
+        CancellationPredictionViewSet.as_view({'get': 'high_risk'}),
+        name='cancellation-predictions-high-risk',
+    ),
+    path(
+        'noshow-predictions/overbooking-recommendations/',
+        NoShowPredictionViewSet.as_view({'get': 'overbooking_recommendations'}),
+        name='noshow-overbooking-recommendations',
+    ),
+    path(
+        'forecast-metrics/health-check/',
+        ForecastingModelMetricsViewSet.as_view({'get': 'health_check'}),
+        name='forecast-metrics-health-check',
+    ),
+    path(
+        'reports/<int:pk>/resend/',
+        ReportExecutionViewSet.as_view({'post': 'resend'}),
+        name='report-execution-resend-alias',
+    ),
+    path(
+        'delivery-tracking/<int:pk>/',
+        ReportExecutionViewSet.as_view({'get': 'delivery_status'}),
+        name='delivery-tracking-alias',
+    ),
     path('', include(router.urls)),
 ]

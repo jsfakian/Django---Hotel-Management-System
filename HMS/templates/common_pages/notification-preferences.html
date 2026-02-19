@@ -1,0 +1,56 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <h3 class="mb-3">Notification Preferences</h3>
+    <form method="post" class="card">
+        {% csrf_token %}
+        <div class="card-body">
+            <h5>Channels</h5>
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="receive_in_app" {% if preferences.receive_in_app %}checked{% endif %}><label class="form-check-label">In-app</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="receive_email" {% if preferences.receive_email %}checked{% endif %}><label class="form-check-label">Email</label></div>
+            <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="receive_sms" {% if preferences.receive_sms %}checked{% endif %}><label class="form-check-label">SMS</label></div>
+
+            <div class="form-row mb-3">
+                <div class="col-md-6">
+                    <label>Email frequency</label>
+                    <select class="form-control" name="email_frequency">
+                        <option value="immediate" {% if preferences.email_frequency == 'immediate' %}selected{% endif %}>Immediate</option>
+                        <option value="daily" {% if preferences.email_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                        <option value="weekly" {% if preferences.email_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                        <option value="never" {% if preferences.email_frequency == 'never' %}selected{% endif %}>Never</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label>SMS frequency</label>
+                    <select class="form-control" name="sms_frequency">
+                        <option value="immediate" {% if preferences.sms_frequency == 'immediate' %}selected{% endif %}>Immediate</option>
+                        <option value="daily" {% if preferences.sms_frequency == 'daily' %}selected{% endif %}>Daily</option>
+                        <option value="weekly" {% if preferences.sms_frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                        <option value="never" {% if preferences.sms_frequency == 'never' %}selected{% endif %}>Never</option>
+                    </select>
+                </div>
+            </div>
+
+            <h5>Types</h5>
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="booking_notifications" {% if preferences.booking_notifications %}checked{% endif %}><label class="form-check-label">Booking notifications</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="payment_notifications" {% if preferences.payment_notifications %}checked{% endif %}><label class="form-check-label">Payment notifications</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="service_notifications" {% if preferences.service_notifications %}checked{% endif %}><label class="form-check-label">Service notifications</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="event_notifications" {% if preferences.event_notifications %}checked{% endif %}><label class="form-check-label">Event notifications</label></div>
+            <div class="form-check"><input class="form-check-input" type="checkbox" name="system_notifications" {% if preferences.system_notifications %}checked{% endif %}><label class="form-check-label">System notifications</label></div>
+            <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="promotional_notifications" {% if preferences.promotional_notifications %}checked{% endif %}><label class="form-check-label">Promotional notifications</label></div>
+
+            <h5>Quiet hours</h5>
+            <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="quiet_hours_enabled" {% if preferences.quiet_hours_enabled %}checked{% endif %}><label class="form-check-label">Enable quiet hours</label></div>
+            <div class="form-row">
+                <div class="col-md-6"><label>Start</label><input class="form-control" type="time" name="quiet_hours_start" value="{{ preferences.quiet_hours_start|time:'H:i' }}"></div>
+                <div class="col-md-6"><label>End</label><input class="form-control" type="time" name="quiet_hours_end" value="{{ preferences.quiet_hours_end|time:'H:i' }}"></div>
+            </div>
+        </div>
+        <div class="card-footer bg-white">
+            <button class="btn btn-dark" type="submit">Save Preferences</button>
+            <a class="btn btn-outline-secondary" href="{% url 'notification-list' %}">Back</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

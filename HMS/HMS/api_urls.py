@@ -9,7 +9,11 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from HMS.auth_api import RegisterAPIView, LogoutAPIView, ForgotPasswordAPIView
 from HMS.api_viewsets import (
+    UserViewSet,
+    GuestViewSet,
+    EmployeeViewSet,
     PropertyViewSet,
     TravelAgencyViewSet,
     RoomViewSet,
@@ -20,16 +24,15 @@ from HMS.api_viewsets import (
     RefundRequestViewSet,
     NotificationViewSet,
 )
-
-# Import API views when they're created
-# from accounts.api.views import *
-# from bookings.api.views import *
-# from properties.api.views import *
-# from payments.api.views import *
+from channels.views import ChannelViewSet
+from inventory.views import RoomAvailabilityViewSet
 
 # Create router for ViewSets
 router = DefaultRouter()
 
+router.register(r'users', UserViewSet, basename='users')
+router.register(r'guests', GuestViewSet, basename='guests')
+router.register(r'employees', EmployeeViewSet, basename='employees')
 router.register(r'properties', PropertyViewSet, basename='properties')
 router.register(r'travel-agencies', TravelAgencyViewSet, basename='travel-agencies')
 router.register(r'rooms', RoomViewSet, basename='rooms')
@@ -39,17 +42,31 @@ router.register(r'payments', PaymentViewSet, basename='payments')
 router.register(r'invoices', InvoiceViewSet, basename='invoices')
 router.register(r'refund-requests', RefundRequestViewSet, basename='refund-requests')
 router.register(r'notifications', NotificationViewSet, basename='notifications')
+# Channel integration (OTA platforms)
+router.register(r'channels', ChannelViewSet, basename='channels')
 
 app_name = 'api'
 
 urlpatterns = [
     # Authentication endpoints (JWT)
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/logout/', LogoutAPIView.as_view(), name='auth_logout'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/register/', RegisterAPIView.as_view(), name='auth_register'),
+    path('auth/forgot-password/', ForgotPasswordAPIView.as_view(), name='auth_forgot_password'),
     
     # API Documentation
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/swagger/', SpectacularSwaggerView.as_view(url_name='api:schema'), name='swagger_ui'),
+
+    # Bookings supplemental endpoints (dynamic pricing & recommendations)
+    path('bookings/', include('bookings.urls')),
+    
+    # Channel integration (OTA platforms)
+    path('channels/', include('channels.urls')),
+    
+    # Inventory management (centralized availability)
+    path('inventory/', include('inventory.urls')),
     
     # Routers
     path('', include(router.urls)),

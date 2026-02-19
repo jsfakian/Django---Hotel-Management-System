@@ -121,3 +121,53 @@ class InvoiceFilterForm(forms.Form):
             'type': 'date'
         })
     )
+
+
+class InvoiceForm(forms.ModelForm):
+    """Form for creating and editing invoices"""
+    
+    transmit_to_mydata = forms.BooleanField(
+        required=False,
+        initial=False,
+        label='Transmit to MyData (AADE)',
+        help_text='If checked, the invoice will be automatically transmitted to the Greek tax authority after creation',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+        })
+    )
+    
+    class Meta:
+        model = Invoice
+        fields = ['guest', 'payment', 'booking', 'amount', 'tax_amount', 'total_amount', 'status', 'description', 'due_date', 'notes']
+        widgets = {
+            'guest': forms.Select(attrs={'class': 'form-control'}),
+            'payment': forms.Select(attrs={'class': 'form-control'}),
+            'booking': forms.Select(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01'
+            }),
+            'tax_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01'
+            }),
+            'total_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01'
+            }),
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Invoice description (e.g., Room accommodation, Services, etc.)'
+            }),
+            'due_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'Additional notes (optional)'
+            }),
+        }

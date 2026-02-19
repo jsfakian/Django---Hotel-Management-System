@@ -1,1 +1,4 @@
 real-data/
+__pycache__/
+.env
+*.log

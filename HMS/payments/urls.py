@@ -19,4 +19,10 @@ urlpatterns = [
     path('refund/<int:payment_id>/', views.request_refund, name='request-refund'),
     path('refund-history/', views.refund_history, name='refund-history'),
     path('refund/<int:refund_id>/manage/', views.manage_refund, name='manage-refund'),
+    
+    # MyData (AADE) Integration - Greek tax authority system
+    path('invoices/<int:invoice_id>/mydata/transmit/', views.transmit_invoice_to_mydata, name='invoice-mydata-transmit'),
+    path('invoices/<int:invoice_id>/mydata/status/', views.mydata_transmission_status, name='invoice-mydata-status'),
+    path('invoices/<int:invoice_id>/mydata/export/', views.invoice_mydata_export, name='invoice-mydata-export'),
+    path('invoices/mydata/bulk-transmit/', views.bulk_transmit_invoices_to_mydata, name='invoices-mydata-bulk-transmit'),
 ]

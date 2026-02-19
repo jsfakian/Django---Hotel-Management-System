@@ -88,6 +88,88 @@ class PricingHistory(models.Model):
         blank=True
     )
     
+    # Individual model predictions (Phase 1 - Pricing Module Redesign)
+    ensemble_prediction = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Ensemble model price prediction"
+    )
+    gradient_boosting_prediction = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Gradient Boosting model price prediction"
+    )
+    neural_network_prediction = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Neural Network model price prediction"
+    )
+    linear_regression_prediction = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Linear Regression model price prediction"
+    )
+    
+    # Pricing factors breakdown (Phase 1 - Pricing Module Redesign)
+    occupancy_impact_percentage = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Percentage impact from occupancy"
+    )
+    seasonal_impact_percentage = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Percentage impact from seasonality"
+    )
+    demand_impact_percentage = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Percentage impact from demand"
+    )
+    competitor_impact_percentage = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Percentage impact from competitor pricing"
+    )
+    
+    # Decision tracking (Phase 1 - Pricing Module Redesign)
+    price_override_reason = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Reason for manual price override"
+    )
+    override_by_user = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='price_overrides',
+        help_text="User who overrode AI recommendation"
+    )
+    ai_recommended_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="AI recommended price at time of creation"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

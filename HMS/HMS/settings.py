@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'on9*bf65je3#4+jphqufropk!s9*i&$*54@_9t8^6+c)iro2&q')
+SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_filters',
     'drf_spectacular',  # OpenAPI/Swagger documentation
 
     # Our apps
@@ -53,6 +54,8 @@ INSTALLED_APPS = [
     'bookings',
     'contracts',
     'analytics',  # Business Intelligence & Analytics
+    'channels',  # Channel Integration (OTA platforms)
+    'inventory',  # Centralized Availability Management
 ]
 
 MIDDLEWARE = [
@@ -91,22 +94,22 @@ WSGI_APPLICATION = 'HMS.wsgi.application'
 # Per Task 4: Recommended to use PostgreSQL in production
 # Falls back to SQLite for development
 
+DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.postgresql')
+
 DATABASES = {
     'default': {
-        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3'),
-        'NAME': os.environ.get('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
-        'USER': os.environ.get('DB_USER', ''),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', ''),
-        'PORT': os.environ.get('DB_PORT', ''),
-        'TEST': {
-            'NAME': ':memory:',
-            # Disable foreign key constraints for SQLite during testing
-            # to handle pre-existing constraint issues in bookings app
-        },
-        **({'CONN_MAX_AGE': 600, 'ATOMIC_REQUESTS': True} 
-           if 'postgresql' in os.environ.get('DB_ENGINE', '')
-           else {})
+        'ENGINE': DB_ENGINE,
+        'NAME': os.environ.get('DB_NAME', 'hms'),
+        'USER': os.environ.get('DB_USER', 'hms'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'hms_password'),
+        'HOST': os.environ.get('DB_HOST', 'postgres'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        **({'CONN_MAX_AGE': 600, 'ATOMIC_REQUESTS': True}
+           if 'postgresql' in DB_ENGINE
+           else {}),
+        **({'TEST': {'NAME': ':memory:'}}
+           if 'sqlite3' in DB_ENGINE
+           else {}),
     }
 }
 
@@ -275,6 +278,7 @@ CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
 SECURE_BROWSER_XSS_FILTER = True
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
 SECURE_CONTENT_SECURITY_POLICY = {
     'default-src': ("'self'",),
     'script-src': ("'self'", "'unsafe-inline'"),
@@ -292,3 +296,73 @@ SPECTACULAR_SETTINGS = {
         'email': 'support@nephele.io',
     },
 }
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'True') == 'True'
+CELERY_TASK_EAGER_PROPAGATES = True
+
+CELERY_BEAT_SCHEDULE = {
+    'analytics-nightly-etl': {
+        'task': 'analytics.tasks.nightly_etl_pipeline',
+        'schedule': timedelta(days=1),
+    },
+    'analytics-process-scheduled-reports': {
+        'task': 'analytics.tasks.process_pending_scheduled_reports',
+        'schedule': timedelta(hours=1),
+    },
+    'analytics-cleanup-old-reports': {
+        'task': 'analytics.tasks.cleanup_old_reports',
+        'schedule': timedelta(days=1),
+    },
+    'task3-weekly-model-training': {
+        'task': 'bookings.tasks.train_task3_models',
+        'schedule': timedelta(days=7),
+    },
+    
+    # ============ PHASE 3: Automated Pricing Tasks ============
+    'auto-price-all-rooms': {
+        'task': 'bookings.tasks.auto_price_all_rooms',
+        'schedule': timedelta(hours=24),  # Daily at same time
+        'options': {'queue': 'pricing', 'priority': 10}
+    },
+    'generate-pricing-report-weekly': {
+        'task': 'bookings.tasks.generate_pricing_report',
+        'schedule': timedelta(days=7),  # Weekly
+        'kwargs': {'period_days': 7},
+        'options': {'queue': 'reports', 'priority': 5}
+    },
+    'cleanup-old-predictions': {
+        'task': 'bookings.tasks.cleanup_old_predictions',
+        'schedule': timedelta(hours=24),  # Daily
+        'kwargs': {'days': 90},
+        'options': {'queue': 'cleanup', 'priority': 1}
+    },
+}
+
+# ============ MyData (AADE) Integration ============
+# Greek tax authority electronic invoicing system
+# See: https://www.aade.gr/mydata
+
+MYDATA_API_BASE = os.environ.get('MYDATA_API_BASE', 'https://www1.mydata.aade.gr/api')
+MYDATA_USERNAME = os.environ.get('MYDATA_USERNAME', '')  # AADE username
+MYDATA_PASSWORD = os.environ.get('MYDATA_PASSWORD', '')  # AADE password
+MYDATA_API_KEY = os.environ.get('MYDATA_API_KEY', '')    # AADE API key
+MYDATA_TIMEOUT = int(os.environ.get('MYDATA_TIMEOUT', '30'))  # API timeout in seconds
+
+# Hotel's tax ID (AFM - Α.Φ.Μ.) for MyData transmission
+# Format: 9-digit Greek tax identification number
+HOTEL_TAX_ID = os.environ.get('HOTEL_TAX_ID', '')
+
+# MyData transmission settings
+MYDATA_AUTO_TRANSMISSION = os.environ.get('MYDATA_AUTO_TRANSMISSION', 'False') == 'True'
+MYDATA_SANDBOX_MODE = os.environ.get('MYDATA_SANDBOX_MODE', 'True') == 'True'  # Use sandbox for testing
+MYDATA_TRANSMISSION_RETRIES = int(os.environ.get('MYDATA_TRANSMISSION_RETRIES', '3'))

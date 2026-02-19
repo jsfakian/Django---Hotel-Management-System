@@ -226,3 +226,52 @@ class Task(models.Model):
     def __str__(self):
         return f"{self.title} - {self.employee}"
 
+
+class TravelAgentProfile(models.Model):
+    """
+    Travel agent profile for managing travel agency representatives.
+    Links a User to their associated TravelAgency.
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='travel_agent_profile'
+    )
+    
+    travel_agency = models.ForeignKey(
+        'properties.TravelAgency',
+        on_delete=models.CASCADE,
+        related_name='agents'
+    )
+    
+    position = models.CharField(max_length=100, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
+    
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['travel_agency', 'user__first_name']
+        unique_together = [('user', 'travel_agency')]
+        indexes = [
+            models.Index(fields=['travel_agency', 'is_active']),
+            models.Index(fields=['user']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.first_name} {self.user.last_name} - {self.travel_agency.name}"
+    
+    def get_accessible_properties(self):
+        """Get properties this agent can book for (via active contracts)"""
+        from contracts.models import Contract
+        from datetime import date
+        
+        today = date.today()
+        contracts = Contract.objects.filter(
+            travel_agency=self.travel_agency,
+            status='active',
+            start_date__lte=today,
+            end_date__gte=today
+        )
+        return contracts.values_list('property_id', flat=True)

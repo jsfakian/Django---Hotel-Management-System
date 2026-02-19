@@ -33,7 +33,7 @@ def notification_list(request):
         'status_filter': status,
     }
     
-    return render(request, f'{role}/notifications-list.html', context)
+    return render(request, 'common_pages/notifications-list.html', context)
 
 
 @login_required(login_url='login')
@@ -132,7 +132,7 @@ def notification_preferences(request):
         'preferences': preferences,
     }
     
-    return render(request, f'{role}/notification-preferences.html', context)
+    return render(request, 'common_pages/notification-preferences.html', context)
 
 
 @login_required(login_url='login')

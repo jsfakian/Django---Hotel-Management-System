@@ -141,6 +141,22 @@ class Booking(models.Model):
         related_name='bookings'
     )
     
+    # Booking Source
+    BOOKING_SOURCE_CHOICES = (
+        ('direct_website', 'Direct Website'),
+        ('booking_com', 'Booking.com'),
+        ('trivago', 'Trivago'),
+        ('phone', 'Phone Call'),
+        ('travel_agency', 'Travel Agency'),
+        ('other', 'Other'),
+    )
+    booking_source = models.CharField(
+        max_length=20,
+        choices=BOOKING_SOURCE_CHOICES,
+        default='direct_website',
+        help_text="Source of the booking (used only if no travel agency selected)"
+    )
+    
     # Notes
     notes = models.TextField(blank=True)
     special_requests = models.TextField(blank=True)

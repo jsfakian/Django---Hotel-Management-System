@@ -36,10 +36,10 @@ class PaymentAdmin(admin.ModelAdmin):
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ['invoice_number', 'guest', 'amount', 'status', 'due_date', 'issued_date']
-    list_filter = ['status', 'issued_date', 'due_date']
+    list_display = ['invoice_number', 'guest', 'amount', 'status', 'due_date', 'issued_date', 'mydata_transmitted']
+    list_filter = ['status', 'issued_date', 'due_date', 'mydata_transmitted']
     search_fields = ['invoice_number', 'guest__user__username']
-    readonly_fields = ['invoice_number', 'created_at', 'updated_at']
+    readonly_fields = ['invoice_number', 'created_at', 'updated_at', 'mydata_transmission_date', 'mydata_qr_code']
     fieldsets = (
         ('Invoice Information', {
             'fields': ('invoice_number', 'status')
@@ -56,10 +56,42 @@ class InvoiceAdmin(admin.ModelAdmin):
         ('Description', {
             'fields': ('description', 'notes')
         }),
+        ('MyData (AADE) Integration', {
+            'fields': ('mydata_transmitted', 'mydata_transmission_id', 'mydata_transmission_date', 'mydata_qr_code', 'mydata_cancel_mark', 'mydata_cancel_date'),
+            'classes': ('collapse',),  # Collapsible section
+        }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at')
         }),
     )
+    actions = ['transmit_to_mydata']
+    
+    def transmit_to_mydata(self, request, queryset):
+        """Admin action to transmit invoices to MyData"""
+        from .mydata_service import get_mydata_service
+        
+        mydata_service = get_mydata_service()
+        transmitted_count = 0
+        failed_count = 0
+        
+        for invoice in queryset:
+            if invoice.mydata_transmitted:
+                continue
+            
+            is_valid, errors = mydata_service.validate_invoice_for_transmission(invoice)
+            if not is_valid:
+                failed_count += 1
+                continue
+            
+            success, _ = mydata_service.transmit_invoice(invoice)
+            if success:
+                transmitted_count += 1
+            else:
+                failed_count += 1
+        
+        self.message_user(request, f'Transmitted {transmitted_count} invoices to MyData. {failed_count} failed.')
+    
+    transmit_to_mydata.short_description = 'Transmit selected invoices to MyData'
 
 
 @admin.register(RefundRequest)

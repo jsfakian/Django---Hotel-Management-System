@@ -1,0 +1,872 @@
+openapi: 3.0.3
+info:
+  title: NEPHELE Task 4 Design API
+  version: "1.0.0-task4"
+  description: |
+    Extracted from DELIVERABLES-Task4-SystemArchitecture.md (Task 4).
+    This specification mirrors the documented design endpoints and payload shapes.
+servers:
+  - url: https://api.nephele.io
+    description: Production
+  - url: https://staging-api.nephele.io
+    description: Staging
+  - url: http://localhost:8000
+    description: Development
+security:
+  - bearerAuth: []
+tags:
+  - name: Authentication
+  - name: Bookings
+  - name: Rooms
+  - name: Guests
+  - name: Payments
+  - name: Reports
+  - name: Analytics
+  - name: Scheduled Reports
+  - name: Forecasting
+paths:
+  /auth/login:
+    post:
+      tags: [Authentication]
+      operationId: authLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: authLogout
+      responses:
+        '200': { description: Logout successful }
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      operationId: authRefresh
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: Access token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      operationId: authRegister
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id: { type: integer }
+                  email: { type: string, format: email }
+                  role: { type: string }
+
+  /auth/forgot-password:
+    post:
+      tags: [Authentication]
+      operationId: authForgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200':
+          description: Password reset triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Password reset email sent }
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      operationId: listBookings
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: check_in_from
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Booking list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResult'
+    post:
+      tags: [Bookings]
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingWrite'
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{booking_id}:
+    get:
+      tags: [Bookings]
+      operationId: getBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+    put:
+      tags: [Bookings]
+      operationId: updateBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingUpdate' }
+      responses:
+        '200': { description: Booking updated }
+    delete:
+      tags: [Bookings]
+      operationId: cancelBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Booking cancelled }
+
+  /bookings/{booking_id}/timeline:
+    get:
+      tags: [Bookings]
+      operationId: bookingTimeline
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Booking events timeline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp: { type: string, format: date-time }
+                        event_type: { type: string }
+                        description: { type: string }
+
+  /rooms:
+    get:
+      tags: [Rooms]
+      operationId: listRooms
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: room_type
+          schema: { type: string }
+      responses:
+        '200':
+          description: Room list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedResult' }
+
+  /rooms/{room_id}/availability:
+    get:
+      tags: [Rooms]
+      operationId: roomAvailability
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - in: query
+          name: check_in
+          schema: { type: string, format: date }
+        - in: query
+          name: check_out
+          schema: { type: string, format: date }
+        - in: query
+          name: occupancy
+          schema: { type: integer }
+      responses:
+        '200': { description: Availability and pricing insight }
+
+  /rooms/{room_id}/pricing-history:
+    get:
+      tags: [Rooms]
+      operationId: roomPricingHistory
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+        - in: query
+          name: days
+          schema: { type: integer, default: 30 }
+      responses:
+        '200': { description: Historical pricing }
+
+  /rooms/{room_id}/pricing:
+    put:
+      tags: [Rooms]
+      operationId: updateRoomPricing
+      parameters:
+        - $ref: '#/components/parameters/RoomId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                base_price: { type: number, format: float }
+                seasonal_multipliers:
+                  type: object
+                  additionalProperties: { type: number, format: float }
+      responses:
+        '200': { description: Pricing updated }
+
+  /guests:
+    get:
+      tags: [Guests]
+      operationId: listGuests
+      parameters:
+        - in: query
+          name: email
+          schema: { type: string, format: email }
+      responses:
+        '200': { description: Guest list }
+    post:
+      tags: [Guests]
+      operationId: createGuest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, first_name, last_name]
+              properties:
+                email: { type: string, format: email }
+                first_name: { type: string }
+                last_name: { type: string }
+                phone: { type: string }
+                address: { type: string }
+      responses:
+        '201': { description: Guest created }
+
+  /guests/{guest_id}:
+    get:
+      tags: [Guests]
+      operationId: getGuest
+      parameters:
+        - $ref: '#/components/parameters/GuestId'
+      responses:
+        '200': { description: Guest detail }
+
+  /guests/{guest_id}/preferences:
+    put:
+      tags: [Guests]
+      operationId: updateGuestPreferences
+      parameters:
+        - $ref: '#/components/parameters/GuestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200': { description: Preferences updated }
+
+  /invoices:
+    get:
+      tags: [Payments]
+      operationId: listInvoices
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: date_from
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Invoice list }
+
+  /invoices/{invoice_id}/pay:
+    post:
+      tags: [Payments]
+      operationId: payInvoice
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_method: { type: string }
+                amount: { type: number, format: float }
+      responses:
+        '200': { description: Payment processed }
+
+  /invoices/{invoice_id}/payment-status:
+    get:
+      tags: [Payments]
+      operationId: invoicePaymentStatus
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200': { description: Current payment status }
+
+  /reports/occupancy:
+    get:
+      tags: [Reports]
+      operationId: occupancyReport
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: date_from
+          schema: { type: string, format: date }
+        - in: query
+          name: date_to
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Occupancy report }
+
+  /reports/revenue:
+    get:
+      tags: [Reports]
+      operationId: revenueReport
+      parameters:
+        - in: query
+          name: date_from
+          schema: { type: string, format: date }
+        - in: query
+          name: aggregation
+          schema: { type: string, enum: [daily, weekly, monthly] }
+      responses:
+        '200': { description: Revenue report }
+
+  /reports/performance:
+    get:
+      tags: [Reports]
+      operationId: performanceReport
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: metrics
+          schema: { type: string, example: occupancy,revenue,adr }
+      responses:
+        '200': { description: Performance metrics and trends }
+
+  /analytics/executive-dashboard:
+    get:
+      tags: [Analytics]
+      operationId: analyticsExecutiveDashboard
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: period
+          schema: { type: string, enum: [day, week, month, quarter, year] }
+      responses:
+        '200': { description: Executive metrics, trends, forecasts, comparisons }
+
+  /analytics/operational-dashboard:
+    get:
+      tags: [Analytics]
+      operationId: analyticsOperationalDashboard
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: date
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Operational room/tasks/guest snapshot }
+
+  /analytics/revenue-analytics:
+    get:
+      tags: [Analytics]
+      operationId: analyticsRevenue
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: from_date
+          schema: { type: string, format: date }
+        - in: query
+          name: to_date
+          schema: { type: string, format: date }
+        - in: query
+          name: granularity
+          schema: { type: string, enum: [day, week, month] }
+      responses:
+        '200': { description: Revenue, pricing, occupancy, forecasts }
+
+  /analytics/guest-analytics:
+    get:
+      tags: [Analytics]
+      operationId: analyticsGuest
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: from_date
+          schema: { type: string, format: date }
+        - in: query
+          name: to_date
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Segments, churn, satisfaction, personalization impact }
+
+  /analytics/reports:
+    get:
+      tags: [Analytics]
+      operationId: analyticsReports
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: type
+          schema: { type: string, enum: [monthly, custom] }
+        - in: query
+          name: report_id
+          schema: { type: integer }
+      responses:
+        '200': { description: Report generation status and URL }
+
+  /analytics/custom-reports/{report_id}:
+    get:
+      tags: [Analytics]
+      operationId: analyticsCustomReport
+      parameters:
+        - in: path
+          name: report_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Report definition and data }
+
+  /analytics/aggregate-metrics:
+    post:
+      tags: [Analytics]
+      operationId: aggregateAnalyticsMetrics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [property_id, metric_type, from_date, to_date, grouping]
+              properties:
+                property_id: { type: integer }
+                metric_type: { type: string }
+                from_date: { type: string, format: date }
+                to_date: { type: string, format: date }
+                grouping: { type: string }
+      responses:
+        '200': { description: Aggregated data and summary statistics }
+
+  /analytics/comparison:
+    get:
+      tags: [Analytics]
+      operationId: analyticsComparison
+      parameters:
+        - in: query
+          name: property_ids
+          schema: { type: string, example: 1,2,3 }
+        - in: query
+          name: metric
+          schema: { type: string, example: revenue }
+        - in: query
+          name: period
+          schema: { type: string, enum: [day, week, month, quarter, year] }
+      responses:
+        '200': { description: Multi-property comparison trends }
+
+  /analytics/forecast:
+    get:
+      tags: [Analytics]
+      operationId: analyticsForecast
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: metric
+          schema: { type: string, enum: [occupancy, revenue] }
+        - in: query
+          name: days_ahead
+          schema: { type: integer, default: 30 }
+      responses:
+        '200': { description: Forecast values with confidence interval }
+
+  /analytics/export:
+    get:
+      tags: [Analytics]
+      operationId: analyticsExport
+      parameters:
+        - in: query
+          name: report_type
+          schema: { type: string, enum: [excel, csv, pdf] }
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: from_date
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: File download stream }
+
+  /api/v1/analytics/scheduled-reports/:
+    post:
+      tags: [Scheduled Reports]
+      operationId: createScheduledReport
+      responses:
+        '201': { description: Scheduled report created }
+    get:
+      tags: [Scheduled Reports]
+      operationId: listScheduledReports
+      responses:
+        '200': { description: Scheduled reports list }
+
+  /api/v1/analytics/scheduled-reports/{id}/:
+    get:
+      tags: [Scheduled Reports]
+      operationId: getScheduledReport
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: Scheduled report details }
+    put:
+      tags: [Scheduled Reports]
+      operationId: updateScheduledReport
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: Scheduled report updated }
+    delete:
+      tags: [Scheduled Reports]
+      operationId: deleteScheduledReport
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204': { description: Scheduled report deactivated }
+
+  /api/v1/analytics/scheduled-reports/{id}/trigger/:
+    post:
+      tags: [Scheduled Reports]
+      operationId: triggerScheduledReport
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: Trigger accepted, returns report_execution_id }
+
+  /api/v1/analytics/scheduled-reports/{id}/test/:
+    post:
+      tags: [Scheduled Reports]
+      operationId: testScheduledReport
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: Test report dispatched }
+
+  /api/v1/analytics/scheduled-reports/{id}/executions/:
+    get:
+      tags: [Scheduled Reports]
+      operationId: listScheduledExecutions
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { description: Execution history list }
+
+  /api/v1/analytics/scheduled-reports/{id}/executions/{exec_id}/:
+    get:
+      tags: [Scheduled Reports]
+      operationId: getScheduledExecution
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - in: path
+          name: exec_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Single execution details }
+
+  /api/v1/analytics/reports/{exec_id}/download/:
+    get:
+      tags: [Scheduled Reports]
+      operationId: downloadExecutionReport
+      parameters:
+        - in: path
+          name: exec_id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: format
+          schema: { type: string, enum: [pdf, excel, csv] }
+      responses:
+        '200': { description: Signed URL or file stream }
+
+  /api/v1/analytics/reports/{exec_id}/resend/:
+    post:
+      tags: [Scheduled Reports]
+      operationId: resendExecutionReport
+      parameters:
+        - in: path
+          name: exec_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Report resend triggered }
+
+  /api/v1/analytics/delivery-tracking/{exec_id}/:
+    get:
+      tags: [Scheduled Reports]
+      operationId: deliveryTracking
+      parameters:
+        - in: path
+          name: exec_id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Per-recipient delivery and engagement metrics }
+
+  /api/analytics/occupancy-forecasts/:
+    get:
+      tags: [Forecasting]
+      operationId: listOccupancyForecasts
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+        - in: query
+          name: forecast_date
+          schema: { type: string, format: date }
+        - in: query
+          name: target_date
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: Occupancy forecasts list (paginated) }
+
+  /api/analytics/occupancy-forecasts/next-30-days/:
+    get:
+      tags: [Forecasting]
+      operationId: occupancyForecastNext30
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+      responses:
+        '200': { description: 30-day occupancy forecast }
+
+  /api/analytics/revenue-forecasts/next-30-days/:
+    get:
+      tags: [Forecasting]
+      operationId: revenueForecastNext30
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+      responses:
+        '200': { description: 30-day revenue forecast with bounds }
+
+  /api/analytics/cancellation-predictions/high-risk/:
+    get:
+      tags: [Forecasting]
+      operationId: highRiskCancellations
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+      responses:
+        '200': { description: High-risk cancellation predictions (>65%) }
+
+  /api/analytics/noshow-predictions/overbooking-recommendations/:
+    get:
+      tags: [Forecasting]
+      operationId: overbookingRecommendations
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+      responses:
+        '200': { description: Overbooking recommendation output }
+
+  /api/analytics/forecast-metrics/health-check/:
+    get:
+      tags: [Forecasting]
+      operationId: forecastHealthCheck
+      parameters:
+        - in: query
+          name: property_id
+          schema: { type: integer }
+      responses:
+        '200': { description: Model health and quality metrics }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+    BookingId:
+      in: path
+      name: booking_id
+      required: true
+      schema: { type: integer }
+    RoomId:
+      in: path
+      name: room_id
+      required: true
+      schema: { type: integer }
+    GuestId:
+      in: path
+      name: guest_id
+      required: true
+      schema: { type: integer }
+    InvoiceId:
+      in: path
+      name: invoice_id
+      required: true
+      schema: { type: integer }
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    LoginResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer }
+    RefreshResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        expires_in: { type: integer }
+    RegisterRequest:
+      type: object
+      required: [email, password, first_name, last_name, role]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        first_name: { type: string }
+        last_name: { type: string }
+        role: { type: string }
+    BookingWrite:
+      type: object
+      properties:
+        room_id: { type: integer }
+        guest_id: { type: integer }
+        check_in: { type: string, format: date }
+        check_out: { type: string, format: date }
+      additionalProperties: true
+    BookingUpdate:
+      type: object
+      properties:
+        status: { type: string }
+        notes: { type: string }
+      additionalProperties: true
+    Booking:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string }
+        confirmation_number: { type: string }
+      additionalProperties: true
+    PaginatedResult:
+      type: object
+      properties:
+        count: { type: integer }
+        next: { type: string, nullable: true }
+        previous: { type: string, nullable: true }
+        results:
+          type: array
+          items:
+            type: object
+            additionalProperties: true

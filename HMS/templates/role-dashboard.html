@@ -1,0 +1,33 @@
+{% extends 'index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <div class="app-surface p-4 mb-3 hero-dashboard">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2 class="mb-1 text-capitalize">{{ role }} dashboard</h2>
+                <p class="mb-0 text-muted">Operations-first navigation inspired by modern property management products.</p>
+            </div>
+            <div class="d-flex gap-sm mt-2 mt-md-0">
+                <a class="btn btn-light mr-2" href="/portal/business-intelligence/">Business Intelligence</a>
+                <a class="btn btn-outline-light" href="/portal/forecast/">Forecast</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-grid">
+        {% for item in menu_items %}
+        <a class="menu-card endpoint-card" href="{{ item.href }}">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <h5 class="mb-0">{{ item.label }}</h5>
+                {% if item.count != '' %}
+                <span class="badge badge-pill badge-light">{{ item.count }}</span>
+                {% endif %}
+            </div>
+            <p class="mb-2 text-muted small">{{ item.desc }}</p>
+            <small class="text-primary">{{ item.href }}</small>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

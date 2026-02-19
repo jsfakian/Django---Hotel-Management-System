@@ -1,0 +1,361 @@
+{% extends 'index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-3 mb-3">
+            <div class="app-surface p-3 sticky-top module-sidebar" style="top: 90px;">
+                <h6 class="text-uppercase text-muted mb-3">Operations</h6>
+                <div class="list-group list-group-flush">
+                    {% for item in portal_order %}
+                    <a href="/portal/{{ item.key }}/" class="list-group-item list-group-item-action {% if item.key == module_key %}active{% endif %}">
+                        {{ item.title }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="app-surface p-4 mb-3 hero-dashboard">
+                <h2 class="mb-1">{{ module.title }}</h2>
+                <p class="mb-3">{{ module.description }}</p>
+                <a class="btn btn-light mr-2" href="{{ module.workspace_url }}">Open {{ module.title }} Workspace</a>
+                {% if 'create' in available_actions %}
+                <a class="btn btn-outline-light js-slide-panel" data-panel-title="Add {{ module.title }}" href="/portal/{{ module_key }}/create/">Add {{ module.title }}</a>
+                {% endif %}
+            </div>
+
+            {% if kpis %}
+            <div class="row">
+                {% for kpi in kpis %}
+                <div class="col-md-4 mb-3">
+                    <div class="app-surface p-3 kpi-tile h-100">
+                        <div class="text-uppercase text-muted small">{{ kpi.label }}</div>
+                        <div class="kpi-value">{{ kpi.value }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if trends %}
+            <div class="app-surface p-4 mb-3">
+                <h5 class="mb-3">7-Day Trends</h5>
+                <div class="row">
+                    {% for trend in trends %}
+                    <div class="col-md-4 mb-3">
+                        <div class="trend-card p-3 h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="small text-muted">{{ trend.label }}</div>
+                                <div class="small trend-delta" data-series="{{ trend.series|join:',' }}">--</div>
+                            </div>
+                            <svg class="sparkline" data-series="{{ trend.series|join:',' }}" viewBox="0 0 120 36" preserveAspectRatio="none"></svg>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="app-surface p-4">
+                <h5 class="mb-3">Available {{ module.title }} Items</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 module-items-table">
+                        <thead class="thead-light">
+                            <tr class="row-viewable" data-view-url="/portal/{{ module_key }}/view/{{ row.pk }}/" data-panel-title="View {{ module.title }}">
+                                {% for col in list_columns %}
+                                <th>{{ col }}</th>
+                                {% endfor %}
+                                <th class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in module_items %}
+                            <tr>
+                                {% for val in row.values %}
+                                <td>{{ val }}</td>
+                                {% endfor %}
+                                <td class="text-right">
+                                    <a class="icon-action icon-view js-slide-panel" data-panel-title="View {{ module.title }}" href="/portal/{{ module_key }}/view/{{ row.pk }}/" title="View item">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a class="icon-action icon-edit ml-2 js-slide-panel" data-panel-title="Edit {{ module.title }}" href="/portal/{{ module_key }}/update/{{ row.pk }}/" title="Edit item">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <a class="icon-action icon-delete ml-2 js-slide-panel" data-panel-title="Delete {{ module.title }}" href="/portal/{{ module_key }}/delete/{{ row.pk }}/" title="Delete item">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="{{ list_columns|length|add:1 }}" class="text-center text-muted py-4">No items found for this module.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-panel-backdrop" id="slide-panel-backdrop"></div>
+<aside class="slide-panel" id="slide-panel" aria-hidden="true">
+    <div class="slide-panel-header">
+        <h6 class="mb-0" id="slide-panel-title">Details</h6>
+        <button type="button" class="slide-panel-close" id="slide-panel-close" aria-label="Close panel">&times;</button>
+    </div>
+    <div class="slide-panel-body" id="slide-panel-body">
+        <div class="text-center text-muted py-5">
+            <div class="spinner-border" role="status" style="width: 2rem; height: 2rem; margin-bottom: 1rem;">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <p>Loading...</p>
+        </div>
+    </div>
+</aside>
+
+<script>
+    (function () {
+        function trendDirection(values) {
+            if (!values.length) return 'flat';
+            var first = values[0];
+            var last = values[values.length - 1];
+            if (last > first) return 'up';
+            if (last < first) return 'down';
+            return 'flat';
+        }
+
+        function percentDelta(values) {
+            if (!values.length) return '0.0%';
+            var first = values[0];
+            var last = values[values.length - 1];
+            if (first === 0 && last === 0) return '0.0%';
+            if (first === 0) return '+100.0%';
+            var delta = ((last - first) / Math.abs(first)) * 100;
+            var sign = delta > 0 ? '+' : '';
+            return sign + delta.toFixed(1) + '%';
+        }
+
+        function pointsFromSeries(values, width, height) {
+            var min = Math.min.apply(null, values);
+            var max = Math.max.apply(null, values);
+            var range = (max - min) || 1;
+            return values.map(function (v, i) {
+                var x = (i / Math.max(values.length - 1, 1)) * width;
+                var y = height - ((v - min) / range) * height;
+                return {
+                    x: x,
+                    y: y,
+                    v: v,
+                    i: i + 1,
+                    p: x.toFixed(2) + ',' + y.toFixed(2)
+                };
+            });
+        }
+
+        document.querySelectorAll('.sparkline').forEach(function (svg) {
+            var raw = svg.getAttribute('data-series') || '';
+            var values = raw.split(',').map(function (x) { return parseFloat(x.trim()) || 0; });
+            var w = 120, h = 36;
+            var direction = trendDirection(values);
+            var points = pointsFromSeries(values, w, h);
+
+            svg.classList.add('sparkline-' + direction);
+
+            var polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+            polyline.setAttribute('fill', 'none');
+            polyline.setAttribute('stroke', 'currentColor');
+            polyline.setAttribute('stroke-width', '2.5');
+            polyline.setAttribute('points', points.map(function (pt) { return pt.p; }).join(' '));
+            svg.appendChild(polyline);
+
+            points.forEach(function (pt) {
+                var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', pt.x.toFixed(2));
+                circle.setAttribute('cy', pt.y.toFixed(2));
+                circle.setAttribute('r', '2.6');
+                circle.setAttribute('class', 'spark-point');
+
+                var title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                title.textContent = 'Day ' + pt.i + ': ' + pt.v.toFixed(2);
+                circle.appendChild(title);
+
+                svg.appendChild(circle);
+            });
+        });
+
+        document.querySelectorAll('.trend-delta').forEach(function (el) {
+            var raw = el.getAttribute('data-series') || '';
+            var values = raw.split(',').map(function (x) { return parseFloat(x.trim()) || 0; });
+            var direction = trendDirection(values);
+            el.textContent = percentDelta(values);
+            el.classList.add('trend-' + direction);
+        });
+    })();
+
+    (function () {
+        var body = document.body;
+        var backdrop = document.getElementById('slide-panel-backdrop');
+        var panel = document.getElementById('slide-panel');
+        var closeButton = document.getElementById('slide-panel-close');
+        var panelBody = document.getElementById('slide-panel-body');
+        var title = document.getElementById('slide-panel-title');
+
+        if (!panel || !panelBody || !backdrop) {
+            return;
+        }
+
+        function withPanelQuery(url) {
+            var hasQuery = url.indexOf('?') >= 0;
+            return url + (hasQuery ? '&' : '?') + 'panel=1';
+        }
+
+        function handleFormSubmission(form) {
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var formData = new FormData(form);
+                var action = form.getAttribute('action');
+                
+                if (!action) {
+                    console.error('Form has no action attribute');
+                    return;
+                }
+
+                console.log('Submitting form to:', action);
+
+                // Get CSRF token from form
+                var csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                fetch(action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                })
+                .then(function (response) {
+                    console.log('Form submission response:', response.status, response.statusText);
+                    
+                    if (response.status === 204) {
+                        console.log('Form submission successful, reloading page...');
+                        closePanel();
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 300);
+                    } else if (response.status === 200) {
+                        console.log('Form has validation errors, redisplaying...');
+                        return response.text().then(function (html) {
+                            panelBody.innerHTML = html;
+                            attachFormHandlers();
+                        });
+                    } else {
+                        throw new Error('Unexpected response status: ' + response.status);
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Form submission error:', error);
+                    var message = document.createElement('div');
+                    message.className = 'alert alert-danger m-3';
+                    message.textContent = 'Error submitting form: ' + error.message;
+                    panelBody.insertBefore(message, panelBody.firstChild);
+                });
+            });
+        }
+
+        function attachFormHandlers() {
+            var forms = panelBody.querySelectorAll('form');
+            forms.forEach(function (form) {
+                handleFormSubmission(form);
+            });
+
+            // Attach close panel handler to cancel buttons
+            var cancelButtons = panelBody.querySelectorAll('a[href*="/read/"]');
+            cancelButtons.forEach(function (btn) {
+                btn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    closePanel();
+                });
+            });
+        }
+
+        function openPanel(url, panelTitle) {
+            title.textContent = panelTitle || 'Loading...';
+            panel.classList.add('is-open');
+            backdrop.classList.add('is-open');
+            panel.setAttribute('aria-hidden', 'false');
+            body.classList.add('panel-open');
+
+            // Show loading state
+            panelBody.innerHTML = '<div class="text-center text-muted py-5"><div class="spinner-border" role="status" style="width: 2rem; height: 2rem; margin-bottom: 1rem;"><span class="sr-only">Loading...</span></div><p>Loading...</p></div>';
+
+            // Fetch content
+            fetch(withPanelQuery(url), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(function (response) {
+                if (!response.ok) throw new Error('Failed to load content');
+                return response.text();
+            })
+            .then(function (html) {
+                panelBody.innerHTML = html;
+                title.textContent = panelTitle || 'Details';
+                attachFormHandlers();
+            })
+            .catch(function (error) {
+                console.error('Panel load error:', error);
+                panelBody.innerHTML = '<div class="alert alert-danger m-3">Failed to load content. Please try again.</div>';
+            });
+        }
+
+        function closePanel() {
+            panel.classList.remove('is-open');
+            backdrop.classList.remove('is-open');
+            panel.setAttribute('aria-hidden', 'true');
+            body.classList.remove('panel-open');
+            window.setTimeout(function () {
+                panelBody.innerHTML = '';
+            }, 180);
+        }
+
+        document.querySelectorAll('.js-slide-panel').forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                openPanel(link.getAttribute('href'), link.getAttribute('data-panel-title'));
+            });
+        });
+
+        document.querySelectorAll('.row-viewable[data-view-url]').forEach(function (row) {
+            row.setAttribute('tabindex', '0');
+
+            row.addEventListener('click', function (event) {
+                if (event.target.closest('a, button, input, select, textarea, label')) {
+                    return;
+                }
+                openPanel(row.getAttribute('data-view-url'), row.getAttribute('data-panel-title'));
+            });
+
+            row.addEventListener('keydown', function (event) {
+                if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('a, button, input, select, textarea, label')) {
+                    event.preventDefault();
+                    openPanel(row.getAttribute('data-view-url'), row.getAttribute('data-panel-title'));
+                }
+            });
+        });
+
+        closeButton.addEventListener('click', closePanel);
+        backdrop.addEventListener('click', closePanel);
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && panel.classList.contains('is-open')) {
+                closePanel();
+            }
+        });
+    })();
+</script>
+{% endblock %}
