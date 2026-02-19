@@ -21,13 +21,13 @@ class CreateUserForm(UserCreationForm):
 class CreateEmployeeForm(ModelForm):
     class Meta:
         model = Employee
-        fields = ['phoneNumber', 'salary']
+        fields = ['phone_number', 'salary']
 
 
 class editEmployee(ModelForm):
     class Meta:
         model = Employee
-        fields = ["phoneNumber", "salary"]
+        fields = ["phone_number", "salary"]
 
 
 class editUser(ModelForm):
@@ -39,7 +39,7 @@ class editUser(ModelForm):
 class editGuest(ModelForm):
     class Meta:
         model = Guest
-        fields = ["phoneNumber"]
+        fields = ["phone_number"]
 
 
 class ROLES(forms.Form):

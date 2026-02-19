@@ -5,7 +5,7 @@ from django.core.validators import MinValueValidator, RegexValidator
 from datetime import datetime, timedelta
 
 from accounts.models import Guest
-from room.models import Booking, Room, RoomServices
+from room.models import Booking, Room, RoomService
 
 
 class PaymentMethod(models.Model):

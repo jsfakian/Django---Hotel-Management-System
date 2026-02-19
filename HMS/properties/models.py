@@ -1,3 +1,11 @@
+"""
+Property, TravelAgency, and related models
+
+Per deliverables:
+- DELIVERABLES-Task4-SystemArchitecture.md
+- tasks/phase-2-development/task-5a-backend-core.md
+"""
+
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -6,48 +14,126 @@ from django.contrib.auth.models import User
 class Property(models.Model):
     """
     Represents a hotel property/location.
-    Each hotel can have multiple properties.
+    Per Task 4: Property/Hotel entity
     """
+    STAR_RATING_CHOICES = [(i, f"{i} Star") for i in range(1, 6)]
+    
+    # Basic info
     name = models.CharField(max_length=255, unique=True)
+    
+    # Location
     location = models.CharField(max_length=255)
     address = models.TextField()
     city = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=100)
     
+    # Contact
     phone_number = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
     website = models.URLField(blank=True, null=True)
     
+    # Details
     total_rooms = models.IntegerField(default=0)
-    star_rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)], default=3)
+    star_rating = models.IntegerField(choices=STAR_RATING_CHOICES, default=3)
     
+    # Management
     manager = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="managed_properties",
-        limit_choices_to={'groups__name': 'manager'}
+        help_text="Hotel manager responsible for this property"
     )
     
+    # Status
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
     
     class Meta:
         ordering = ['name']
         verbose_name_plural = "Properties"
+        indexes = [
+            models.Index(fields=['city', 'country']),
+            models.Index(fields=['is_active']),
+        ]
     
     def __str__(self):
         return self.name
     
     def available_rooms(self):
-        """Count available (not booked) rooms for today"""
-        from room.models import Room, Booking
+        """Count available rooms for today"""
+        from room.models import Booking
         from datetime import date
         
         today = date.today()
-        total_rooms = Room.objects.filter(property=self).count()
+        occupied_rooms = Booking.objects.filter(
+            room__property=self,
+            check_in_date__lte=today,
+            check_out_date__gt=today,
+            status__in=['confirmed', 'checked_in']
+        ).values_list('room_id', flat=True).distinct()
+        
+        total = self.rooms.count()
+        available = total - len(set(occupied_rooms))
+        return max(0, available)
+
+
+class TravelAgency(models.Model):
+    """
+    Travel agency model for managing third-party bookings.
+    Per Task 4: Travel Agency entity
+    """
+    STATUS_CHOICES = (
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('suspended', 'Suspended'),
+    )
+    
+    # Basic info
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    
+    # Contact
+    contact_name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20)
+    website = models.URLField(blank=True, null=True)
+    
+    # Location
+    address = models.TextField()
+    city = models.CharField(max_length=100)
+    country = models.CharField(max_length=100)
+    
+    # Commission
+    commission_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=10.00,
+        help_text="Commission percentage for bookings"
+    )
+    
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['email']),
+        ]
+    
+    def __str__(self):
+        return self.name
+
         booked_rooms = Booking.objects.filter(
             roomNumber__property=self,
             startDate__lte=today,

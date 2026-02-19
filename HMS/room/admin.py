@@ -5,5 +5,5 @@ from .models import *
 admin.site.register(Room)
 admin.site.register(Booking)
 admin.site.register(Dependees)
-admin.site.register(RoomServices)
+admin.site.register(RoomService)
 admin.site.register(Refund)

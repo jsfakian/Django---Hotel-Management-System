@@ -1,0 +1,6 @@
+Model,MAE,RMSE,R²,MAPE
+Linear Regression,$74.24,$119.86,0.2969,52.07%
+Gradient Boosting,$65.66,$109.86,0.4093,42.96%
+Seasonal Pricing,$104.94,$134.75,0.1113,106.33%
+Neural Network,$72.62,$117.54,0.3238,50.72%
+Ensemble,$75.17,$115.17,0.3509,59.44%

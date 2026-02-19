@@ -15,6 +15,12 @@ from django.http import HttpResponseForbidden
 ROLE_PERMISSIONS = {
     'admin': [
         'view_analytics',
+        'view_operational_dashboard',
+        'view_revenue_analytics',
+        'view_guest_analytics',
+        'view_reports',
+        'export_analytics',
+        'generate_analytics',
         'manage_users',
         'manage_properties',
         'manage_bookings',
@@ -26,6 +32,12 @@ ROLE_PERMISSIONS = {
         'configure_system',
     ],
     'manager': [
+        'view_analytics',
+        'view_operational_dashboard',
+        'view_revenue_analytics',
+        'view_guest_analytics',
+        'view_reports',
+        'export_analytics',
         'view_property_analytics',
         'manage_bookings',
         'manage_room_services',
@@ -35,6 +47,7 @@ ROLE_PERMISSIONS = {
         'view_contracts',
     ],
     'receptionist': [
+        'view_operational_dashboard',
         'view_bookings',
         'create_bookings',
         'modify_bookings',
@@ -45,6 +58,7 @@ ROLE_PERMISSIONS = {
     ],
     'staff': [
         'view_assigned_tasks',
+        'view_operational_dashboard',
         'manage_room_services',
         'update_room_status',
         'view_guest_info',
