@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('accounts', '0001_initial'),
-        ('room', '0002_room_property'),
+        ('room', '0003_schema_alignment'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
