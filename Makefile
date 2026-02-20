@@ -1,7 +1,40 @@
 VENV_PYTHON := .venv/bin/python
 COMPOSE := docker compose
 
-.PHONY: build up down restart logs ps shell migrate bootstrap create-admin check test-venv test-docker setup smoke clean
+.PHONY: help build up down restart logs ps shell migrate bootstrap create-admin check test-venv test-docker setup smoke clean
+
+help:
+	@echo "HMS (Hotel Management System) - Available Commands"
+	@echo "=================================================="
+	@echo ""
+	@echo "Setup & Deployment:"
+	@echo "  make setup           Start containers and run migrations + bootstrap"
+	@echo "  make build           Build Docker images"
+	@echo "  make up              Start containers in detached mode"
+	@echo "  make down            Stop and remove containers"
+	@echo "  make restart         Restart containers (down then up)"
+	@echo "  make clean           Remove all containers and volumes"
+	@echo ""
+	@echo "Development:"
+	@echo "  make shell           Open bash shell in django container"
+	@echo "  make logs            View container logs (last 200 lines, follow)"
+	@echo "  make ps              Show running containers"
+	@echo ""
+	@echo "Database & Initialization:"
+	@echo "  make migrate         Run Django migrations"
+	@echo "  make bootstrap       Bootstrap metadata tables"
+	@echo "  make create-admin    Create superuser admin account"
+	@echo ""
+	@echo "Testing & Quality:"
+	@echo "  make check           Run Django system checks"
+	@echo "  make test-docker     Run tests in Docker container"
+	@echo "  make test-venv       Run tests with local virtualenv"
+	@echo "  make smoke           Basic smoke test on /api/v1/schema/"
+	@echo ""
+	@echo "Usage:"
+	@echo "  make help            Display this help message"
+	@echo "  make <target>        Run the specified target"
+	@echo ""
 
 build:
 	$(COMPOSE) build

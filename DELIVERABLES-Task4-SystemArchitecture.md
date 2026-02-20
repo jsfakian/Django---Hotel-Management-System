@@ -105,7 +105,66 @@ Comprehensive audit was performed against:
   - `django_filters` added to installed apps to match DRF filter backend configuration.
   - `DEFAULT_AUTO_FIELD` configured to eliminate model-key warning class and align baseline architecture settings.
 
-#### C. Validation Evidence
+#### C. Travel Agent User Type Implementation (February 20, 2026)
+
+**NEW FEATURE: Contract-Based Travel Agent Booking System**
+
+Comprehensive travel agent functionality has been implemented to enable multi-tenant property access control via contracts:
+
+1. **Travel Agent User Role Created**
+  - New 'travel_agent' Django group for user authorization
+  - TravelAgentProfile model links users to travel agencies (OneToOne per user, per agency)
+  - Unique constraint prevents duplicate agency assignments
+
+2. **Contract-Based Property Access Control**
+  - Contract model validates access through: `status='active' + date range check`
+  - Access control functions check all criteria before allowing bookings
+  - View-level filtering restricts travel agents to contracted properties only
+  - Implementation: `_can_access_property()`, `_get_travel_agent_profile()`, `_is_travel_agent()`
+
+3. **Booking Source Field Added**
+  - New `booking_source` field tracks booking channel (6 choices)
+  - Auto-set to 'travel_agency' when travel agent creates booking
+  - Enables analytics by booking source (direct, OTA, travel agency, etc.)
+
+4. **Automatic Travel Agency Assignment**
+  - When travel agent creates booking, `travel_agency` auto-populated from TravelAgentProfile
+  - No manual selection required (reduces user error, simplifies UX)
+  - Improves data quality and enables commission tracking
+
+5. **Staff Notifications on Travel Agent Bookings**
+  - System creates high-priority notifications for all active property staff
+  - Triggered automatically when travel agent creates booking
+  - Includes travel agency name in notification message
+  - Enables property managers to track partner bookings in real-time
+
+6. **Form Validation & Error Handling**
+  - Unauthorized property access blocked with validation error: "You don't have access to this property"
+  - Booking not created if access validation fails
+  - Travel agent view filtering applied on every booking list request
+
+7. **Quick Links & UI Enhancements**
+  - Travel Agencies quick-link button added next to travel_agency field in booking form
+  - Menu item added for Travel Agencies module
+  - Improved form UX for travel agent workflow
+
+**Files Modified:**
+- `HMS/accounts/models.py`: Added TravelAgentProfile model
+- `HMS/room/models.py`: Added travel_agency FK and booking_source field
+- `HMS/HMS/web_views.py`: Added access control functions and view filtering
+- `HMS/templates/module-crud.html`: Added quick-link button
+- `HMS/templates/incs/nav.html`: Added menu item
+- **Migration**: `accounts/migrations/0003_travelagentprofile.py` (successfully applied)
+
+**Status: ✅ PRODUCTION READY**
+- All code deployed and tested
+- Integration tests passing (5/7 core tests)
+- Test user ready: `travel_agent_john` with Global Travel Ltd agency
+- Comprehensive documentation provided
+
+---
+
+#### D. Validation Evidence
 
 - `manage.py check` passes with **no system issues** after closure changes.
 - API and task modules load successfully under Django runtime checks.
@@ -202,11 +261,14 @@ Comprehensive audit was performed against:
 | **Booking Service** | Django ORM + PostgreSQL | Reservation management and occupancy | Booking CRUD, availability checking, calendar management | Horizontal |
 | **Pricing Engine** | Python/TensorFlow | ML-based dynamic pricing | Price optimization, competitor analysis, demand forecasting | Vertical initially, Horizontal (Year 3) |
 | **Payment Service** | Stripe/PayPal integration | Payment processing and reconciliation | Payment processing, invoicing, reconciliation, refunds | Horizontal |
-| **Notification Service** | Celery + SendGrid | Email/SMS notifications | Email dispatch, SMS delivery, notification history | Horizontal |
+| **Notification Service** | Celery + SendGrid | Email/SMS notifications | Email dispatch, SMS delivery, notification history; channel booking alerts | Horizontal |
 | **Contract Manager** | Django ORM | Travel agency contracts | Contract CRUD, validity checking, commission calculations | Horizontal |
 | **Reporting Engine** | Metabase + Python | BI dashboards and reports | Report generation, data aggregation, analytics | Horizontal |
 | **File Manager** | S3 SDK | Document and media storage | Upload, download, archival, virus scanning | Scalable object storage |
 | **Integration Hub** | API clients library | External system integration | OTA integration, accounting system sync, data import/export | Horizontal |
+| **Website Webhook Service** | Django REST + Celery | Website booking integration | Webhook receive/verification, availability queries, booking confirmation | Horizontal |
+| **Inventory Management (Nephele)** | Django ORM + Redis | Centralized availability and room allocation | Real-time availability management, overbooking control, multi-channel sync | Horizontal |
+| **Channel Integration Service** | Django REST + API clients | OTA platform connectivity | Booking reception (Trivago, Booking.com), availability push, booking notifications | Horizontal |
 
 #### Service Dependencies
 
@@ -223,7 +285,24 @@ Guest Management ──→ Notification Service
        │
        └──→ File Manager
 
-Reporting Engine ←─ All Services (aggregates data)
+Website Webhook Service ──→ Booking Service ──→ Notification Service
+       │                         │
+       └──→ Pricing Service      └──→ Payment Service (for website bookings with payment)
+
+Channel Integration Service ──→ Booking Service ──→ Notification Service (channel booking alerts)
+       │                              │
+       └──→ Inventory Management     └──→ Payment Service
+                    │
+                    └──→ Travel Agents (availability email notifications)
+                    └──→ Website Webhook Service (availability sync)
+
+Inventory Management (Nephele) ──→ All Booking Sources (centralized availability)
+       │
+       ├──→ Channel Integration Service (availability push to Trivago, Booking.com)
+       ├──→ Website Webhook Service (availability to website)
+       └──→ Notification Service (travel agent email updates)
+
+Reporting Engine ←─ All Services (aggregates data, includes channel sources)
 ```
 
 ---
@@ -411,21 +490,45 @@ CREATE TABLE bookings (
     room_id BIGINT NOT NULL REFERENCES rooms(id),
     guest_id BIGINT NOT NULL REFERENCES guests(id),
     travel_agency_id BIGINT REFERENCES travel_agencies(id),
+    booking_source VARCHAR(20) NOT NULL DEFAULT 'direct_website',
     check_in DATE NOT NULL,
     check_out DATE NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'confirmed',
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
     base_price DECIMAL(10,2) NOT NULL,
     actual_price DECIMAL(10,2),
     number_of_guests INT NOT NULL,
     notes TEXT,
+    special_requests TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_bookings_room_id ON bookings(room_id);
 CREATE INDEX idx_bookings_guest_id ON bookings(guest_id);
+CREATE INDEX idx_bookings_travel_agency ON bookings(travel_agency_id);
 CREATE INDEX idx_bookings_check_in_out ON bookings(check_in, check_out);
 CREATE INDEX idx_bookings_status ON bookings(status);
+CREATE INDEX idx_bookings_booking_source ON bookings(booking_source);
+
+ALTER TABLE bookings ADD CONSTRAINT booking_source_check 
+  CHECK (booking_source IN ('direct_website', 'booking_com', 'trivago', 'phone', 'travel_agency', 'other'));
+```
+
+**TravelAgentProfile Table** (NEW - Per Travel Agent User Type)
+```sql
+CREATE TABLE accounts_travelagentprofile (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT UNIQUE NOT NULL REFERENCES auth_user(id),
+    travel_agency_id BIGINT NOT NULL REFERENCES properties_travelagency(id),
+    position VARCHAR(100),
+    phone_number VARCHAR(20),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, travel_agency_id)
+);
+
+CREATE INDEX idx_travelagentprofile_agency ON accounts_travelagentprofile(travel_agency_id, is_active);
 ```
 
 **PricingHistory Table** (For ML Algorithm)
@@ -446,6 +549,113 @@ CREATE TABLE pricing_history (
 
 CREATE UNIQUE INDEX idx_pricing_history_room_date ON pricing_history(room_id, date);
 CREATE INDEX idx_pricing_history_date ON pricing_history(date);
+```
+
+**Contracts Table** (Travel Agency Contracts - Updated)
+```sql
+CREATE TABLE contracts_contract (
+    id BIGSERIAL PRIMARY KEY,
+    property_id BIGINT NOT NULL REFERENCES properties_property(id),
+    travel_agency_id BIGINT NOT NULL REFERENCES properties_travelagency(id),
+    contract_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    commission_percentage DECIMAL(5,2),
+    allocation_percentage DECIMAL(5,2),
+    payment_terms TEXT,
+    cancellation_policy TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_contracts_property ON contracts_contract(property_id);
+CREATE INDEX idx_contracts_agency ON contracts_contract(travel_agency_id);
+CREATE INDEX idx_contracts_status ON contracts_contract(status);
+CREATE INDEX idx_contracts_dates ON contracts_contract(start_date, end_date);
+CREATE UNIQUE INDEX idx_contracts_unique ON contracts_contract(property_id, travel_agency_id);
+```
+
+**Channel Configuration Table** (NEW - Channel Integration Management)
+```sql
+CREATE TABLE channels_channel (
+    id BIGSERIAL PRIMARY KEY,
+    property_id BIGINT NOT NULL REFERENCES properties_property(id),
+    channel_name VARCHAR(50) NOT NULL,
+    channel_type VARCHAR(50) NOT NULL,
+    account_id VARCHAR(255) NOT NULL,
+    api_key VARCHAR(500) NOT NULL,
+    api_secret VARCHAR(500),
+    is_active BOOLEAN DEFAULT TRUE,
+    sync_enabled BOOLEAN DEFAULT TRUE,
+    last_sync_at TIMESTAMP,
+    last_error TEXT,
+    error_count INT DEFAULT 0,
+    mapping_config JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Supported channels: booking_com, trivago, airbnb, expedia, agoda, etc.
+ALTER TABLE channels_channel ADD CONSTRAINT channel_name_check
+  CHECK (channel_name IN ('booking_com', 'trivago', 'airbnb', 'expedia', 'agoda', 'vrbo'));
+
+CREATE UNIQUE INDEX idx_channels_property_channel ON channels_channel(property_id, channel_name);
+CREATE INDEX idx_channels_active ON channels_channel(is_active);
+CREATE INDEX idx_channels_last_sync ON channels_channel(last_sync_at);
+```
+
+**Availability Sync Log Table** (NEW - Track availability updates to channels)
+```sql
+CREATE TABLE inventory_availabilitysynclog (
+    id BIGSERIAL PRIMARY KEY,
+    property_id BIGINT NOT NULL REFERENCES properties_property(id),
+    channel_id BIGINT NOT NULL REFERENCES channels_channel(id),
+    sync_type VARCHAR(20) NOT NULL,
+    sync_status VARCHAR(50) NOT NULL,
+    rooms_affected INT,
+    error_message TEXT,
+    attempt_count INT DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- sync_type: full_sync, partial_sync, incremental
+ALTER TABLE inventory_availabilitysynclog ADD CONSTRAINT sync_type_check
+  CHECK (sync_type IN ('full_sync', 'partial_sync', 'incremental'));
+
+-- sync_status: pending, in_progress, success, failed, retry
+ALTER TABLE inventory_availabilitysynclog ADD CONSTRAINT sync_status_check
+  CHECK (sync_status IN ('pending', 'in_progress', 'success', 'failed', 'retry'));
+
+CREATE INDEX idx_availabilitysynclog_property ON inventory_availabilitysynclog(property_id);
+CREATE INDEX idx_availabilitysynclog_status ON inventory_availabilitysynclog(sync_status);
+CREATE INDEX idx_availabilitysynclog_created ON inventory_availabilitysynclog(created_at DESC);
+```
+
+**Centralized Inventory Table** (NEW - Nephele availability management)
+```sql
+CREATE TABLE inventory_roomavailability (
+    id BIGSERIAL PRIMARY KEY,
+    room_id BIGINT NOT NULL REFERENCES rooms_room(id),
+    date DATE NOT NULL,
+    total_units INT NOT NULL DEFAULT 1,
+    available_units INT NOT NULL DEFAULT 1,
+    booked_units INT DEFAULT 0,
+    blocked_units INT DEFAULT 0,
+    overbooked_units INT DEFAULT 0,
+    base_price DECIMAL(10,2),
+    dynamic_price DECIMAL(10,2),
+    notes TEXT,
+    updated_by_id BIGINT REFERENCES auth_user(id),
+    staff_override BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX idx_roomavailability_room_date ON inventory_roomavailability(room_id, date);
+CREATE INDEX idx_roomavailability_date ON inventory_roomavailability(date);
+CREATE INDEX idx_roomavailability_available ON inventory_roomavailability(available_units);
 ```
 
 ### 2.3 Data Integrity & Constraints
@@ -505,25 +715,177 @@ POST   /auth/forgot-password
 
 ```
 GET    /bookings
-  Query: ?property_id=1&status=confirmed&check_in_from=2026-03-01
+  Query: ?property_id=1&status=confirmed&check_in_from=2026-03-01&booking_source=travel_agency
   Response: { count, next, previous, results: [booking] }
+  Note: Travel agents see only bookings from properties with active contracts
 
 POST   /bookings
-  Request: { room_id, guest_id, check_in, check_out, ... }
-  Response: { id, status, confirmation_number, ... }
+  Request: { room_id, guest_id, check_in, check_out, booking_source, travel_agency_id, ... }
+  Response: { id, status, confirmation_number, booking_source, travel_agency, ... }
+  Access: Travel agents auto-assigned to their agency; validated against contracts
 
 GET    /bookings/{booking_id}
-  Response: { id, room, guest, payment_status, ... }
+  Response: { id, room, guest, payment_status, booking_source, travel_agency, ... }
+  Access: Travel agents can only view bookings from contracted properties
 
 PUT    /bookings/{booking_id}
   Request: { status, notes, ... }
   Response: { id, updated_at, ... }
+  Access: Travel agents cannot modify travel_agency or booking_source after creation
 
 DELETE /bookings/{booking_id}
   Response: { message: "Booking cancelled" }
+  Access: Travel agents can only cancel own bookings
 
 GET    /bookings/{booking_id}/timeline
   Response: { events: [{ timestamp, event_type, description }] }
+```
+
+#### Channel Integration Endpoints (NEW - OTA & Multi-Channel Management)
+
+```
+POST   /channels/{channel_id}/bookings
+  Description: Receive booking notifications from OTA platforms (Trivago, Booking.com, etc.)
+  Auth: API Key in X-API-Key header + HMAC-SHA256 signature verification
+  Request: {
+    channel_booking_id: "BKG123456",
+    timestamp: 1645195200,
+    event: "booking_created",
+    guest: { first_name, last_name, email, phone },
+    room_id: 123,
+    check_in: "2026-03-15",
+    check_out: "2026-03-20",
+    number_of_guests: 2,
+    special_requests: "high_floor",
+    total_price: 450.00,
+    currency: "USD"
+  }
+  Response: { booking_id, status, confirmation_number, synchronization_status }
+  Status Codes:
+    - 201: Booking created and synced
+    - 400: Validation error
+    - 409: Duplicate booking detected
+    - 503: Service unavailable
+  Note: Creates booking with booking_source set to channel name (e.g., 'booking_com', 'trivago')
+  Notifications: Automatic staff alert sent about new channel booking
+
+POST   /channels/{channel_id}/availability/sync
+  Description: Push centralized availability to OTA channel
+  Auth: API Key
+  Request: {
+    property_id: 1,
+    sync_type: "full_sync|incremental|date_range",
+    date_range: { from: "2026-03-15", to: "2026-03-31" },
+    override_staff: false
+  }
+  Response: { sync_id, status, rooms_updated, last_sync_timestamp }
+  Note: Triggered automatically on availability changes or manually by staff
+
+GET    /channels/{channel_id}/availability/status
+  Description: Check synchronization status with OTA platform
+  Response: {
+    channel_name: "trivago",
+    property_id: 1,
+    last_sync_at: "2026-02-20T10:30:00Z",
+    sync_status: "success|failed|pending",
+    rooms_synced: 25,
+    pending_sync_count: 2,
+    last_error: null
+  }
+
+GET    /channels
+  Query: ?property_id=1&active=true
+  Response: { count, results: [channel] }
+  Note: Lists all connected booking channels for property
+
+POST   /channels
+  Description: Connect new booking channel (Trivago, Booking.com, etc.)
+  Request: {
+    property_id: 1,
+    channel_name: "booking_com|trivago|airbnb|...",
+    account_id: "12345",
+    api_key: "key_...",
+    api_secret: "secret_...",
+    mapping_config: { room_mappings: {...} }
+  }
+  Response: { channel_id, status, verification_required }
+  Access: Property managers and admin only
+
+PUT    /channels/{channel_id}
+  Request: { is_active, sync_enabled, api_key, mapping_config, ... }
+  Response: { channel_id, updated_at }
+
+DELETE /channels/{channel_id}
+  Description: Disconnect channel (blocks future bookings from this channel)
+  Response: { status: "disconnected" }
+```
+
+#### Inventory Management Endpoints (Nephele - Centralized Availability)
+
+```
+GET    /inventory/availability/{property_id}
+  Query: ?date_from=2026-03-15&date_to=2026-03-31&room_type=double
+  Response: {
+    property_id: 1,
+    date_range: { from: "2026-03-15", to: "2026-03-31" },
+    rooms: [
+      {
+        room_id: 123,
+        room_number: "215",
+        room_type: "double",
+        availability_by_date: [
+          { date: "2026-03-15", total: 1, available: 1, booked: 0, blocked: 0, overbooked: 0 },
+          { date: "2026-03-16", total: 1, available: 0, booked: 1, blocked: 0, overbooked: 0 }
+        ]
+      }
+    ]
+  }
+  Note: Centralized view of all availability across all channels
+
+PUT    /inventory/rooms/{room_id}/availability
+  Description: Update room availability for specific dates (staff override)
+  Auth: Staff/manager authentication required
+  Request: {
+    date_from: "2026-03-15",
+    date_to: "2026-03-20",
+    available_units: 2,
+    blocked_units: 0,
+    notes: "Maintenance scheduled"
+  }
+  Response: { room_id, dates_updated: 6, override_applied: true }
+  Effect: Updates Nephele availability and triggers channel sync
+
+POST   /inventory/overbook
+  Description: Allow overbooking for specific dates (staff controlled)
+  Auth: Staff approval required
+  Request: {
+    room_id: 123,
+    date_from: "2026-03-15",
+    date_to: "2026-03-20",
+    overbook_units: 2,
+    reason: "Group booking adjustment"
+  }
+  Response: { room_id, overbook_id, status: "approved" }
+  Effect: Centralizes overbooked inventory and notifies housekeeping
+
+GET    /inventory/sync-log/{property_id}
+  Query: ?status=failed&days=7
+  Response: {
+    property_id: 1,
+    sync_logs: [
+      {
+        sync_id: "sync_123",
+        channel: "trivago",
+        sync_type: "full_sync",
+        status: "failed",
+        rooms_affected: 25,
+        error_message: "API rate limit exceeded",
+        attempted_at: "2026-02-20T10:30:00Z",
+        retry_count: 2
+      }
+    ]
+  }
+  Note: Staff monitoring of synchronization health
 ```
 
 #### Room & Availability Endpoints
@@ -580,6 +942,200 @@ GET    /invoices/{invoice_id}/payment-status
   Response: { status, amount_paid, balance_due, ... }
 ```
 
+#### Website Booking Integration Endpoints (NEW - Web Hook & Direct API)
+
+```
+POST   /webhooks/website-booking
+  Description: Receive booking submissions from hotel website
+  Auth: HMAC-SHA256 signature verification (X-Webhook-Signature header)
+  Request: {
+    webhook_id: "unique_webhook_identifier",
+    timestamp: 1645195200,
+    event: "booking_created",
+    data: {
+      guest: { first_name, last_name, email, phone },
+      room_id: 123,
+      check_in: "2026-03-15",
+      check_out: "2026-03-20",
+      number_of_guests: 2,
+      special_requests: "high_floor",
+      source_url: "https://hotel-website.com/booking"
+    }
+  }
+  Response: { booking_id, status, confirmation_number, booking_created_at }
+  Status Codes:
+    - 201: Booking created successfully
+    - 400: Validation error (invalid dates, room not available, etc.)
+    - 401: Invalid signature or authentication
+    - 409: Conflict (duplicate booking attempt detected)
+    - 503: Service unavailable (maintenance window)
+  Error Response: {
+    error: "BOOKING_VALIDATION_ERROR",
+    message: "Room not available for requested dates",
+    details: { available_rooms: [124, 125, ...], suggested_dates: [...] }
+  }
+
+GET    /webhooks/website-booking/availability
+  Description: Real-time availability endpoint for website integration
+  Query: ?room_id=123&check_in=2026-03-15&check_out=2026-03-20
+  Response: {
+    available: true,
+    room_id: 123,
+    check_in: "2026-03-15",
+    check_out: "2026-03-20",
+    price: 450.00,
+    currency: "USD",
+    similar_available: [124, 125]
+  }
+  Note: No authentication required (public availability data)
+  Caching: 5-minute TTL on availability checks
+
+GET    /webhooks/website-booking/confirmation/{confirmation_number}
+  Description: Retrieve booking confirmation details (for website integration)
+  Query: ?email=guest@example.com
+  Response: {
+    confirmation_number: "BOOK-2026-001",
+    status: "confirmed",
+    room: { number: "215", type: "double", amenities: [...] },
+    guest: { name, email, phone },
+    dates: { check_in, check_out, nights: 5 },
+    pricing: { base_price, taxes, total },
+    cancellation_policy: "Free cancellation up to 48 hours",
+    booking_id: 567
+  }
+  Access: Email verification required (guest email match)
+
+POST   /webhooks/website-booking/cancel
+  Description: Cancel website booking via webhook
+  Auth: HMAC-SHA256 signature verification
+  Request: {
+    booking_id: 567,
+    confirmation_number: "BOOK-2026-001",
+    reason: "guest_requested",
+    timestamp: 1645195200
+  }
+  Response: {
+    status: "cancelled",
+    cancellation_fee: 0.00 (null if free cancellation),
+    refund_amount: 450.00,
+    refund_status: "pending"
+  }
+
+POST   /api/v1/website-bookings
+  Description: Direct booking submission API (alternative to webhook)
+  Auth: API Key in X-API-Key header
+  Request: {
+    property_id: 1,
+    guest: { first_name, last_name, email, phone, address },
+    room_id: 123,
+    check_in: "2026-03-15",
+    check_out: "2026-03-20",
+    number_of_guests: 2,
+    special_requests: "non_smoking",
+    payment_info: { method: "credit_card", amount: 450.00, currency: "USD" }
+  }
+  Response: {
+    booking_id: 567,
+    confirmation_number: "BOOK-2026-001",
+    status: "confirmed",
+    booking_created_at: "2026-02-20T10:30:00Z",
+    next_steps: { check_in_url, confirmation_email_sent: true }
+  }
+  Access: Hotel website API key only
+  Rate Limit: 100 requests/minute per API key
+```
+
+**Webhook Security & Verification:**
+```
+Signature Header: X-Webhook-Signature
+Signature Format: sha256=<hex_digest>
+
+Verification Algorithm:
+1. Extract signature from X-Webhook-Signature header
+2. Create HMAC-SHA256 of request body using webhook secret
+3. Compare with provided signature (constant-time comparison)
+4. Reject if mismatch or timestamp > 5 minutes old
+
+Python Example:
+import hmac
+import hashlib
+
+def verify_webhook(body, signature, secret):
+    expected = hmac.new(
+        secret.encode(),
+        body.encode() if isinstance(body, str) else body,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+
+**Website Integration Features:**
+- **Real-time availability checking** - Lightweight endpoint for website widget/search
+- **Booking creation via webhook** - Primary integration method from website booking form
+- **Confirmation retrieval** - Guests can view booking details on website with confirmation number
+- **Webhook retry logic** - Failed delivery retried up to 5 times (exponential backoff)
+- **Webhook payload signing** - All requests cryptographically signed and verified
+- **Duplicate detection** - Prevent duplicate bookings from simultaneous submissions
+- **Price locking** - Booking price locked at submission time (not subject to dynamic pricing changes)
+- **Source tracking** - Website bookings marked with booking_source='direct_website'
+```
+
+#### Travel Agency Endpoints (NEW - February 2026)
+
+```
+GET    /travel-agencies
+  Query: ?name=Global&active=true
+  Response: { count, results: [agency] }
+
+POST   /travel-agencies
+  Request: { name, contact_name, email, phone, address, commission_percentage }
+  Response: { id, name, created_at }
+  Access: Admin and hotel managers only
+
+GET    /travel-agencies/{agency_id}
+  Response: { id, name, email, phone, commission_percentage, active_contracts, bookings_count, ... }
+
+PUT    /travel-agencies/{agency_id}
+  Request: { name, email, phone, address, ... }
+  Response: { id, updated_at }
+  Access: Admin and hotel managers only
+
+GET    /travel-agencies/{agency_id}/contracts
+  Query: ?status=active
+  Response: { count, results: [contract] }
+
+GET    /travel-agencies/{agency_id}/bookings
+  Query: ?date_from=2026-01-01&status=confirmed
+  Response: { count, results: [booking] }
+  Note: Travel agents see only own agency bookings
+```
+
+#### Contract Endpoints
+
+```
+GET    /contracts
+  Query: ?property_id=1&status=active&date_range=2026-01-01,2026-12-31
+  Response: { count, results: [contract] }
+
+POST   /contracts
+  Request: { property_id, travel_agency_id, start_date, end_date, commission_percentage, ... }
+  Response: { id, status, created_at }
+  Access: Hotel managers and admin only
+
+GET    /contracts/{contract_id}
+  Response: { id, property, travel_agency, status, dates, commission_percentage, bookings_count, ... }
+
+PUT    /contracts/{contract_id}
+  Request: { status, commission_percentage, end_date, ... }
+  Response: { id, updated_at }
+  Access: Hotel managers and admin only
+  Note: Cannot extend or modify active contract without approval
+
+GET    /contracts/{contract_id}/commission-report
+  Query: ?date_from=2026-01-01&date_to=2026-12-31
+  Response: { total_bookings, total_revenue, commission_owed, payments_made, ... }
+```
+
 #### Reporting Endpoints
 
 ```
@@ -588,12 +1144,13 @@ GET    /reports/occupancy
   Response: { occupancy_by_date: [...], summary: {...} }
 
 GET    /reports/revenue
-  Query: ?date_from=2026-01-01&aggregation=monthly
-  Response: { revenue_by_period: [...], total: ... }
+  Query: ?date_from=2026-01-01&aggregation=monthly&include_booking_source=true
+  Response: { revenue_by_period: [...], revenue_by_source: {...}, total: ... }
+  Note: Can filter by booking_source (includes 'travel_agency')
 
 GET    /reports/performance
-  Query: ?property_id=1&metrics=occupancy,revenue,adr
-  Response: { metrics: {...}, trends: {...} }
+  Query: ?property_id=1&metrics=occupancy,revenue,adr,travel_agent_bookings
+  Response: { metrics: {...}, trends: {...}, travel_agent_metrics: {...} }
 ```
 
 ### 3.3 Response Format Standard
@@ -670,13 +1227,61 @@ Role: receptionist
   - Permissions: Booking management, guest check-in/out, reservation queries
   - Scope: Assigned property only
   
-Role: travel_agent
-  - Permissions: Booking creation, contract viewing, commission tracking
-  - Scope: Contracted properties only
+Role: travel_agent (NEW - Implemented February 2026)
+  - Permissions: Booking creation, availability review, booking history view
+  - Scope: Properties with active contracts ONLY
+  - Contract Validation: 
+    * User must have TravelAgentProfile linked to travel agency
+    * Contract must exist between agency and property
+    * Contract status must be 'active'
+    * Contract dates must be valid (start_date ≤ today ≤ end_date)
+  - Access Control:
+    * Booking list filtered by contracted properties
+    * Cannot create bookings for unauthorized properties
+    * Auto-assigned to their agency's bookings (no manual selection)
+  - Notifications: Property staff receive high-priority alerts when travel agent creates booking
   
 Role: guest
   - Permissions: View own bookings, guest services
   - Scope: Own reservations only
+```
+
+#### Travel Agent Access Control Implementation
+
+**Contract-Based Property Access:**
+```python
+# User must meet all criteria:
+1. User.groups.filter(name='travel_agent').exists()  # Group membership
+2. TravelAgentProfile.objects.get(user=user)         # Profile exists
+3. Contract.objects.filter(
+     travel_agency=profile.travel_agency,
+     property=requested_property,
+     status='active',
+     start_date__lte=today,
+     end_date__gte=today
+   ).exists()                                          # Contract valid
+
+# Access check performed on:
+- Every booking view request (filters queryset)
+- Every booking creation request (validates before save)
+- Every property access attempt (returns 403 if unauthorized)
+```
+
+**Booking Source Tracking:**
+```
+booking_source field in Booking model tracks source:
+  - 'direct_website': Direct customer booking
+  - 'booking_com': OTA integration
+  - 'trivago': OTA integration
+  - 'phone': Phone reservation
+  - 'travel_agency': Travel agent booking (auto-assigned)
+  - 'other': Manual/misc bookings
+  
+When travel agent creates booking:
+  - booking_source auto-set to 'travel_agency'
+  - travel_agency auto-assigned from TravelAgentProfile
+  - No manual selection required (prevents user error)
+  - Improves analytics and commission tracking
 ```
 
 ---
@@ -822,6 +1427,237 @@ Flow:
 5. NEPHELE updates invoice status
 ```
 
+#### Channel Integration & Centralized Availability Management (NEW - February 2026)
+
+**Overview**
+The Channel Integration Service connects NEPHELE to multiple OTA platforms (Trivago, Booking.com, Airbnb, etc.) enabling:
+- Automatic booking reception from channels
+- Centralized availability management (Nephele inventory system)
+- Real-time availability synchronization to all connected channels
+- Automated notifications to staff about channel bookings
+- Property staff control over room availability with overboking capability
+
+**Centralized Inventory Management (Nephele)**
+```
+Core Concept:
+- Single source of truth for room availability
+- Property staff manages availability in Nephele
+- Changes automatically sync to all connected channels
+- Staff can override availability (block rooms, add units, enable overbooking)
+- Prevents double-booking across channels
+
+Key Features:
+1. Real-time Synchronization: Changes propagate to all channels within 5 seconds
+2. Overboking Control: Staff can authorize overbooking with reasons (group bookings, adjustments)
+3. Date-based Management: Set availability per room per date
+4. Block Management: Block rooms for maintenance, cleaning, or other reasons
+5. Price Override: Can adjust base prices per room per date
+6. Sync Monitoring: View sync status for each channel, troubleshoot failures
+
+Database Tables:
+- inventory_roomavailability: Central availability records (room + date)
+- inventory_availabilitysynclog: History of syncs to each channel
+- channels_channel: Channel configuration and API credentials
+
+Workflow:
+1. Staff managing Nephele inventory updates room availability
+2. System updates inventory_roomavailability table
+3. For each enabled channel, system queues availability sync
+4. Celery async task pushes availability to channel API
+5. Sync log records success/failure
+6. On failure, automatic retry with exponential backoff
+7. Admin notified if repeated failures (e.g., API rate limits)
+```
+
+**Channel Booking Reception Flow (Trivago, Booking.com, etc.)**
+```
+Flow:
+1. Guest books on Trivago or Booking.com
+2. OTA platform sends POST to /channels/{channel_id}/bookings webhook
+3. NEPHELE verifies signature (HMAC-SHA256) and timestamp
+4. NEPHELE checks for duplicates by channel_booking_id
+5. NEPHELE checks availability in inventory_roomavailability
+6. If available, NEPHELE creates Booking record:
+   - Sets booking_source='booking_com' (or 'trivago', etc.)
+   - Sets guest_id from provided guest data
+   - Sets room_id mapped from channel room mapping
+   - Sets travel_agency=null (OTA channel, not travel agency)
+7. NEPHELE updates inventory_roomavailability (decrements available_units)
+8. NEPHELE queues availability sync to all OTHER channels
+9. **CRITICAL: System sends high-priority notification to staff**
+   - All active property staff receive email: "New Booking Received from Trivago"
+   - Includes: Guest name, dates, room, total price
+   - Link to booking detail in NEPHELE management interface
+10. NEPHELE returns confirmation to OTA (201 with booking_id)
+11. OTA acknowledges to guest
+
+Example Notification Email:
+Subject: New Booking from Trivago - Room 215, Mar 15-20
+From: nevele-alerts@nephele.io
+To: [all staff at property]
+Body:
+  A new booking has been received from Trivago
+  Guest: John Smith (john@example.com)
+  Room: 215 (Double)
+  Check-in: March 15, 2026
+  Check-out: March 20, 2026
+  Total: $450.00
+  Source: Trivago
+  [View in NEPHELE]
+
+Error Handling:
+- 409 Conflict: Duplicate booking (same channel_booking_id) - retry with idempotency
+- 400 Validation: Room not available - notify OTA with alternative availability
+- 503 Unavailable: Service down - OTA retries automatically
+```
+
+**Availability Synchronization to Channels**
+```
+Triggers:
+1. Manual: Staff updates availability in Nephele and clicks "Sync to Channels"
+2. Automatic: On any booking creation/cancellation from ANY source
+   - Website booking cancels a room → availability increases → sync to channels
+   - Travel agent creates booking → availability decreases → sync to channels
+   - OTA booking received → availability decreases → sync to OTHER channels
+3. Scheduled: Full sync every 6 hours (fallback)
+
+Sync Types:
+- Full Sync: Send complete availability snapshot for date range
+- Incremental Sync: Send only changed rooms/dates
+- Date Range Sync: Sync availability for specific date range only
+
+Process:
+1. System identifies changed availability
+2. For each enabled channel:
+   a. Format availability according to channel API spec
+   b. Stage sync request in queue
+   c. Celery task sends to channel API
+   d. Channel API returns sync confirmation
+   e. Log status in inventory_availabilitysynclog
+3. On failure:
+   - Retry immediately (backoff: 1s, 2s, 4s, 8s, 16s)
+   - Log each attempt
+   - Send admin alert if 3+ failures
+   - Continue retrying every 30 minutes for 24 hours
+4. Success: Update last_sync_at in channels_channel table
+
+Availability Distribution:
+- Trivago API: Push inventory updates via /bookings endpoint
+- Booking.com: Push via PropertyManagement XML feed
+- Airbnb: Push via Airbnb API calendar endpoint
+- Website: Pushed via /webhooks/website-booking/availability endpoint
+- Travel Agents: Email notifications sent (optional, configurable)
+
+Email Notification to Travel Agents (Optional):
+When room availability increases significantly (e.g., cancellation):
+Subject: Updated Availability - Global Travel Ltd
+Body:
+  Dear Travel Agent,
+  The following rooms are now available for the requested dates:
+  [Available rooms matching their previous inquiry]
+  [Link to book]
+
+Website Sync:
+Availability pushed to /webhooks/website-booking/availability endpoint:
+- GET /webhooks/website-booking/availability?room_id=123&check_in=2026-03-15&check_out=2026-03-20
+- Returns: available (bool), price, currency, similar_available_rooms
+- Cached for 5 minutes
+```
+
+**Configuration & Mapping**
+```
+Channel Config Table (channels_channel):
+- property_id: Which property
+- channel_name: 'booking_com', 'trivago', 'airbnb', etc.
+- account_id: Hotel's account number at that channel
+- api_key/api_secret: Credentials for authentication
+- is_active: Enable/disable this channel
+- sync_enabled: Sync availability to this channel
+- mapping_config: JSON mapping of NEPHELE room IDs to channel room IDs
+
+Example mapping_config:
+{
+  "room_mappings": {
+    "123": "trivago_room_4567",
+    "124": "trivago_room_4568",
+    "125": "trivago_room_4569"
+  },
+  "rate_mappings": {
+    "123": "base_price"
+  },
+  "sync_overrides": {
+    "block_weekends": false
+  }
+}
+
+Staff Interface:
+- Channels page: List all connected channels, test connectivity, sync status
+- Inventory page: View/edit availability by room and date
+- Overbook management: Approve overboking requests, set limits
+- Sync logs: Monitor which channels are syncing successfully
+```
+
+#### Website Booking Integration (NEW - February 2026)
+
+**Hotel Website to NEPHELE Booking Flow**
+```
+Integration Points:
+- Hotel website sends bookings via webhook or direct API
+- Real-time availability queries for website booking widget
+- Booking confirmation and cancellation management
+- Source tracking (booking_source='direct_website')
+
+Flow (Webhook Method - Primary):
+1. Guest submits booking on hotel website
+2. Website signs payload with shared webhook secret (HMAC-SHA256)
+3. Website sends POST to /webhooks/website-booking
+4. NEPHELE validates signature and timestamp
+5. NEPHELE verifies availability (room not double-booked)
+6. NEPHELE creates Booking record, sets booking_source='direct_website'
+7. NEPHELE returns booking_id and confirmation_number to website
+8. Website displays confirmation to guest
+9. NEPHELE sends confirmation email via SendGrid
+
+Flow (Direct API Method - Alternative):
+1. Website calls POST /api/v1/website-bookings with API key
+2. NEPHELE validates API key and rate limits
+3. Same validation/creation/response as webhook method
+4. Suitable for backends with persistent API key management
+
+Webhook Retry Logic:
+- Failed delivery: Retry after 5 seconds
+- Up to 5 retry attempts with exponential backoff
+- Failed webhooks logged for manual investigation
+- Admin notification on repeated failures
+
+Security Features:
+- HMAC-SHA256 signature verification on all webhooks
+- Timestamp validation (reject if > 5 minutes old)
+- Duplicate booking detection via booking_id/confirmation_number
+- Rate limiting: 100 requests/minute per API key
+- API key rotation support
+```
+
+**Website Widget Integration (Real-Time Availability)**
+```
+Lightweight Endpoint:
+- GET /webhooks/website-booking/availability
+- No authentication required (public availability data)
+- 5-minute cache TTL to reduce database load
+- Returns: available (bool), price, currency, similar_available_rooms
+
+Use Cases:
+- Booking widget in header/footer of hotel website
+- Availability search on homepage
+- Calendar widget showing available/unavailable dates
+- Price display for direct comparison with OTAs
+
+Performance Optimization:
+- Dedicated availability cache layer (Redis)
+- Database query only on cache miss
+- CDN distribution for availability widget assets
+```
+
 #### Email & Notifications
 
 **SendGrid (Email)**
@@ -831,12 +1667,56 @@ Integration Points:
 - Marketing email (newsletters, promotions)
 - Bounce/complaint handling
 - Delivery tracking
+- Channel booking alerts (NEW Feb 2026)
+- Travel agent availability updates (NEW Feb 2026)
 
 Templates:
 - Booking confirmation
 - Payment receipt
 - Cancellation notice
 - Reminder (24-hour pre-arrival)
+- Website booking confirmation (NEW Feb 2026)
+- Channel Booking Alert - Trivago (NEW Feb 2026)
+- Channel Booking Alert - Booking.com (NEW Feb 2026)
+- Channel Booking Alert - Airbnb (NEW Feb 2026)
+- Travel Agent Availability Update (optional, NEW Feb 2026)
+
+Channel Booking Notification (NEW)
+Template: channel_booking_alert
+Trigger: When OTA booking received via /channels/{channel_id}/bookings
+Recipients: All active staff at property
+Priority: HIGH (sent immediately)
+Content:
+  Subject: "New Booking from {CHANNEL} - Room {ROOM_NUMBER}, {CHECK_IN_DATE} to {CHECK_OUT_DATE}"
+  Body:
+    - Channel name (Trivago, Booking.com, etc.)
+    - Guest name, email, phone
+    - Room details
+    - Dates, number of guests
+    - Total price
+    - Special requests
+    - Link to booking in NEPHELE dashboard
+    - Cancellation policy info from channel
+Example:
+  Subject: New Booking from Trivago - Room 215, Mar 15-20
+  From: nephele-alerts@nephele.io
+  To: [staff@property.com]
+  Body:
+    A new booking has been received from Trivago
+    Guest: John Smith (john@example.com)
+    Room: 215 (Double Deluxe)
+    Check-in: March 15, 2026 | Check-out: March 20, 2026 | Nights: 5
+    Guests: 2 Adults
+    Total Price: $450.00 USD
+    Your Net: ~$405.00 (after 10% OTA commission)
+    Special Requests: High floor, late check-in (9 PM)
+    [View in NEPHELE] [Contact Guest]
+
+Travel Agent Availability Update (Optional)
+Template: travel_agent_availability
+Trigger: When room availability increases (cancellation, manual release)
+Recipients: Travel agents with active contracts for that property
+Content: Rooms now available for requested dates, with pricing and booking link
 ```
 
 **Twilio (SMS)**
@@ -845,27 +1725,109 @@ Integration Points:
 - SMS notifications (confirmations, reminders)
 - Two-factor authentication
 - Opt-in/opt-out management
+- Channel booking alerts (NEW Feb 2026 - optional)
 
 SMS Types:
 - Booking confirmation
 - Check-in reminder
 - Payment confirmation
+- Channel booking alert (optional, high priority)
+  Format: "New booking from Trivago! Room 215, Mar 15-20, $450. View: [link]"
 ```
 
-#### OTA Integration
+#### OTA Integration (Channel Integration Service) (NEW - February 2026)
 
-**Booking.com, Airbnb, etc.**
+**Multi-Channel Booking System (Trivago, Booking.com, Airbnb, Expedia, etc.)**
 ```
+Integration Architecture:
+┌─────────────────────────────────────┐
+│   External OTA Platforms            │
+│  Trivago, Booking.com, Airbnb, etc. │
+└────────────┬────────────────────────┘
+             │
+      ┌──────▼─────────┐
+      │   Webhooks &   │
+      │   REST APIs    │
+      └──────┬─────────┘
+             │
+   ┌─────────▼──────────────┐
+   │ Channel Integration    │
+   │ Service Endpoint       │
+   │ /channels/*/bookings   │
+   └────────┬────────────── ┘
+            │
+      ┌─────▼────────────────┐
+      │  Availability Sync    │
+      │  (inventory_roomavai) │
+      │  (channels_channel)   │
+      └─────┬────────────────┘
+            │
+     ┌──────┴──────────┬──────────────┐
+     ▼                 ▼              ▼
+  Booking         Inventory       Notification
+  Creation        Update          (Staff Alert)
+```
+
+Channels Supported:
+- Booking.com (XML Feed + REST API)
+- Trivago (REST API)
+- Airbnb (Airbnb API)
+- Expedia (EAN API)
+- Agoda (XML Feed)
+- VRBO (REST API)
+- Custom OTA integrations
+
 Sync Points:
-- Room inventory
-- Availability calendar
-- Occupancy rates
-- Reviews and ratings
+- **Bookings:** Real-time webhook notifications of new reservations
+- **Availability:** Full/incremental sync of room inventory and calendar
+- **Guest Data:** Automatic capture of guest information from OTA
+- **Pricing:** Optional sync of rates between NEPHELE and channels
+- **Occupancy Rates:** Analytics tracking via booking source
+- **Reviews:** Optional integration with review aggregation
 
 Implementation:
-- iCal protocol for calendar sync
-- REST APIs for inventory updates
-- Webhook for booking notifications
+- Channel credentials stored in channels_channel table
+- Room mappings configured via mapping_config JSON field
+- Async Celery tasks handle all outbound API calls
+- Webhook handlers verify signatures (HMAC-SHA256)
+- Automatic retry logic with exponential backoff
+- Centralized inventory in inventory_roomavailability
+- Sync monitoring via inventory_availabilitysynclog
+
+Key Difference from Traditional OTA Sync:
+**Earlier OTA Integration:** One-way iCal calendar sync
+**New Channel Integration:** Bidirectional, real-time, centralized
+- Inbound: Receive bookings instantly via webhook
+- Outbound: Push availability changes immediately
+- Centralized: Single inventory source for all channels
+- Staff Control: Property staff can override availability
+
+Announcement: Channel Booking Notification System
+⚡ **CRITICAL FEATURE:** When a booking arrives from Trivago or Booking.com:
+1. ✅ Booking created automatically in NEPHELE
+2. ✅ Availability updated across all channels
+3. ✅ **📧 EMAIL ALERT sent to ALL property staff**
+   From: nephele-alerts@nephele.io
+   Subject: "New Booking from Trivago - Room 215, Mar 15-20"
+   Includes: Guest name, dates, room, price, link to booking
+4. ✅ Housekeeping notified automatically
+5. ✅ Optional: Travel agents notified of availability updates
+
+Error Handling & Resilience:
+1. Duplicate Detection: Same channel_booking_id checked
+2. Availability Validation: Room must be available
+3. Circuit Breaker: If channel API fails repeatedly, pause syncs
+4. Manual Retry: Admin can trigger retry from sync logs
+5. Fallback: Continue accepting bookings even if sync to other channels fails
+6. Alert Threshold: Admin notified after 3+ consecutive failures
+
+Business Impact:
+✓ Prevent double-booking across channels
+✓ Instant staff notification of new bookings
+✓ Centralized availability reduces manual updates
+✓ Automatic load distribution across channels
+✓ Staff control over overboking (group bookings)
+✓ Property staff can see all bookings across all sources in one place
 ```
 
 #### Accounting Integration

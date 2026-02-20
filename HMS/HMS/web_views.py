@@ -9,11 +9,82 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect
 from django.forms import modelform_factory
 from django.contrib import messages
+from django.db import IntegrityError
 
 
 def _user_role(user):
     group = user.groups.first()
     return group.name if group else 'user'
+
+
+def _is_travel_agent(user):
+    """Check if user is a travel agent"""
+    return user.groups.filter(name='travel_agent').exists()
+
+
+def _get_travel_agent_profile(user):
+    """Get travel agent profile if user is a travel agent"""
+    if not _is_travel_agent(user):
+        return None
+    try:
+        return user.travel_agent_profile
+    except:
+        return None
+
+
+def _can_access_property(user, property_obj):
+    """Check if user can access a property (for booking operations)"""
+    # Staff users can access their own property or any property
+    if user.groups.filter(name='hotel_manager').exists() or user.is_staff:
+        return True
+    
+    # Travel agents can only access properties they have active contracts for
+    agent_profile = _get_travel_agent_profile(user)
+    if agent_profile:
+        from datetime import date
+        from contracts.models import Contract
+        today = date.today()
+        return Contract.objects.filter(
+            travel_agency=agent_profile.travel_agency,
+            property=property_obj,
+            status='active',
+            start_date__lte=today,
+            end_date__gte=today
+        ).exists()
+    
+    return False
+
+
+def _create_booking_notification(booking, created_by_travel_agent=False):
+    """Create staff notifications when a booking is created by travel agent"""
+    if not created_by_travel_agent:
+        return
+    
+    from notifications.models import Notification
+    from accounts.models import Employee
+    
+    # Get all staff at the property
+    property_staff = Employee.objects.filter(
+        property=booking.room.property,
+        status='active'
+    ).select_related('user')
+    
+    # Create notification for each staff member
+    for staff in property_staff:
+        if staff.user:
+            booking_source = booking.get_booking_source_display()
+            if booking.travel_agency:
+                message = f"New booking created by {booking.travel_agency.name} for Room {booking.room.room_number}"
+            else:
+                message = f"New booking from {booking_source} for Room {booking.room.room_number}"
+            
+            Notification.objects.create(
+                user=staff.user,
+                notification_type='booking_created',
+                title='New Booking',
+                message=message,
+                priority='high'
+            )
 
 
 MODULE_CATALOG = {
@@ -36,6 +107,16 @@ MODULE_CATALOG = {
         'title': 'Guests',
         'description': 'Guest profiles, contact data, and preferences.',
         'workspace_url': '/admin/accounts/guest/',
+    },
+    'properties': {
+        'title': 'Properties',
+        'description': 'Hotel properties, locations, and infrastructure management.',
+        'workspace_url': '/admin/properties/property/',
+    },
+    'travel-agencies': {
+        'title': 'Travel Agencies',
+        'description': 'Third-party travel agency partnerships and commission management.',
+        'workspace_url': '/admin/properties/travelagency/',
     },
     'payments': {
         'title': 'Payments',
@@ -81,7 +162,7 @@ MODULE_CATALOG = {
 
 
 PORTAL_ORDER = [
-    'users', 'rooms', 'bookings', 'guests', 'payments', 'invoices',
+    'users', 'rooms', 'bookings', 'guests', 'properties', 'travel-agencies', 'payments', 'invoices',
     'contracts', 'pricing', 'tasks', 'notifications', 'business-intelligence', 'forecast'
 ]
 
@@ -92,6 +173,8 @@ MODULE_MODEL_MAP = {
     'rooms': ('room', 'Room'),
     'bookings': ('room', 'Booking'),
     'guests': ('accounts', 'Guest'),
+    'properties': ('properties', 'Property'),
+    'travel-agencies': ('properties', 'TravelAgency'),
     'payments': ('payments', 'Payment'),
     'invoices': ('payments', 'Invoice'),
     'contracts': ('contracts', 'Contract'),
@@ -109,15 +192,23 @@ MODULE_FIELD_CONFIG = {
     },
     'rooms': {
         'fields': ['room_number', 'floor', 'room_type', 'capacity', 'number_of_beds', 'base_price', 'current_price', 'status', 'property'],
-        'columns': ['id', 'room_number', 'room_type', 'status', 'current_price', 'property'],
+        'columns': ['id', 'room_number', 'property', 'room_type', 'status'],
     },
     'bookings': {
-        'fields': ['room', 'guest', 'check_in_date', 'check_out_date', 'number_of_guests', 'status', 'base_price', 'actual_price', 'travel_agency', 'notes'],
+        'fields': ['room', 'guest', 'check_in_date', 'check_out_date', 'number_of_guests', 'status', 'base_price', 'actual_price', 'travel_agency', 'booking_source', 'notes'],
         'columns': ['id', 'room', 'guest', 'check_in_date', 'check_out_date', 'status'],
     },
     'guests': {
         'fields': ['user', 'email', 'first_name', 'last_name', 'phone_number', 'city', 'country'],
         'columns': ['id', 'first_name', 'last_name', 'email', 'city', 'country'],
+    },
+    'properties': {
+        'fields': ['name', 'location', 'city', 'country', 'total_rooms', 'star_rating', 'manager', 'email', 'phone_number', 'is_active'],
+        'columns': ['id', 'name', 'location', 'city', 'star_rating', 'total_rooms'],
+    },
+    'travel-agencies': {
+        'fields': ['name', 'contact_name', 'email', 'phone', 'city', 'country', 'commission_percentage', 'status'],
+        'columns': ['id', 'name', 'contact_name', 'email', 'city', 'status'],
     },
     'payments': {
         'fields': ['guest', 'booking', 'payment_method', 'amount', 'currency', 'status', 'description', 'notes'],
@@ -186,6 +277,18 @@ def _crud_target(module_key, action):
             'read': '/admin/accounts/guest/',
             'update': '/admin/accounts/guest/',
             'delete': '/admin/accounts/guest/',
+        },
+        'properties': {
+            'create': '/admin/properties/property/add/',
+            'read': '/admin/properties/property/',
+            'update': '/admin/properties/property/',
+            'delete': '/admin/properties/property/',
+        },
+        'travel-agencies': {
+            'create': '/admin/properties/travelagency/add/',
+            'read': '/admin/properties/travelagency/',
+            'update': '/admin/properties/travelagency/',
+            'delete': '/admin/properties/travelagency/',
         },
         'payments': {
             'create': '/payments/process/',
@@ -366,6 +469,18 @@ def _module_kpis(module_key):
             {'label': 'Total guests', 'value': _count('accounts', 'Guest')},
             {'label': 'Employee profiles', 'value': _count('accounts', 'Employee')},
             {'label': 'Travel agencies', 'value': _count('properties', 'TravelAgency')},
+        ]
+    if module_key == 'properties':
+        return [
+            {'label': 'Total properties', 'value': _count('properties', 'Property')},
+            {'label': 'Active', 'value': _count('properties', 'Property', is_active=True)},
+            {'label': 'Avg rooms', 'value': 'View details'},
+        ]
+    if module_key == 'travel-agencies':
+        return [
+            {'label': 'Total agencies', 'value': _count('properties', 'TravelAgency')},
+            {'label': 'Active', 'value': _count('properties', 'TravelAgency', status='active')},
+            {'label': 'Avg commission %', 'value': '10%'},
         ]
     if module_key == 'payments':
         return [
@@ -553,8 +668,16 @@ def module_portal(request, module_key):
     list_columns = []
     module_items = []
     if model:
-        list_columns = _configured_columns(model, module_key)[:4]
+        list_columns = _configured_columns(model, module_key)[:5]
         queryset = model.objects.all()
+        
+        # Travel agents can only see bookings from properties they have contracts for
+        if module_key == 'bookings' and _is_travel_agent(request.user):
+            agent_profile = _get_travel_agent_profile(request.user)
+            if agent_profile:
+                property_ids = agent_profile.get_accessible_properties()
+                queryset = queryset.filter(room__property_id__in=property_ids)
+        
         order_by_field = '-id' if 'id' in [f.name for f in model._meta.fields] else model._meta.pk.name
         queryset = queryset.order_by(order_by_field)[:20]
         module_items = _build_rows(queryset, list_columns)
@@ -595,11 +718,57 @@ def module_crud_page(request, module_key, action, pk=None):
             form = dynamic_form(request.POST)
             _style_form_fields(form)
             if form.is_valid():
-                form.save()
-                messages.success(request, f'{module["title"]} record created successfully.')
-                if panel_mode:
-                    return HttpResponse('<script>window.parent.postMessage({type:"module-panel-done"}, window.location.origin);</script>')
-                return redirect(f'/portal/{module_key}/read/')
+                try:
+                    # Handle travel agent bookings
+                    instance = form.save(commit=False)
+                    
+                    # Check travel agent access to property
+                    if module_key == 'bookings' and _is_travel_agent(request.user):
+                        agent_profile = _get_travel_agent_profile(request.user)
+                        if agent_profile:
+                            # Verify property access
+                            if not _can_access_property(request.user, instance.room.property):
+                                form.add_error(None, 'You do not have access to create bookings for this property.')
+                                _style_form_fields(form)
+                                if panel_mode:
+                                    instance = None
+                                else:
+                                    context = {
+                                        'action': action,
+                                        'action_title': 'Create',
+                                        'module_key': module_key,
+                                        'module': module,
+                                        'form': form,
+                                        'panel_mode': panel_mode,
+                                    }
+                                    return render(request, 'module-crud.html', context)
+                            # Auto-set travel agency
+                            instance.travel_agency = agent_profile.travel_agency
+                    
+                    instance.save()
+                    
+                    # Create notifications for staff if travel agent created booking
+                    created_by_agent = module_key == 'bookings' and _is_travel_agent(request.user)
+                    if created_by_agent:
+                        _create_booking_notification(instance, created_by_travel_agent=True)
+                    
+                    messages.success(request, f'{module["title"]} record created successfully.')
+                    if panel_mode:
+                        return HttpResponse(status=204)  # No content, triggers reload in panel
+                    return redirect(f'/portal/{module_key}/read/')
+                except IntegrityError as e:
+                    # Handle duplicate key violations
+                    error_msg = str(e).lower()
+                    if 'username' in error_msg or 'unique' in error_msg:
+                        if 'username' in error_msg:
+                            form.add_error('username', 'A user with this username already exists.')
+                        elif 'email' in error_msg:
+                            form.add_error('email', 'A user with this email already exists.')
+                        else:
+                            form.add_error(None, 'This record already exists. Please use different values.')
+                    else:
+                        form.add_error(None, f'Database error: {str(e)}')
+                    _style_form_fields(form)
         else:
             form = dynamic_form()
             _style_form_fields(form)
@@ -618,11 +787,25 @@ def module_crud_page(request, module_key, action, pk=None):
             form = dynamic_form(request.POST, instance=instance)
             _style_form_fields(form)
             if form.is_valid():
-                form.save()
-                messages.success(request, f'{module["title"]} record updated successfully.')
-                if panel_mode:
-                    return HttpResponse('<script>window.parent.postMessage({type:"module-panel-done"}, window.location.origin);</script>')
-                return redirect(f'/portal/{module_key}/read/')
+                try:
+                    form.save()
+                    messages.success(request, f'{module["title"]} record updated successfully.')
+                    if panel_mode:
+                        return HttpResponse(status=204)  # No content, triggers reload in panel
+                    return redirect(f'/portal/{module_key}/read/')
+                except IntegrityError as e:
+                    # Handle duplicate key violations
+                    error_msg = str(e).lower()
+                    if 'username' in error_msg or 'unique' in error_msg:
+                        if 'username' in error_msg:
+                            form.add_error('username', 'A user with this username already exists.')
+                        elif 'email' in error_msg:
+                            form.add_error('email', 'A user with this email already exists.')
+                        else:
+                            form.add_error(None, 'This record already exists. Please use different values.')
+                    else:
+                        form.add_error(None, f'Database error: {str(e)}')
+                    _style_form_fields(form)
         else:
             form = dynamic_form(instance=instance)
             _style_form_fields(form)
@@ -631,7 +814,7 @@ def module_crud_page(request, module_key, action, pk=None):
         instance.delete()
         messages.success(request, f'{module["title"]} record deleted successfully.')
         if panel_mode:
-            return HttpResponse('<script>window.parent.postMessage({type:"module-panel-done"}, window.location.origin);</script>')
+            return HttpResponse(status=204)  # No content, triggers reload in panel
         return redirect(f'/portal/{module_key}/read/')
 
     columns = _configured_columns(model, module_key)

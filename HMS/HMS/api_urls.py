@@ -24,12 +24,8 @@ from HMS.api_viewsets import (
     RefundRequestViewSet,
     NotificationViewSet,
 )
-
-# Import API views when they're created
-# from accounts.api.views import *
-# from bookings.api.views import *
-# from properties.api.views import *
-# from payments.api.views import *
+from channels.views import ChannelViewSet
+from inventory.views import RoomAvailabilityViewSet
 
 # Create router for ViewSets
 router = DefaultRouter()
@@ -46,6 +42,8 @@ router.register(r'payments', PaymentViewSet, basename='payments')
 router.register(r'invoices', InvoiceViewSet, basename='invoices')
 router.register(r'refund-requests', RefundRequestViewSet, basename='refund-requests')
 router.register(r'notifications', NotificationViewSet, basename='notifications')
+# Channel integration (OTA platforms)
+router.register(r'channels', ChannelViewSet, basename='channels')
 
 app_name = 'api'
 
@@ -63,6 +61,12 @@ urlpatterns = [
 
     # Bookings supplemental endpoints (dynamic pricing & recommendations)
     path('bookings/', include('bookings.urls')),
+    
+    # Channel integration (OTA platforms)
+    path('channels/', include('channels.urls')),
+    
+    # Inventory management (centralized availability)
+    path('inventory/', include('inventory.urls')),
     
     # Routers
     path('', include(router.urls)),

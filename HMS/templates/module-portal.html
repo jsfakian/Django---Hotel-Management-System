@@ -105,8 +105,13 @@
         <h6 class="mb-0" id="slide-panel-title">Details</h6>
         <button type="button" class="slide-panel-close" id="slide-panel-close" aria-label="Close panel">&times;</button>
     </div>
-    <div class="slide-panel-body">
-        <iframe id="slide-panel-frame" class="slide-panel-frame" title="Module action panel" loading="lazy"></iframe>
+    <div class="slide-panel-body" id="slide-panel-body">
+        <div class="text-center text-muted py-5">
+            <div class="spinner-border" role="status" style="width: 2rem; height: 2rem; margin-bottom: 1rem;">
+                <span class="sr-only">Loading...</span>
+            </div>
+            <p>Loading...</p>
+        </div>
     </div>
 </aside>
 
@@ -194,10 +199,10 @@
         var backdrop = document.getElementById('slide-panel-backdrop');
         var panel = document.getElementById('slide-panel');
         var closeButton = document.getElementById('slide-panel-close');
-        var frame = document.getElementById('slide-panel-frame');
+        var panelBody = document.getElementById('slide-panel-body');
         var title = document.getElementById('slide-panel-title');
 
-        if (!panel || !frame || !backdrop) {
+        if (!panel || !panelBody || !backdrop) {
             return;
         }
 
@@ -206,13 +211,104 @@
             return url + (hasQuery ? '&' : '?') + 'panel=1';
         }
 
+        function handleFormSubmission(form) {
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var formData = new FormData(form);
+                var action = form.getAttribute('action');
+                
+                if (!action) {
+                    console.error('Form has no action attribute');
+                    return;
+                }
+
+                console.log('Submitting form to:', action);
+
+                // Get CSRF token from form
+                var csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                fetch(action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                })
+                .then(function (response) {
+                    console.log('Form submission response:', response.status, response.statusText);
+                    
+                    if (response.status === 204) {
+                        console.log('Form submission successful, reloading page...');
+                        closePanel();
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 300);
+                    } else if (response.status === 200) {
+                        console.log('Form has validation errors, redisplaying...');
+                        return response.text().then(function (html) {
+                            panelBody.innerHTML = html;
+                            attachFormHandlers();
+                        });
+                    } else {
+                        throw new Error('Unexpected response status: ' + response.status);
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Form submission error:', error);
+                    var message = document.createElement('div');
+                    message.className = 'alert alert-danger m-3';
+                    message.textContent = 'Error submitting form: ' + error.message;
+                    panelBody.insertBefore(message, panelBody.firstChild);
+                });
+            });
+        }
+
+        function attachFormHandlers() {
+            var forms = panelBody.querySelectorAll('form');
+            forms.forEach(function (form) {
+                handleFormSubmission(form);
+            });
+
+            // Attach close panel handler to cancel buttons
+            var cancelButtons = panelBody.querySelectorAll('a[href*="/read/"]');
+            cancelButtons.forEach(function (btn) {
+                btn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    closePanel();
+                });
+            });
+        }
+
         function openPanel(url, panelTitle) {
-            frame.src = withPanelQuery(url);
-            title.textContent = panelTitle || 'Details';
+            title.textContent = panelTitle || 'Loading...';
             panel.classList.add('is-open');
             backdrop.classList.add('is-open');
             panel.setAttribute('aria-hidden', 'false');
             body.classList.add('panel-open');
+
+            // Show loading state
+            panelBody.innerHTML = '<div class="text-center text-muted py-5"><div class="spinner-border" role="status" style="width: 2rem; height: 2rem; margin-bottom: 1rem;"><span class="sr-only">Loading...</span></div><p>Loading...</p></div>';
+
+            // Fetch content
+            fetch(withPanelQuery(url), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(function (response) {
+                if (!response.ok) throw new Error('Failed to load content');
+                return response.text();
+            })
+            .then(function (html) {
+                panelBody.innerHTML = html;
+                title.textContent = panelTitle || 'Details';
+                attachFormHandlers();
+            })
+            .catch(function (error) {
+                console.error('Panel load error:', error);
+                panelBody.innerHTML = '<div class="alert alert-danger m-3">Failed to load content. Please try again.</div>';
+            });
         }
 
         function closePanel() {
@@ -221,7 +317,7 @@
             panel.setAttribute('aria-hidden', 'true');
             body.classList.remove('panel-open');
             window.setTimeout(function () {
-                frame.src = 'about:blank';
+                panelBody.innerHTML = '';
             }, 180);
         }
 
@@ -256,19 +352,6 @@
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape' && panel.classList.contains('is-open')) {
                 closePanel();
-            }
-        });
-
-        window.addEventListener('message', function (event) {
-            if (event.origin !== window.location.origin || !event.data) {
-                return;
-            }
-            if (event.data.type === 'module-panel-close') {
-                closePanel();
-            }
-            if (event.data.type === 'module-panel-done') {
-                closePanel();
-                window.location.reload();
             }
         });
     })();

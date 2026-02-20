@@ -9,52 +9,87 @@
         display: none !important;
     }
     .site-main {
-        min-height: 100vh;
+        min-height: auto;
     }
     .panel-shell {
-        padding: 0.75rem;
+        padding: 0;
     }
-    .panel-shell .hero-dashboard {
-        border-radius: 10px;
+    .panel-shell .app-surface {
+        border-radius: 0;
+        box-shadow: none;
     }
 </style>
 {% endif %}
 <div class="{% if panel_mode %}panel-shell{% endif %}">
-<div class="container py-4">
+<div class="container {% if panel_mode %}p-0{% else %}py-4{% endif %}">
+    {% if not panel_mode %}
     <div class="app-surface p-4 mb-3 hero-dashboard">
         <h2 class="mb-1">{{ action_title }} {{ module.title }}</h2>
         <p class="mb-0">Native {{ action }} workflow for {{ module.title }} records.</p>
     </div>
+    {% endif %}
 
-    <div class="app-surface p-4 mb-3">
+    <div class="{% if panel_mode %}p-3{% else %}app-surface p-4{% endif %}">
+        {% if not panel_mode %}
         <h5 class="mb-3">Operation Actions</h5>
         <div class="d-flex flex-wrap gap-sm mb-3">
             {% for op in crud_actions %}
             <a class="btn {% if op == action %}btn-dark{% else %}btn-outline-dark{% endif %}" href="/portal/{{ module_key }}/{{ op }}/">{{ op|title }}</a>
             {% endfor %}
         </div>
+        {% endif %}
 
-        {% if action == 'create' or action == 'update' and form %}
+        {% if form and action == 'create' or form and action == 'update' %}
         <div class="card border-0 bg-light mb-3">
             <div class="card-body">
-                <form method="post">
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+                    <strong>Validation Error:</strong>
+                    {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                    {% endfor %}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                {% endif %}
+                <form method="post" action="{% if action == 'update' %}/portal/{{ module_key }}/{{ action }}/{{ instance.pk }}/{% else %}/portal/{{ module_key }}/{{ action }}/{% endif %}?panel=1">
                     {% csrf_token %}
                     <div class="form-row">
                         {% for field in form %}
                         <div class="form-group col-md-6">
-                            <label>{{ field.label }}</label>
+                            {% if field.widget.input_type == 'checkbox' %}
+                            <div class="form-check">
+                                {{ field }}
+                                <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            </div>
+                            {% else %}
+                            <div class="d-flex align-items-center justify-content-between">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {% if field.name == 'property' and module_key == 'rooms' %}
+                                <a href="/portal/properties/" class="btn btn-sm btn-outline-secondary" title="Manage Properties">
+                                    <i class="fas fa-building"></i> Properties
+                                </a>
+                                {% endif %}
+                                {% if field.name == 'travel_agency' and module_key == 'bookings' %}
+                                <a href="/portal/travel-agencies/" class="btn btn-sm btn-outline-secondary" title="Manage Travel Agencies">
+                                    <i class="fas fa-globe"></i> Agencies
+                                </a>
+                                {% endif %}
+                            </div>
                             {{ field }}
+                            {% endif %}
                             {% if field.help_text %}
-                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                            <small class="form-text text-muted d-block mt-1">{{ field.help_text|safe }}</small>
                             {% endif %}
                             {% if field.errors %}
-                            <small class="text-danger">{{ field.errors|striptags }}</small>
+                            <small class="text-danger d-block mt-1">{{ field.errors|striptags }}</small>
                             {% endif %}
                         </div>
                         {% endfor %}
                     </div>
                     <button class="btn btn-dark" type="submit">Save {{ module.title }}</button>
-                    <a class="btn btn-outline-secondary" href="/portal/{{ module_key }}/read/">Cancel</a>
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.parent.closePanel ? window.parent.closePanel() : (panel = document.closest('.js-slide-panel') ? panel.closest('.slide-panel').classList.remove('is-open') : null)">Cancel</button>
                 </form>
             </div>
         </div>
@@ -84,10 +119,10 @@
         <div class="card border-0 bg-light mb-3">
             <div class="card-body">
                 <p class="mb-3">Are you sure you want to delete <strong>{{ instance }}</strong>?</p>
-                <form method="post">
+                <form method="post" action="/portal/{{ module_key }}/delete/{{ instance.pk }}/?panel=1">
                     {% csrf_token %}
                     <button class="btn btn-danger" type="submit">Confirm Delete</button>
-                    <a class="btn btn-outline-secondary" href="/portal/{{ module_key }}/delete/">Cancel</a>
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">Cancel</button>
                 </form>
             </div>
         </div>
@@ -135,14 +170,12 @@
         </div>
         {% endif %}
 
+        {% if not panel_mode %}
         <div class="mt-3">
-            {% if panel_mode %}
-            <button type="button" class="btn btn-outline-secondary" onclick="window.parent.postMessage({type:'module-panel-close'}, window.location.origin);">Close Panel</button>
-            {% else %}
             <a class="btn btn-outline-secondary" href="/portal/{{ module_key }}/">Back to Module</a>
             <a class="btn btn-link" href="{{ action_target_url }}">Open External Workspace</a>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
 </div>

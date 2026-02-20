@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     'bookings',
     'contracts',
     'analytics',  # Business Intelligence & Analytics
+    'channels',  # Channel Integration (OTA platforms)
+    'inventory',  # Centralized Availability Management
 ]
 
 MIDDLEWARE = [
@@ -92,16 +94,16 @@ WSGI_APPLICATION = 'HMS.wsgi.application'
 # Per Task 4: Recommended to use PostgreSQL in production
 # Falls back to SQLite for development
 
-DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3')
+DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.postgresql')
 
 DATABASES = {
     'default': {
         'ENGINE': DB_ENGINE,
-        'NAME': os.environ.get('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
-        'USER': os.environ.get('DB_USER', ''),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', ''),
-        'PORT': os.environ.get('DB_PORT', ''),
+        'NAME': os.environ.get('DB_NAME', 'hms'),
+        'USER': os.environ.get('DB_USER', 'hms'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'hms_password'),
+        'HOST': os.environ.get('DB_HOST', 'postgres'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
         **({'CONN_MAX_AGE': 600, 'ATOMIC_REQUESTS': True}
            if 'postgresql' in DB_ENGINE
            else {}),
@@ -276,6 +278,7 @@ CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
 SECURE_BROWSER_XSS_FILTER = True
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
 SECURE_CONTENT_SECURITY_POLICY = {
     'default-src': ("'self'",),
     'script-src': ("'self'", "'unsafe-inline'"),
