@@ -387,3 +387,60 @@ Traceback (most recent call last):
     raise self.error(
 django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 153: 'endblock'. Did you forget to register or load this tag?
 ERROR 2026-02-20 07:57:23,753 basehttp 440 129310501365440 "GET /portal/users/create/?panel=1 HTTP/1.1" 500 184251
+ERROR 2026-02-20 11:21:32,363 basehttp 1658 139580795774656 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2026-02-20 11:40:17,082 basehttp 1658 139580784236224 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2026-02-20 11:44:35,076 basehttp 1658 139580784236224 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2026-02-20 14:02:15,326 log 1658 139580784236224 Internal Server Error: /portal/invoices/create/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/usr/local/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/usr/local/lib/python3.10/contextlib.py", line 79, in inner
+    return func(*args, **kwds)
+  File "/usr/local/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/app/HMS/HMS/web_views.py", line 773, in module_crud_page
+    form = dynamic_form()
+  File "/usr/local/lib/python3.10/site-packages/django/forms/models.py", line 353, in __init__
+    self.instance = opts.model()
+  File "/app/HMS/payments/models.py", line 222, in __init__
+    self.total_amount = self.amount + self.tax_amount
+TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'
+ERROR 2026-02-20 14:02:15,326 basehttp 1658 139580784236224 "GET /portal/invoices/create/?panel=1 HTTP/1.1" 500 89159
+ERROR 2026-02-20 14:02:21,697 log 1658 139580784236224 Internal Server Error: /portal/invoices/create/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/usr/local/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/usr/local/lib/python3.10/contextlib.py", line 79, in inner
+    return func(*args, **kwds)
+  File "/usr/local/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/app/HMS/HMS/web_views.py", line 773, in module_crud_page
+    form = dynamic_form()
+  File "/usr/local/lib/python3.10/site-packages/django/forms/models.py", line 353, in __init__
+    self.instance = opts.model()
+  File "/app/HMS/payments/models.py", line 222, in __init__
+    self.total_amount = self.amount + self.tax_amount
+TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'
+ERROR 2026-02-20 14:02:21,697 basehttp 1658 139580784236224 "GET /portal/invoices/create/?panel=1 HTTP/1.1" 500 89159
+ERROR 2026-02-20 14:03:04,882 log 1658 139580784236224 Internal Server Error: /portal/invoices/create/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/usr/local/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/usr/local/lib/python3.10/contextlib.py", line 79, in inner
+    return func(*args, **kwds)
+  File "/usr/local/lib/python3.10/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+  File "/app/HMS/HMS/web_views.py", line 773, in module_crud_page
+    form = dynamic_form()
+  File "/usr/local/lib/python3.10/site-packages/django/forms/models.py", line 353, in __init__
+    self.instance = opts.model()
+  File "/app/HMS/payments/models.py", line 222, in __init__
+    self.total_amount = self.amount + self.tax_amount
+TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'
+ERROR 2026-02-20 14:03:04,883 basehttp 1658 139580784236224 "GET /portal/invoices/create/?panel=1 HTTP/1.1" 500 89159

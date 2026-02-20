@@ -1,7 +1,7 @@
 VENV_PYTHON := .venv/bin/python
 COMPOSE := docker compose
 
-.PHONY: help build up down restart logs ps shell migrate bootstrap create-admin check test-venv test-docker setup smoke clean
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean
 
 help:
 	@echo "HMS (Hotel Management System) - Available Commands"
@@ -21,6 +21,7 @@ help:
 	@echo "  make ps              Show running containers"
 	@echo ""
 	@echo "Database & Initialization:"
+	@echo "  make makemigrations  Create new Django migrations (from model changes)"
 	@echo "  make migrate         Run Django migrations"
 	@echo "  make bootstrap       Bootstrap metadata tables"
 	@echo "  make create-admin    Create superuser admin account"
@@ -59,6 +60,9 @@ ps:
 
 shell:
 	$(COMPOSE) exec django bash
+
+makemigrations:
+	$(COMPOSE) exec django python manage.py makemigrations
 
 migrate:
 	$(COMPOSE) exec django python manage.py migrate --noinput

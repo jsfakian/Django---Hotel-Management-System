@@ -426,3 +426,144 @@ def manage_refund(request, refund_id):
     }
     
     return render(request, 'common_pages/manage-refund.html', context)
+
+
+# ============= MyData (AADE) Integration Views =============
+
+@login_required(login_url='login')
+@require_http_methods(["POST"])
+def transmit_invoice_to_mydata(request, invoice_id):
+    """
+    Transmit an invoice to MyData (Greek tax authority system)
+    """
+    try:
+        from .mydata_service import get_mydata_service
+        
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Permission check: User should be staff or the invoice guest
+        if not (request.user.is_staff or (hasattr(request.user, 'guest') and request.user.guest == invoice.guest)):
+            messages.error(request, 'You do not have permission to transmit this invoice.')
+            return redirect('invoice-detail', invoice_id=invoice_id)
+        
+        # Check if already transmitted
+        if invoice.mydata_transmitted:
+            messages.warning(request, 'This invoice has already been transmitted to MyData.')
+            return redirect('invoice-detail', invoice_id=invoice_id)
+        
+        # Validate invoice
+        mydata_service = get_mydata_service()
+        is_valid, validation_errors = mydata_service.validate_invoice_for_transmission(invoice)
+        
+        if not is_valid:
+            for error in validation_errors:
+                messages.error(request, f'Validation error: {error}')
+            return redirect('invoice-detail', invoice_id=invoice_id)
+        
+        # Transmit invoice
+        success, result = mydata_service.transmit_invoice(invoice)
+        
+        if success:
+            messages.success(request, f'Invoice transmitted to MyData. Transmission ID: {result}')
+        else:
+            messages.error(request, f'MyData transmission failed: {result}')
+        
+        return redirect('invoice-detail', invoice_id=invoice_id)
+        
+    except Exception as e:
+        messages.error(request, f'Error transmitting invoice: {str(e)}')
+        return redirect('invoice-detail', invoice_id=invoice_id)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def mydata_transmission_status(request, invoice_id):
+    """
+    Get MyData transmission status for an invoice
+    """
+    from django.http import JsonResponse
+    
+    try:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Permission check
+        if not (request.user.is_staff or (hasattr(request.user, 'guest') and request.user.guest == invoice.guest)):
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        return JsonResponse({
+            'invoice_number': invoice.invoice_number,
+            'mydata_transmitted': invoice.mydata_transmitted,
+            'transmission_id': invoice.mydata_transmission_id or '',
+            'transmission_date': invoice.mydata_transmission_date.isoformat() if invoice.mydata_transmission_date else None,
+            'qr_code': invoice.mydata_qr_code or '',
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def bulk_transmit_invoices_to_mydata(request):
+    """
+    Bulk transmit all pending invoices to MyData.
+    Staff only operation.
+    """
+    from django.http import JsonResponse
+    
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    try:
+        from .mydata_service import get_mydata_service
+        
+        mydata_service = get_mydata_service()
+        results = mydata_service.bulk_transmit_invoices()
+        
+        if request.GET.get('format') == 'json':
+            return JsonResponse(results)
+        
+        # Redirect with success message
+        success_msg = f"MyData transmission complete: {results['successful']} successful, {results['failed']} failed"
+        messages.success(request, success_msg)
+        
+        if results['failed'] > 0:
+            for error in results['errors'][:5]:  # Show first 5 errors
+                messages.warning(request, f"{error.get('invoice_number')}: {error.get('error', str(error.get('errors')))}")
+        
+        return redirect('invoice-list')
+        
+    except Exception as e:
+        error_msg = f'Bulk MyData transmission failed: {str(e)}'
+        if request.GET.get('format') == 'json':
+            return JsonResponse({'error': error_msg}, status=400)
+        
+        messages.error(request, error_msg)
+        return redirect('invoice-list')
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def invoice_mydata_export(request, invoice_id):
+    """
+    Export invoice in MyData-compatible format (JSON)
+    """
+    from django.http import JsonResponse
+    
+    try:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+        
+        # Permission check
+        if not (request.user.is_staff or (hasattr(request.user, 'guest') and request.user.guest == invoice.guest)):
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        from .mydata_service import get_mydata_service
+        
+        mydata_service = get_mydata_service()
+        export_data = mydata_service.export_invoice(invoice)
+        
+        return JsonResponse(export_data, safe=False)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+

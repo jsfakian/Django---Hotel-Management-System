@@ -199,6 +199,14 @@ class Invoice(models.Model):
     # Notes
     notes = models.TextField(blank=True)
     
+    # MyData (AADE) Integration Fields
+    mydata_transmitted = models.BooleanField(default=False, help_text='Whether invoice was transmitted to MyData')
+    mydata_transmission_id = models.CharField(max_length=100, blank=True, help_text='MyData transmission ID/mark')
+    mydata_qr_code = models.TextField(blank=True, help_text='QR Code data for MyData')
+    mydata_transmission_date = models.DateTimeField(null=True, blank=True)
+    mydata_cancel_mark = models.CharField(max_length=100, blank=True, help_text='MyData cancellation mark if applicable')
+    mydata_cancel_date = models.DateTimeField(null=True, blank=True)
+    
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -207,6 +215,7 @@ class Invoice(models.Model):
         indexes = [
             models.Index(fields=['guest', '-issued_date']),
             models.Index(fields=['status']),
+            models.Index(fields=['mydata_transmitted']),
         ]
     
     def __str__(self):
@@ -218,8 +227,8 @@ class Invoice(models.Model):
             self.generate_invoice_number()
         if not self.due_date:
             self.due_date = (timezone.now() + timedelta(days=30)).date()
-        if not self.total_amount:
-            self.total_amount = self.amount + self.tax_amount
+        if not self.total_amount and self.amount is not None:
+            self.total_amount = self.amount + (self.tax_amount or 0)
     
     def generate_invoice_number(self):
         """Generate unique invoice number"""
@@ -242,6 +251,46 @@ class Invoice(models.Model):
         self.status = 'paid'
         self.paid_date = timezone.now().date()
         self.save()
+    
+    def to_mydata_dict(self):
+        """
+        Convert invoice to MyData (AADE) compatible dictionary format.
+        MyData is the Greek tax authority's electronic invoicing system.
+        """
+        return {
+            'invoice_number': self.invoice_number,
+            'invoice_date': self.issued_date.strftime('%Y-%m-%d'),
+            'due_date': self.due_date.strftime('%Y-%m-%d'),
+            'currency': 'EUR',  # Default to EUR
+            'amount_without_vat': str(self.amount),
+            'vat_amount': str(self.tax_amount),
+            'total_amount': str(self.total_amount),
+            'client_name': f"{self.guest.user.first_name} {self.guest.user.last_name}",
+            'client_email': self.guest.user.email,
+            'description': self.description,
+            'status': self.status,
+            'mydata_transmitted': self.mydata_transmitted,
+            'mydata_transmission_id': self.mydata_transmission_id or '',
+        }
+    
+    def mark_as_mydata_transmitted(self, transmission_id, qr_code=''):
+        """Mark invoice as transmitted to MyData"""
+        self.mydata_transmitted = True
+        self.mydata_transmission_id = transmission_id
+        self.mydata_qr_code = qr_code
+        self.mydata_transmission_date = timezone.now()
+        self.save()
+    
+    def get_mydata_qr_data(self):
+        """
+        Generate QR code data string for MyData compliance (VIES format).
+        Format: INVOICE_NUMBER|ISSUE_DATE|TOTAL_GROSS|VAT_AMOUNT
+        """
+        if self.mydata_qr_code:
+            return self.mydata_qr_code
+        
+        qr_data = f"{self.invoice_number}|{self.issued_date.strftime('%Y%m%d')}|{self.total_amount}|{self.tax_amount}"
+        return qr_data
 
 
 class RefundRequest(models.Model):

@@ -310,6 +310,33 @@ a {
 .slide-panel-body {
     flex: 1;
     min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Custom scrollbar styling for slide panel body */
+.slide-panel-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.slide-panel-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.slide-panel-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.slide-panel-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Firefox scrollbar */
+.slide-panel-body {
+    scrollbar-color: #cbd5e1 transparent;
+    scrollbar-width: thin;
 }
 
 .slide-panel-frame {
@@ -321,6 +348,52 @@ a {
 
 body.panel-open {
     overflow: hidden;
+}
+
+/* Form styling in slide panels */
+.slide-panel-body .card-body {
+    padding: 1.5rem;
+}
+
+.slide-panel-body .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -0.5rem;
+    margin-left: -0.5rem;
+}
+
+.slide-panel-body .form-group {
+    flex: 0 0 50%;
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+    margin-bottom: 1.2rem;
+}
+
+.slide-panel-body .form-group label {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.6rem;
+    display: block;
+}
+
+.slide-panel-body textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.slide-panel-body .form-group .text-danger {
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}
+
+.slide-panel-body .form-group .text-muted {
+    font-size: 0.85rem;
+}
+
+/* Ensure buttons have proper spacing */
+.slide-panel-body .btn {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
 .menu-grid {

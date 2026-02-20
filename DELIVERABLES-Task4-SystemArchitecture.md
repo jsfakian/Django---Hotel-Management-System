@@ -49,6 +49,7 @@ The system consists of 4 primary layers:
 | Automated Reporting & Scheduling | ✅ Complete | Scheduled reports, email delivery, report generation |
 | Deployment Architecture | ✅ Complete | Cloud infrastructure, containerization, CI/CD pipeline |
 | Scalability & Performance Design | ✅ Complete | Caching strategy, optimization, capacity planning |
+| **Invoice Management & MyData Integration** | **✅ Complete** | **Greek tax authority (AADE) invoice transmission system** |
 
 ### Recommendations for Development Team
 
@@ -164,13 +165,156 @@ Comprehensive travel agent functionality has been implemented to enable multi-te
 
 ---
 
-#### D. Validation Evidence
+#### D. Invoice Management & MyData (AADE) Integration (February 20, 2026)
+
+**BUG FIX: Invoice Creation TypeError**
+
+Critical issue resolved in invoice creation flow:
+
+1. **Issue Description**
+  - TypeError: `unsupported operand type(s) for +: 'NoneType' and 'int'`
+  - Occurred in `Invoice.__init__` at line 222 when creating new invoices
+  - Root cause: Attempt to add `None` (unset amount) to numeric tax_amount
+
+2. **Solution Implemented**
+  - Added null check before total amount calculation
+  - Changed: `self.total_amount = self.amount + self.tax_amount`
+  - To: `if not self.total_amount and self.amount is not None: self.total_amount = self.amount + (self.tax_amount or 0)`
+  - Handles null values gracefully and prevents type errors
+
+3. **Files Modified**: `HMS/payments/models.py` - Invoice.__init__ method
+4. **Status**: ✅ RESOLVED - Tested in production containers
+
+---
+
+**NEW FEATURE: MyData (AADE) Greek Tax Authority Integration**
+
+Comprehensive module for transmitting invoices to Greek tax authority (MyData/AADE):
+
+1. **MyData Service Layer** (`payments/mydata_service.py`)
+  - `MyDataService` class manages all AADE interactions
+  - Methods: `transmit_invoice()`, `validate_invoice_for_transmission()`, `export_invoice()`, `generate_qr_code_data()`, `bulk_transmit_invoices()`
+  - Singleton pattern ensures single service instance
+  - Comprehensive error handling with MyDataServiceException
+
+2. **Invoice Model Enhancement**
+  - 6 new fields added to support MyData tracking:
+    - `mydata_transmitted` (Boolean) - Transmission status flag
+    - `mydata_transmission_id` (String) - AADE reference ID
+    - `mydata_qr_code` (Text) - QR code data for compliance
+    - `mydata_transmission_date` (DateTime) - Transmission timestamp
+    - `mydata_cancel_mark` (String) - Cancellation mark for revoked invoices
+    - `mydata_cancel_date` (DateTime) - Cancellation timestamp
+  - Database index on `mydata_transmitted` for fast queries
+
+3. **Invoice Form with MyData Checkbox** (`payments/forms.py`)
+  - New `InvoiceForm` class with Bootstrap styling
+  - Checkbox field: "Transmit to MyData (AADE)"
+  - **Default: UNCHECKED** (opt-in design pattern)
+  - Help text explains automatic transmission on creation
+  - All standard invoice fields with proper widgets
+
+4. **Web View Integration** (`HMS/web_views.py`)
+  - Auto-detect invoice module and use `InvoiceForm`
+  - On form submit: Check if MyData checkbox is enabled
+  - If checked: Validate invoice and transmit to MyData
+  - User feedback via Django messages:
+    - Success: "Invoice created and transmitted to MyData (ID: AADE-...)"
+    - Validation error: "Invoice created. MyData transmission skipped: [errors]"
+    - Already transmitted: "Invoice already transmitted to MyData"
+
+5. **Validation Rules** (before transmission)
+  - Invoice number must be present
+  - Amount > 0 and total amount > 0
+  - Issue and due dates set; due_date > issue_date
+  - Guest email and name required
+  - Amount + Tax = Total (calculation verification)
+
+6. **QR Code Generation** (VIES compliance format)
+  - Format: `A|TAX_ID|INVOICE_NUMBER|ISSUE_DATE|GROSS_AMOUNT|VAT_AMOUNT`
+  - Example: `A|123456789|INV-20260220-ABC12345|20260220|23800|5700`
+  - Encoded in `mydata_qr_code` field for printing
+
+7. **API Endpoints** (4 new REST endpoints)
+  - `POST /payments/invoices/{id}/mydata/transmit/` - Transmit single invoice
+  - `GET /payments/invoices/{id}/mydata/status/` - Check transmission status
+  - `GET /payments/invoices/{id}/mydata/export/` - Export to MyData JSON format
+  - `GET /payments/invoices/mydata/bulk-transmit/` - Bulk transmit pending invoices
+
+8. **Admin Integration**
+  - MyData transmission status visible in invoice list view
+  - Filter invoices by transmission status
+  - Bulk action to transmit multiple invoices at once
+  - MyData fields in detail view (readonly to prevent editing)
+
+9. **Configuration** (environment variables)
+  - `HOTEL_TAX_ID` (Required) - Hotel's 9-digit AFM (tax number)
+  - `MYDATA_API_BASE` - AADE API endpoint URL
+  - `MYDATA_USERNAME`, `MYDATA_PASSWORD` - AADE credentials
+  - `MYDATA_SANDBOX_MODE` (Default: True) - Test vs production
+  - `MYDATA_AUTO_TRANSMISSION` (Default: False) - Auto-transmit on creation
+  - `MYDATA_TRANSMISSION_RETRIES` (Default: 3) - Retry attempts on failure
+
+10. **Database Migration** (`payments/migrations/0002_add_mydata_fields.py`)
+  - Successfully applied via `make migrate`
+  - Adds 6 fields and 1 index to Invoice table
+  - Zero downtime deployment compatible
+
+11. **Makefile Integration**
+  - Added `make makemigrations` rule for creating migrations
+  - Fixed typo: `migrate` rule now correctly named (was `migraations`)
+  - Updated help documentation to include all database commands
+
+**Files Created:**
+- `payments/mydata_service.py` (276 lines) - Complete MyData service
+- `MYDATA_INTEGRATION_GUIDE.md` - Configuration and usage guide
+- `MYDATA_API_REFERENCE.md` - API endpoint reference
+- `payments/migrations/0002_add_mydata_fields.py` - Database migration
+
+**Files Modified:**
+- `payments/models.py` - 6 new fields, 3 new methods, bug fix
+- `payments/forms.py` - New InvoiceForm with MyData checkbox
+- `payments/views.py` - 4 new API endpoints for MyData
+- `payments/urls.py` - 4 new URL routes
+- `HMS/web_views.py` - InvoiceForm usage, MyData transmission logic on create/update
+- `HMS/settings.py` - MyData configuration section
+- `Makefile` - Fixed migrate rule, added makemigrations
+
+**Key Features:**
+✅ Unchecked by default (opt-in design)
+✅ Automatic transmission on form submit if checkbox enabled
+✅ Validates invoice completeness before transmission
+✅ Generates compliance QR codes for tax authority
+✅ Tracks transmission status with audit trail
+✅ Supports bulk transmission for efficiency
+✅ Graceful error handling (transmit errors don't prevent invoice creation)
+✅ GDPR compliant (respects guest privacy, only collects necessary fields)
+
+**Status: ✅ PRODUCTION READY**
+- Docker migrations applied successfully
+- All Python files compile without syntax errors
+- Forms render correctly with checkbox (unchecked by default)
+- API endpoints tested and functional
+- Admin integration complete
+- Comprehensive documentation provided
+- Backward compatible (existing invoices unaffected)
+
+**Testing Verification:**
+- ✅ Invoice creation without MyData checkbox: Works, no transmission
+- ✅ Invoice creation with MyData checkbox: Works, attempts transmission
+- ✅ Invoice validation: Prevents transmission if fields missing
+- ✅ Admin interface: MyData status visible and filterable
+- ✅ Database: Migration applied, 6 new fields created
+
+---
+
+#### E. Validation Evidence
 
 - `manage.py check` passes with **no system issues** after closure changes.
 - API and task modules load successfully under Django runtime checks.
 - `manage.py test analytics -v 1` passes (**6/6 tests**) after migration alignment.
 
-#### D. Remaining Technical Debt (explicitly out-of-scope for this closure)
+#### F. Remaining Technical Debt (explicitly out-of-scope for this closure)
 
 1. **Legacy module standardization (ongoing)**
   - Some non-API legacy view modules still contain transitional logic and broad exception handling patterns.

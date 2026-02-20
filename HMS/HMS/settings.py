@@ -328,3 +328,22 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': timedelta(days=7),
     },
 }
+
+# ============ MyData (AADE) Integration ============
+# Greek tax authority electronic invoicing system
+# See: https://www.aade.gr/mydata
+
+MYDATA_API_BASE = os.environ.get('MYDATA_API_BASE', 'https://www1.mydata.aade.gr/api')
+MYDATA_USERNAME = os.environ.get('MYDATA_USERNAME', '')  # AADE username
+MYDATA_PASSWORD = os.environ.get('MYDATA_PASSWORD', '')  # AADE password
+MYDATA_API_KEY = os.environ.get('MYDATA_API_KEY', '')    # AADE API key
+MYDATA_TIMEOUT = int(os.environ.get('MYDATA_TIMEOUT', '30'))  # API timeout in seconds
+
+# Hotel's tax ID (AFM - Α.Φ.Μ.) for MyData transmission
+# Format: 9-digit Greek tax identification number
+HOTEL_TAX_ID = os.environ.get('HOTEL_TAX_ID', '')
+
+# MyData transmission settings
+MYDATA_AUTO_TRANSMISSION = os.environ.get('MYDATA_AUTO_TRANSMISSION', 'False') == 'True'
+MYDATA_SANDBOX_MODE = os.environ.get('MYDATA_SANDBOX_MODE', 'True') == 'True'  # Use sandbox for testing
+MYDATA_TRANSMISSION_RETRIES = int(os.environ.get('MYDATA_TRANSMISSION_RETRIES', '3'))

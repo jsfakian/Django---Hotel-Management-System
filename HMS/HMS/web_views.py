@@ -11,6 +11,10 @@ from django.forms import modelform_factory
 from django.contrib import messages
 from django.db import IntegrityError
 
+# Import specific forms and services
+from payments.forms import InvoiceForm
+from payments.mydata_service import get_mydata_service
+
 
 def _user_role(user):
     group = user.groups.first()
@@ -215,8 +219,8 @@ MODULE_FIELD_CONFIG = {
         'columns': ['id', 'guest', 'amount', 'currency', 'status', 'created_at'],
     },
     'invoices': {
-        'fields': ['guest', 'payment', 'booking', 'amount', 'tax_amount', 'total_amount', 'status', 'description', 'due_date', 'notes'],
-        'columns': ['id', 'invoice_number', 'guest', 'total_amount', 'status', 'due_date'],
+        'fields': ['guest', 'payment', 'booking', 'amount', 'tax_amount', 'total_amount', 'status', 'description', 'due_date', 'notes', 'mydata_transmitted', 'mydata_transmission_id'],
+        'columns': ['id', 'invoice_number', 'guest', 'total_amount', 'status', 'due_date', 'mydata_transmitted'],
     },
     'contracts': {
         'fields': ['property', 'travel_agency', 'contract_type', 'commission_percentage', 'start_date', 'end_date', 'status', 'payment_terms', 'cancellation_policy', 'special_terms'],
@@ -248,7 +252,8 @@ EXCLUDED_EDIT_FIELDS = {
     'id', 'created_at', 'updated_at', 'processed_at', 'generated_at', 'read_at',
     'email_sent_at', 'email_opened_at', 'last_generated_at', 'next_scheduled_at',
     'property_manager_signed_at', 'travel_agency_signed_at', 'prediction_time',
-    'verification_sent_at', 'verification_verified_at', 'paid_date'
+    'verification_sent_at', 'verification_verified_at', 'paid_date',
+    'mydata_transmission_date', 'mydata_qr_code', 'mydata_cancel_date'  # MyData readonly fields
 }
 
 
@@ -711,7 +716,12 @@ def module_crud_page(request, module_key, action, pk=None):
         return redirect(module['workspace_url'])
 
     editable_fields = _configured_fields(model, module_key)
-    dynamic_form = modelform_factory(model, fields=editable_fields if editable_fields else [])
+    
+    # Use specific form for invoices, otherwise use dynamic form
+    if module_key == 'invoices':
+        dynamic_form = InvoiceForm
+    else:
+        dynamic_form = modelform_factory(model, fields=editable_fields if editable_fields else [])
 
     if action == 'create':
         if request.method == 'POST':
@@ -747,12 +757,30 @@ def module_crud_page(request, module_key, action, pk=None):
                     
                     instance.save()
                     
+                    # Handle MyData transmission for invoices
+                    if module_key == 'invoices' and form.cleaned_data.get('transmit_to_mydata'):
+                        try:
+                            mydata_service = get_mydata_service()
+                            # Validate invoice before transmission
+                            is_valid, validation_errors = mydata_service.validate_invoice_for_transmission(instance)
+                            if is_valid:
+                                success, result = mydata_service.transmit_invoice(instance)
+                                if success:
+                                    messages.success(request, f'Invoice created and transmitted to MyData (ID: {result}).')
+                                else:
+                                    messages.warning(request, f'Invoice created but MyData transmission failed: {result}')
+                            else:
+                                messages.warning(request, f'Invoice created. MyData transmission skipped: {", ".join(validation_errors)}')
+                        except Exception as e:
+                            messages.warning(request, f'Invoice created. MyData transmission error: {str(e)}')
+                    else:
+                        messages.success(request, f'{module["title"]} record created successfully.')
+                    
                     # Create notifications for staff if travel agent created booking
                     created_by_agent = module_key == 'bookings' and _is_travel_agent(request.user)
                     if created_by_agent:
                         _create_booking_notification(instance, created_by_travel_agent=True)
                     
-                    messages.success(request, f'{module["title"]} record created successfully.')
                     if panel_mode:
                         return HttpResponse(status=204)  # No content, triggers reload in panel
                     return redirect(f'/portal/{module_key}/read/')
@@ -789,7 +817,29 @@ def module_crud_page(request, module_key, action, pk=None):
             if form.is_valid():
                 try:
                     form.save()
-                    messages.success(request, f'{module["title"]} record updated successfully.')
+                    
+                    # Handle MyData transmission for invoices
+                    if module_key == 'invoices' and form.cleaned_data.get('transmit_to_mydata'):
+                        try:
+                            if instance.mydata_transmitted:
+                                messages.warning(request, 'Invoice already transmitted to MyData.')
+                            else:
+                                mydata_service = get_mydata_service()
+                                # Validate invoice before transmission
+                                is_valid, validation_errors = mydata_service.validate_invoice_for_transmission(instance)
+                                if is_valid:
+                                    success, result = mydata_service.transmit_invoice(instance)
+                                    if success:
+                                        messages.success(request, f'Invoice updated and transmitted to MyData (ID: {result}).')
+                                    else:
+                                        messages.warning(request, f'Invoice updated but MyData transmission failed: {result}')
+                                else:
+                                    messages.warning(request, f'Invoice updated. MyData transmission skipped: {", ".join(validation_errors)}')
+                        except Exception as e:
+                            messages.warning(request, f'Invoice updated. MyData transmission error: {str(e)}')
+                    else:
+                        messages.success(request, f'{module["title"]} record updated successfully.')
+                    
                     if panel_mode:
                         return HttpResponse(status=204)  # No content, triggers reload in panel
                     return redirect(f'/portal/{module_key}/read/')
