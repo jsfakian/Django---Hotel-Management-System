@@ -1,5 +1,6 @@
 from django.urls import path
 
+<<<<<<< HEAD
 from bookings.views import (
     get_dynamic_price,
     get_room_recommendations,
@@ -30,4 +31,12 @@ urlpatterns = [
     path('pricing/<int:room_id>/<str:date_str>/', pricing_analysis_view, name='pricing-analysis-dated'),
     path('pricing/<int:room_id>/', pricing_analysis_view, name='pricing-analysis'),
     path('api/pricing/summary/', pricing_summary_api, name='pricing-summary-api'),
+=======
+from bookings.views import get_dynamic_price, get_room_recommendations
+
+
+urlpatterns = [
+    path('dynamic-price/<int:room_id>/', get_dynamic_price, name='dynamic-price'),
+    path('recommendations/<int:guest_id>/', get_room_recommendations, name='room-recommendations'),
+>>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
 ]

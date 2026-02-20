@@ -21,9 +21,13 @@
                 <h2 class="mb-1">{{ module.title }}</h2>
                 <p class="mb-3">{{ module.description }}</p>
                 <a class="btn btn-light mr-2" href="{{ module.workspace_url }}">Open {{ module.title }} Workspace</a>
+<<<<<<< HEAD
                 {% if 'create' in available_actions %}
                 <a class="btn btn-outline-light js-slide-panel" data-panel-title="Add {{ module.title }}" href="/portal/{{ module_key }}/create/">Add {{ module.title }}</a>
                 {% endif %}
+=======
+                <a class="btn btn-outline-light js-slide-panel" data-panel-title="Add {{ module.title }}" href="/portal/{{ module_key }}/create/">Add {{ module.title }}</a>
+>>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
             </div>
 
             {% if kpis %}

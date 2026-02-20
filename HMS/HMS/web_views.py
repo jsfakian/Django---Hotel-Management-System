@@ -344,6 +344,95 @@ CRUD_OPERATIONS = {
 def _crud_target(module_key, action):
     return CRUD_OPERATIONS.get(module_key, {}).get(action, '/home/')
 
+def _crud_target(module_key, action):
+    targets = {
+        'users': {
+            'create': '/admin/auth/user/add/',
+            'read': '/admin/auth/user/',
+            'update': '/admin/auth/user/',
+            'delete': '/admin/auth/user/',
+        },
+        'rooms': {
+            'create': '/admin/room/room/add/',
+            'read': '/admin/room/room/',
+            'update': '/admin/room/room/',
+            'delete': '/admin/room/room/',
+        },
+        'bookings': {
+            'create': '/admin/room/booking/add/',
+            'read': '/admin/room/booking/',
+            'update': '/admin/room/booking/',
+            'delete': '/admin/room/booking/',
+        },
+        'guests': {
+            'create': '/admin/accounts/guest/add/',
+            'read': '/admin/accounts/guest/',
+            'update': '/admin/accounts/guest/',
+            'delete': '/admin/accounts/guest/',
+        },
+        'properties': {
+            'create': '/admin/properties/property/add/',
+            'read': '/admin/properties/property/',
+            'update': '/admin/properties/property/',
+            'delete': '/admin/properties/property/',
+        },
+        'travel-agencies': {
+            'create': '/admin/properties/travelagency/add/',
+            'read': '/admin/properties/travelagency/',
+            'update': '/admin/properties/travelagency/',
+            'delete': '/admin/properties/travelagency/',
+        },
+        'payments': {
+            'create': '/payments/process/',
+            'read': '/payments/history/',
+            'update': '/admin/payments/payment/',
+            'delete': '/admin/payments/payment/',
+        },
+        'invoices': {
+            'create': '/admin/payments/invoice/add/',
+            'read': '/payments/invoices/',
+            'update': '/admin/payments/invoice/',
+            'delete': '/admin/payments/invoice/',
+        },
+        'contracts': {
+            'create': '/admin/contracts/contract/add/',
+            'read': '/contracts/',
+            'update': '/admin/contracts/contract/',
+            'delete': '/admin/contracts/contract/',
+        },
+        'pricing': {
+            'create': '/admin/room/room/add/',
+            'read': '/admin/room/room/',
+            'update': '/admin/room/room/',
+            'delete': '/admin/room/room/',
+        },
+        'tasks': {
+            'create': '/admin/accounts/task/add/',
+            'read': '/admin/accounts/task/',
+            'update': '/admin/accounts/task/',
+            'delete': '/admin/accounts/task/',
+        },
+        'notifications': {
+            'create': '/admin/notifications/notification/add/',
+            'read': '/notifications/',
+            'update': '/admin/notifications/notification/',
+            'delete': '/admin/notifications/notification/',
+        },
+        'business-intelligence': {
+            'create': '/admin/analytics/customreport/add/',
+            'read': '/admin/analytics/customreport/',
+            'update': '/admin/analytics/customreport/',
+            'delete': '/admin/analytics/customreport/',
+        },
+        'forecast': {
+            'create': '/admin/analytics/occupancyforecast/add/',
+            'read': '/admin/analytics/occupancyforecast/',
+            'update': '/admin/analytics/occupancyforecast/',
+            'delete': '/admin/analytics/occupancyforecast/',
+        },
+    }
+    return targets.get(module_key, {}).get(action, '/home/')
+
 
 def _model_for_module(module_key):
     model_ref = MODULE_MODEL_MAP.get(module_key)

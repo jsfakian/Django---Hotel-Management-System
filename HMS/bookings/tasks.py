@@ -72,6 +72,7 @@ def train_task3_forecasting_model():
 def train_task3_recommendation_model():
     """Run Task3 recommendation model training."""
     return _run_training_script('train_recommendations.py')
+<<<<<<< HEAD
 
 
 # ============================================================================
@@ -361,3 +362,5 @@ def _decimal_or_zero(value):
         return Decimal(str(value)) if value else Decimal('0')
     except (TypeError, ValueError):
         return Decimal('0')
+=======
+>>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2

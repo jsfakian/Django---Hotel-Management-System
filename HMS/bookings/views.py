@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -7,10 +8,19 @@ from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
+=======
+from datetime import date
+
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+>>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
 
 from room.models import Room, Booking
 from bookings.models import PricingHistory
 from accounts.models import Guest
+<<<<<<< HEAD
 from bookings.pricing_service import get_pricing_analyzer
 from bookings.pricing_serializers import (
     PricingRecommendationSerializer,
@@ -18,6 +28,8 @@ from bookings.pricing_serializers import (
     ScenarioAnalysisRequestSerializer,
     ScenarioAnalysisResponseSerializer,
 )
+=======
+>>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
 
 
 def _parse_iso_date(value):
@@ -211,6 +223,7 @@ def get_room_recommendations(request, guest_id):
             'recommendations': recommendations,
         }
     )
+<<<<<<< HEAD
 
 
 # ============================================================================
@@ -492,3 +505,5 @@ def get_available_models(request):
             {'error': f'Error retrieving models: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+=======
+>>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
