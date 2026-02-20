@@ -1,0 +1,60 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Properties</h3>
+        {% if role == 'admin' or role == 'manager' %}
+        <a class="btn btn-dark" href="{% url 'property-create' %}">Add Property</a>
+        {% endif %}
+    </div>
+
+    <form method="get" class="card card-body mb-3">
+        <div class="form-row">
+            <div class="col-md-6 mb-2">
+                <input class="form-control" type="text" name="search" value="{{ search }}" placeholder="Search by name, city, location">
+            </div>
+            <div class="col-md-4 mb-2">
+                <select class="form-control" name="city">
+                    <option value="">All cities</option>
+                    {% for c in cities %}
+                    <option value="{{ c }}" {% if request.GET.city == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 mb-2">
+                <button class="btn btn-outline-dark btn-block" type="submit">Filter</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>City</th>
+                        <th>Total Rooms</th>
+                        <th>Rating</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in properties %}
+                    <tr>
+                        <td>{{ p.name }}</td>
+                        <td>{{ p.city }}</td>
+                        <td>{{ p.total_rooms }}</td>
+                        <td>{{ p.star_rating }}</td>
+                        <td class="text-right"><a class="btn btn-sm btn-outline-primary" href="{% url 'property-detail' p.pk %}">Open</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">No properties found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

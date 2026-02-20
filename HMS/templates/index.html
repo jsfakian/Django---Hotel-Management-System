@@ -1,14 +1,23 @@
 {% include 'incs/head.html' %}
 
-<body>
+<body class="bg-hotel">
     {% include 'incs/nav.html' %}
 
-    {% block context %}
+    <main class="site-main">
+        {% if messages %}
+        <div class="container pt-3">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} shadow-sm" role="alert">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
+        {% block context %}
 
-
-    {% endblock %}
-
+        {% endblock %}
+    </main>
 
     {% include 'incs/footer.html' %}
 

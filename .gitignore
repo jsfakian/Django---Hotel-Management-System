@@ -1,2 +1,3 @@
 real-data/
 __pycache__/
+.env

@@ -92,22 +92,22 @@ WSGI_APPLICATION = 'HMS.wsgi.application'
 # Per Task 4: Recommended to use PostgreSQL in production
 # Falls back to SQLite for development
 
+DB_ENGINE = os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3')
+
 DATABASES = {
     'default': {
-        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.sqlite3'),
+        'ENGINE': DB_ENGINE,
         'NAME': os.environ.get('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
         'USER': os.environ.get('DB_USER', ''),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', ''),
         'PORT': os.environ.get('DB_PORT', ''),
-        'TEST': {
-            'NAME': ':memory:',
-            # Disable foreign key constraints for SQLite during testing
-            # to handle pre-existing constraint issues in bookings app
-        },
-        **({'CONN_MAX_AGE': 600, 'ATOMIC_REQUESTS': True} 
-           if 'postgresql' in os.environ.get('DB_ENGINE', '')
-           else {})
+        **({'CONN_MAX_AGE': 600, 'ATOMIC_REQUESTS': True}
+           if 'postgresql' in DB_ENGINE
+           else {}),
+        **({'TEST': {'NAME': ':memory:'}}
+           if 'sqlite3' in DB_ENGINE
+           else {}),
     }
 }
 

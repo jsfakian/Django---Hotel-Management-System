@@ -1,0 +1,36 @@
+{% extends 'index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <div class="app-surface p-4 mb-3">
+        <h2 class="mb-1">Backend Navigation Hub</h2>
+        <p class="text-muted mb-0">Centralized navigation to backend endpoints and system surfaces.</p>
+    </div>
+
+    {% for group in endpoint_groups %}
+    <div class="app-surface p-3 mb-3">
+        <h5 class="mb-3">{{ group.title }}</h5>
+        <div class="menu-grid">
+            {% for item in group.items %}
+            <div class="menu-card endpoint-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong class="d-block">{{ item.label }}</strong>
+                    <span class="badge endpoint-method endpoint-{{ item.method|lower }}">{{ item.method }}</span>
+                </div>
+                {% if '<' in item.path %}
+                <div class="small text-muted mb-2">{{ item.path }}</div>
+                {% else %}
+                <a href="{{ item.path }}" class="small d-inline-block mb-2">{{ item.path }}</a>
+                {% endif %}
+                {% if '<' in item.path %}
+                <small class="text-muted">Parameterized endpoint</small>
+                {% else %}
+                <small class="text-muted">Open endpoint</small>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -52,7 +52,7 @@ def properties_list(request):
         'cities': Property.objects.values_list('city', flat=True).distinct()
     }
     
-    return render(request, f'{role}/properties-list.html', context)
+    return render(request, 'common_pages/properties-list.html', context)
 
 
 @login_required(login_url='login')
@@ -94,7 +94,7 @@ def property_detail(request, pk):
         'available_rooms': total_rooms - booked_today,
     }
     
-    return render(request, f'{role}/property-detail.html', context)
+    return render(request, 'common_pages/property-detail.html', context)
 
 
 @login_required(login_url='login')
@@ -140,7 +140,7 @@ def property_create(request):
         'title': 'Create Property'
     }
     
-    return render(request, f'{role}/property-form.html', context)
+    return render(request, 'common_pages/property-form.html', context)
 
 
 @login_required(login_url='login')
@@ -172,7 +172,7 @@ def property_edit(request, pk):
         'title': f'Edit {property_obj.name}'
     }
     
-    return render(request, f'{role}/property-form.html', context)
+    return render(request, 'common_pages/property-form.html', context)
 
 
 @login_required(login_url='login')
@@ -197,7 +197,7 @@ def property_delete(request, pk):
         'property': property_obj,
     }
     
-    return render(request, f'{role}/property-confirm-delete.html', context)
+    return render(request, 'common_pages/property-confirm-delete.html', context)
 
 
 @login_required(login_url='login')
@@ -233,7 +233,7 @@ def property_amenities(request, pk):
         'form': form,
     }
     
-    return render(request, f'{role}/property-amenities.html', context)
+    return render(request, 'common_pages/property-amenities.html', context)
 
 
 @login_required(login_url='login')
@@ -267,4 +267,4 @@ def property_policy(request, pk):
         'form': form,
     }
     
-    return render(request, f'{role}/property-policy.html', context)
+    return render(request, 'common_pages/property-policy.html', context)

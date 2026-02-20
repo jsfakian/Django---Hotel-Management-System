@@ -1,0 +1,31 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <h3 class="mb-3">Manage Refund #{{ refund.id }}</h3>
+    <div class="card">
+        <div class="card-body">
+            <p class="mb-1"><strong>Guest:</strong> {{ refund.guest }}</p>
+            <p class="mb-1"><strong>Amount:</strong> {{ refund.refund_amount }}</p>
+            <p class="mb-1"><strong>Status:</strong> {{ refund.get_status_display }}</p>
+            <p class="mb-3"><strong>Reason:</strong> {{ refund.get_reason_display }}</p>
+
+            <form method="post" class="mb-2">
+                {% csrf_token %}
+                <button class="btn btn-success" name="action" value="approve" type="submit">Approve</button>
+                <button class="btn btn-warning" name="action" value="process" type="submit">Process</button>
+            </form>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Rejection reason</label>
+                    <textarea class="form-control" name="rejection_reason" rows="3"></textarea>
+                </div>
+                <button class="btn btn-danger" name="action" value="reject" type="submit">Reject</button>
+                <a class="btn btn-outline-secondary" href="{% url 'refund-history' %}">Back</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>HMS Home</title>
+    <link rel="icon" type="image/svg+xml" href="{% static '/images/favicon.svg' %}">
+    <link rel="stylesheet" type="text/css" href="{% static '/css/main.css' %}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+</head>
+<body class="bg-hotel">
+    <div class="container py-5">
+        <main class="app-surface p-4 p-md-5">
+            <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+                <div>
+                    <img src="{% static '/images/nephele-logo.svg' %}" alt="NEPHELE Logo" class="mb-2" style="height: 38px; width: auto;">
+                    <h2 class="mb-1">Welcome, {{ request.user.username }}</h2>
+                    <small class="text-muted">Use the menu below to navigate the system quickly.</small>
+                </div>
+                <a class="btn btn-outline-dark mt-2 mt-md-0" href="/logout/">Log out</a>
+            </div>
+
+            <hr>
+
+            <h5 class="mb-3">Main Menu</h5>
+            <div class="menu-grid">
+                <a class="menu-card" href="{% url 'backend-navigation' %}">
+                    <h6 class="mb-1">Backend Navigation</h6>
+                    <small class="text-muted">Browse all backend endpoint groups</small>
+                </a>
+                <a class="menu-card" href="/admin/">
+                    <h6 class="mb-1">Admin</h6>
+                    <small class="text-muted">Manage all entities</small>
+                </a>
+                <a class="menu-card" href="/api/v1/schema/">
+                    <h6 class="mb-1">OpenAPI Schema</h6>
+                    <small class="text-muted">View raw API schema</small>
+                </a>
+                <a class="menu-card" href="/api/v1/docs/swagger/">
+                    <h6 class="mb-1">Swagger UI</h6>
+                    <small class="text-muted">Test API endpoints</small>
+                </a>
+                <a class="menu-card" href="/properties/">
+                    <h6 class="mb-1">Properties</h6>
+                    <small class="text-muted">Browse property module</small>
+                </a>
+                <a class="menu-card" href="/payments/history/">
+                    <h6 class="mb-1">Payment History</h6>
+                    <small class="text-muted">Review payment records</small>
+                </a>
+                <a class="menu-card" href="/notifications/">
+                    <h6 class="mb-1">Notifications</h6>
+                    <small class="text-muted">See alerts and messages</small>
+                </a>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

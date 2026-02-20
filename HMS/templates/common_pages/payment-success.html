@@ -1,0 +1,18 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <div class="card border-success">
+        <div class="card-body">
+            <h3 class="text-success">Payment Completed</h3>
+            <p class="mb-1"><strong>Amount:</strong> {{ payment.amount }} {{ payment.currency }}</p>
+            <p class="mb-1"><strong>Reference:</strong> {{ payment.reference_code }}</p>
+            <p class="mb-3"><strong>Status:</strong> {{ payment.get_status_display }}</p>
+            {% if invoice %}
+            <a class="btn btn-dark" href="{% url 'invoice-detail' invoice.id %}">View Invoice</a>
+            {% endif %}
+            <a class="btn btn-outline-secondary" href="{% url 'payment-history' %}">Back to History</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

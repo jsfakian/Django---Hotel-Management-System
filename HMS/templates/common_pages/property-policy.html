@@ -1,0 +1,27 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <h3 class="mb-3">Property Policy • {{ property.name }}</h3>
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-row">
+                    {% for field in form %}
+                    {% if field.name != 'property' %}
+                    <div class="form-group {% if field.name == 'check_in_time' or field.name == 'check_out_time' %}col-md-6{% else %}col-12{% endif %}">
+                        <label>{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}<small class="text-danger">{{ field.errors|striptags }}</small>{% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <button class="btn btn-dark" type="submit">Save Policy</button>
+                <a class="btn btn-outline-secondary" href="{% url 'property-detail' property.pk %}">Back</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

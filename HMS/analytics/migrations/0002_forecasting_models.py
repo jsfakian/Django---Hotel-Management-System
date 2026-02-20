@@ -1,0 +1,221 @@
+from django.db import migrations, models
+import django.db.models.deletion
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('analytics', '0001_initial'),
+        ('properties', '0002_travelagency'),
+        ('room', '0003_schema_alignment'),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='OccupancyForecast',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('forecast_date', models.DateField(help_text='Date when forecast was generated')),
+                ('target_date', models.DateField(help_text='Date being forecasted')),
+                ('predicted_occupancy', models.DecimalField(decimal_places=2, help_text='Predicted occupancy % (0-100)', max_digits=5)),
+                ('lower_bound', models.DecimalField(blank=True, decimal_places=2, help_text='95% confidence interval lower bound', max_digits=5, null=True)),
+                ('upper_bound', models.DecimalField(blank=True, decimal_places=2, help_text='95% confidence interval upper bound', max_digits=5, null=True)),
+                ('model_type', models.CharField(choices=[('prophet', 'Prophet'), ('sarima', 'SARIMA'), ('ensemble', 'Ensemble')], default='prophet', max_length=20)),
+                ('actual_occupancy', models.DecimalField(blank=True, decimal_places=2, help_text='Actual occupancy after target date passed', max_digits=5, null=True)),
+                ('forecast_error', models.DecimalField(blank=True, decimal_places=2, help_text='Error = actual - predicted', max_digits=5, null=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('property', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='occupancy_forecasts', to='properties.property')),
+            ],
+            options={
+                'verbose_name': 'Occupancy Forecast',
+                'verbose_name_plural': 'Occupancy Forecasts',
+                'db_table': 'occupancy_forecasts',
+                'unique_together': {('property', 'forecast_date', 'target_date', 'model_type')},
+            },
+        ),
+        migrations.CreateModel(
+            name='RevenueForecast',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('forecast_date', models.DateField(help_text='Date when forecast was generated')),
+                ('target_date', models.DateField(help_text='Date being forecasted')),
+                ('predicted_revenue', models.DecimalField(decimal_places=2, help_text='Predicted revenue (in base currency)', max_digits=12)),
+                ('lower_bound', models.DecimalField(blank=True, decimal_places=2, help_text='95% confidence interval lower bound', max_digits=12, null=True)),
+                ('upper_bound', models.DecimalField(blank=True, decimal_places=2, help_text='95% confidence interval upper bound', max_digits=12, null=True)),
+                ('model_type', models.CharField(choices=[('prophet', 'Prophet'), ('sarima', 'SARIMA'), ('ensemble', 'Ensemble')], default='prophet', max_length=20)),
+                ('predicted_occupancy', models.DecimalField(blank=True, decimal_places=2, help_text='Predicted occupancy used for forecast', max_digits=5, null=True)),
+                ('avg_daily_rate', models.DecimalField(blank=True, decimal_places=2, help_text='ADR used for revenue forecast', max_digits=10, null=True)),
+                ('num_rooms', models.IntegerField(blank=True, help_text='Number of rooms', null=True)),
+                ('actual_revenue', models.DecimalField(blank=True, decimal_places=2, help_text='Actual revenue after target date passed', max_digits=12, null=True)),
+                ('forecast_error', models.DecimalField(blank=True, decimal_places=2, help_text='Error = actual - predicted', max_digits=12, null=True)),
+                ('forecast_error_pct', models.DecimalField(blank=True, decimal_places=2, help_text='Error as percentage of predicted', max_digits=5, null=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('property', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='revenue_forecasts', to='properties.property')),
+            ],
+            options={
+                'verbose_name': 'Revenue Forecast',
+                'verbose_name_plural': 'Revenue Forecasts',
+                'db_table': 'revenue_forecasts',
+                'unique_together': {('property', 'forecast_date', 'target_date', 'model_type')},
+            },
+        ),
+        migrations.CreateModel(
+            name='CancellationPrediction',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('prediction_date', models.DateField(help_text='Date prediction was made')),
+                ('prediction_time', models.DateTimeField(help_text='Time prediction was made')),
+                ('cancellation_risk_score', models.DecimalField(decimal_places=2, help_text='Risk score 0-100 (higher = more likely to cancel)', max_digits=5)),
+                ('risk_level', models.CharField(choices=[('low', 'Low Risk (<40%)'), ('medium', 'Medium Risk (40-65%)'), ('high', 'High Risk (>65%)')], max_length=20)),
+                ('lead_time_days', models.IntegerField(blank=True, null=True)),
+                ('booking_source', models.CharField(blank=True, max_length=50, null=True)),
+                ('customer_type', models.CharField(blank=True, max_length=50, null=True)),
+                ('refund_policy', models.CharField(blank=True, max_length=50, null=True)),
+                ('price_per_night', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
+                ('model_version', models.CharField(default='v1.0', max_length=50)),
+                ('actually_cancelled', models.BooleanField(blank=True, null=True)),
+                ('cancellation_date', models.DateField(blank=True, null=True)),
+                ('intervention_flag', models.BooleanField(default=False, help_text='Whether automated intervention (email, offer) was triggered')),
+                ('intervention_type', models.CharField(blank=True, choices=[('confirmation_email', 'Confirmation Email'), ('special_offer', 'Special Offer'), ('vip_treatment', 'VIP Treatment'), ('increased_overbooking', 'Increased Overbooking')], max_length=100, null=True)),
+                ('intervention_result', models.CharField(blank=True, choices=[('success', 'Prevented Cancellation'), ('failed', 'Still Cancelled')], max_length=50, null=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('booking', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='cancellation_prediction', to='room.booking')),
+                ('property', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='cancellation_predictions', to='properties.property')),
+            ],
+            options={
+                'verbose_name': 'Cancellation Prediction',
+                'verbose_name_plural': 'Cancellation Predictions',
+                'db_table': 'cancellation_predictions',
+            },
+        ),
+        migrations.CreateModel(
+            name='NoShowPrediction',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('prediction_date', models.DateField(help_text='Date prediction was made')),
+                ('prediction_time', models.DateTimeField(help_text='Time prediction was made')),
+                ('noshow_risk_score', models.DecimalField(decimal_places=2, help_text='Risk score 0-100 (higher = more likely to no-show)', max_digits=5)),
+                ('risk_level', models.CharField(choices=[('low', 'Low Risk (<20%)'), ('medium', 'Medium Risk (20-40%)'), ('high', 'High Risk (>40%)')], max_length=20)),
+                ('customer_country', models.CharField(blank=True, max_length=100, null=True)),
+                ('booking_source', models.CharField(blank=True, max_length=50, null=True)),
+                ('payment_confirmed', models.BooleanField(blank=True, null=True)),
+                ('advance_checkin_days', models.IntegerField(blank=True, null=True)),
+                ('price_per_night', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
+                ('special_requests_count', models.IntegerField(blank=True, null=True)),
+                ('model_version', models.CharField(default='v1.0', max_length=50)),
+                ('actually_noshow', models.BooleanField(blank=True, null=True)),
+                ('checked_in_date', models.DateField(blank=True, null=True)),
+                ('overbooking_flag', models.BooleanField(default=False, help_text='Whether room was overbooked due to high no-show risk')),
+                ('overbooking_factor', models.DecimalField(blank=True, choices=[(1.0, '100% allocation'), (1.05, '105% allocation'), (1.1, '110% allocation')], decimal_places=2, help_text='Overbooking percentage applied', max_digits=3, null=True)),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True)),
+                ('booking', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='noshow_prediction', to='room.booking')),
+                ('property', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='noshow_predictions', to='properties.property')),
+            ],
+            options={
+                'verbose_name': 'No-Show Prediction',
+                'verbose_name_plural': 'No-Show Predictions',
+                'db_table': 'noshow_predictions',
+            },
+        ),
+        migrations.CreateModel(
+            name='ForecastingModelMetrics',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('model_name', models.CharField(choices=[('occupancy_prophet', 'Occupancy (Prophet)'), ('occupancy_sarima', 'Occupancy (SARIMA)'), ('revenue_prophet', 'Revenue (Prophet)'), ('cancellation_xgb', 'Cancellation Prediction (XGBoost)'), ('noshow_xgb', 'No-Show Prediction (XGBoost)')], max_length=100)),
+                ('evaluation_date', models.DateField(help_text='Date of performance evaluation')),
+                ('evaluation_period', models.CharField(choices=[('7day', 'Last 7 days'), ('14day', 'Last 14 days'), ('30day', 'Last 30 days'), ('90day', 'Last 90 days')], default='30day', max_length=20)),
+                ('mae', models.DecimalField(blank=True, decimal_places=4, help_text='Mean Absolute Error', max_digits=12, null=True)),
+                ('rmse', models.DecimalField(blank=True, decimal_places=4, help_text='Root Mean Squared Error', max_digits=12, null=True)),
+                ('mape', models.DecimalField(blank=True, decimal_places=2, help_text='Mean Absolute Percentage Error (%)', max_digits=5, null=True)),
+                ('r_squared', models.DecimalField(blank=True, decimal_places=4, help_text='R-squared coefficient', max_digits=5, null=True)),
+                ('precision', models.DecimalField(blank=True, decimal_places=4, help_text='Precision (True Positives / (True Positives + False Positives))', max_digits=5, null=True)),
+                ('recall', models.DecimalField(blank=True, decimal_places=4, help_text='Recall (True Positives / (True Positives + False Negatives))', max_digits=5, null=True)),
+                ('f1_score', models.DecimalField(blank=True, decimal_places=4, help_text='F1 Score (harmonic mean of precision and recall)', max_digits=5, null=True)),
+                ('roc_auc', models.DecimalField(blank=True, decimal_places=4, help_text='ROC-AUC score', max_digits=5, null=True)),
+                ('predictions_count', models.IntegerField(default=0, help_text='Number of predictions evaluated')),
+                ('is_acceptable', models.BooleanField(default=True, help_text='Whether model performance is within acceptable thresholds')),
+                ('needs_retraining', models.BooleanField(default=False, help_text='Whether model should be retrained due to performance degradation')),
+                ('notes', models.TextField(blank=True, help_text='Any remarks about model performance')),
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('property', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='forecast_metrics', to='properties.property')),
+            ],
+            options={
+                'verbose_name': 'Forecasting Model Metrics',
+                'verbose_name_plural': 'Forecasting Model Metrics',
+                'db_table': 'forecasting_model_metrics',
+                'unique_together': {('property', 'model_name', 'evaluation_date')},
+            },
+        ),
+        migrations.AddIndex(
+            model_name='occupancyforecast',
+            index=models.Index(fields=['property', 'target_date'], name='occupancy_f_propert_c2d2cc_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='occupancyforecast',
+            index=models.Index(fields=['property', 'forecast_date'], name='occupancy_f_propert_d6b73b_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='occupancyforecast',
+            index=models.Index(fields=['target_date'], name='occupancy_f_target__ff4428_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='revenueforecast',
+            index=models.Index(fields=['property', 'target_date'], name='revenue_for_propert_7b549a_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='revenueforecast',
+            index=models.Index(fields=['property', 'forecast_date'], name='revenue_for_propert_2b3900_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='revenueforecast',
+            index=models.Index(fields=['target_date'], name='revenue_for_target__00513b_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='cancellationprediction',
+            index=models.Index(fields=['property', 'prediction_date'], name='cancellatio_propert_260dbe_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='cancellationprediction',
+            index=models.Index(fields=['booking', 'prediction_date'], name='cancellatio_booking_b6897a_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='cancellationprediction',
+            index=models.Index(fields=['risk_level'], name='cancellatio_risk_le_7ba2e8_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='cancellationprediction',
+            index=models.Index(fields=['cancellation_risk_score'], name='cancellatio_cancell_7f986f_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='noshowprediction',
+            index=models.Index(fields=['property', 'prediction_date'], name='noshow_pred_propert_72e398_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='noshowprediction',
+            index=models.Index(fields=['booking', 'prediction_date'], name='noshow_pred_booking_f670ef_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='noshowprediction',
+            index=models.Index(fields=['risk_level'], name='noshow_pred_risk_le_25f88b_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='noshowprediction',
+            index=models.Index(fields=['noshow_risk_score'], name='noshow_pred_noshow__add738_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='forecastingmodelmetrics',
+            index=models.Index(fields=['property', 'model_name', '-evaluation_date'], name='forecasting_propert_62a601_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='forecastingmodelmetrics',
+            index=models.Index(fields=['model_name', '-evaluation_date'], name='forecasting_model_n_98e4e0_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='forecastingmodelmetrics',
+            index=models.Index(fields=['is_acceptable', 'needs_retraining'], name='forecasting_is_acce_a2a26c_idx'),
+        ),
+    ]

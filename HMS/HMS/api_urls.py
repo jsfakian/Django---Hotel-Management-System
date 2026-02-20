@@ -9,6 +9,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from HMS.auth_api import RegisterAPIView, LogoutAPIView, ForgotPasswordAPIView
 from HMS.api_viewsets import (
     UserViewSet,
     GuestViewSet,
@@ -51,7 +52,10 @@ app_name = 'api'
 urlpatterns = [
     # Authentication endpoints (JWT)
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/logout/', LogoutAPIView.as_view(), name='auth_logout'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/register/', RegisterAPIView.as_view(), name='auth_register'),
+    path('auth/forgot-password/', ForgotPasswordAPIView.as_view(), name='auth_forgot_password'),
     
     # API Documentation
     path('schema/', SpectacularAPIView.as_view(), name='schema'),

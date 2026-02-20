@@ -1,0 +1,25 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-4">
+    <h3 class="mb-3">Process Payment</h3>
+    <div class="card">
+        <div class="card-body">
+            {% if booking %}<p class="text-muted">Booking #{{ booking.id }}</p>{% endif %}
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-row">
+                    {% for field in form %}
+                    <div class="form-group col-md-6">
+                        <label>{{ field.label }}</label>
+                        {{ field }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <button class="btn btn-dark" type="submit">Submit Payment</button>
+                <a class="btn btn-outline-secondary" href="{% url 'payment-history' %}">History</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

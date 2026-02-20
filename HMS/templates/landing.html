@@ -1,0 +1,66 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NEPHELE HMS</title>
+    <link rel="icon" type="image/svg+xml" href="{% static '/images/favicon.svg' %}">
+    <link rel="stylesheet" type="text/css" href="{% static '/css/main.css' %}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+</head>
+<body class="bg-hotel">
+    <div class="container py-5">
+        <main class="app-surface p-4 p-md-5">
+            <img src="{% static '/images/nephele-logo.svg' %}" alt="NEPHELE Logo" class="mb-3" style="max-width: 280px; width: 100%; height: auto;">
+            <h1 class="mb-2">NEPHELE Hotel Management System</h1>
+            <p class="text-muted mb-4">Access web pages quickly for authentication, dashboard testing, and API exploration.</p>
+
+            <div class="menu-grid">
+                <a class="menu-card" href="/login/">
+                    <h6 class="mb-1">Login</h6>
+                    <small class="text-muted">Sign in to the web interface</small>
+                </a>
+                <a class="menu-card" href="/home/">
+                    <h6 class="mb-1">Home</h6>
+                    <small class="text-muted">Open the authenticated homepage</small>
+                </a>
+                <a class="menu-card" href="/admin/">
+                    <h6 class="mb-1">Admin</h6>
+                    <small class="text-muted">Manage data in Django admin</small>
+                </a>
+                <a class="menu-card" href="/api/v1/docs/swagger/">
+                    <h6 class="mb-1">API Docs</h6>
+                    <small class="text-muted">Inspect REST endpoints in Swagger</small>
+                </a>
+                {% if request.user.is_authenticated %}
+                <a class="menu-card" href="{% url 'backend-navigation' %}">
+                    <h6 class="mb-1">Backend Navigation</h6>
+                    <small class="text-muted">Open all backend endpoint groups</small>
+                </a>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+        integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3V9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+        integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+        crossorigin="anonymous"></script>
+    <script>
+        document.querySelectorAll('.menu-card').forEach(function (card) {
+            card.addEventListener('mouseenter', function () {
+                card.classList.add('shadow-sm');
+            });
+            card.addEventListener('mouseleave', function () {
+                card.classList.remove('shadow-sm');
+            });
+        });
+    </script>
+</body>
+</html>

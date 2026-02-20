@@ -149,7 +149,7 @@ def process_payment(request, booking_id=None):
         'payment_methods': payment_methods,
     }
     
-    return render(request, f'{role}/payment-process.html', context)
+    return render(request, 'common_pages/payment-process.html', context)
 
 
 @login_required(login_url='login')
@@ -192,7 +192,7 @@ def verify_payment(request, payment_id):
         'payment': payment,
     }
     
-    return render(request, f'{role}/payment-verify.html', context)
+    return render(request, 'common_pages/payment-verify.html', context)
 
 
 @login_required(login_url='login')
@@ -218,7 +218,7 @@ def payment_success(request, payment_id):
         'invoice': invoice,
     }
     
-    return render(request, f'{role}/payment-success.html', context)
+    return render(request, 'common_pages/payment-success.html', context)
 
 
 @login_required(login_url='login')
@@ -249,7 +249,7 @@ def payment_history(request):
         'selected_status': status,
     }
     
-    return render(request, f'{role}/payment-history.html', context)
+    return render(request, 'common_pages/payment-history.html', context)
 
 
 @login_required(login_url='login')
@@ -286,7 +286,7 @@ def invoice_list(request):
         'form': form,
     }
     
-    return render(request, f'{role}/invoice-list.html', context)
+    return render(request, 'common_pages/invoice-list.html', context)
 
 
 @login_required(login_url='login')
@@ -310,7 +310,7 @@ def invoice_detail(request, invoice_id):
         'invoice': invoice,
     }
     
-    return render(request, f'{role}/invoice-detail.html', context)
+    return render(request, 'common_pages/invoice-detail.html', context)
 
 
 @login_required(login_url='login')
@@ -355,7 +355,7 @@ def request_refund(request, payment_id):
         'payment': payment,
     }
     
-    return render(request, f'{role}/request-refund.html', context)
+    return render(request, 'common_pages/request-refund.html', context)
 
 
 @login_required(login_url='login')
@@ -386,7 +386,7 @@ def refund_history(request):
         'selected_status': status,
     }
     
-    return render(request, f'{role}/refund-history.html', context)
+    return render(request, 'common_pages/refund-history.html', context)
 
 
 @require_role('admin', 'manager')
@@ -425,4 +425,4 @@ def manage_refund(request, refund_id):
         'refund': refund,
     }
     
-    return render(request, f'{role}/manage-refund.html', context)
+    return render(request, 'common_pages/manage-refund.html', context)

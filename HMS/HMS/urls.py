@@ -12,26 +12,32 @@ Routes:
 
 from django.contrib import admin
 from django.urls import path, include
-# from accounts.views import home
+from HMS.health import healthz
+from HMS.web_views import landing_page, home_page, backend_navigation, module_portal, module_crud_page
+from accounts.views import login_page, logout_user, register_page
 
 urlpatterns = [
+    path('', landing_page, name='landing'),
+    path('home/', home_page, name='home'),
+    path('login/', login_page, name='login'),
+    path('logout/', logout_user, name='logout'),
+    path('register/', register_page, name='register'),
+    path('portal/<str:module_key>/<str:action>/<int:pk>/', module_crud_page, name='module-crud-detail'),
+    path('portal/<str:module_key>/<str:action>/', module_crud_page, name='module-crud'),
+    path('portal/<str:module_key>/', module_portal, name='module-portal'),
+    path('backend-navigation/', backend_navigation, name='backend-navigation'),
+    path('healthz/', healthz, name='healthz'),
     # Django Admin
     path('admin/', admin.site.urls),
     
     # API v1 (REST)
     path('api/v1/', include('HMS.api_urls')),
     
-    # Legacy views (for backward compatibility during transition)
-    # path('', home, name="home"),
+    # Legacy app routes kept during transition
     path('properties/', include('properties.urls')),
     path('payments/', include('payments.urls')),
     path('notifications/', include('notifications.urls')),
     path('contracts/', include('contracts.urls')),
-    
-    # Legacy authentication views (being replaced by JWT API)
-    # path('login/', login_page, name="login"),
-    # path('logout/', logout_user, name="logout"),
-    # path('register/', register_page, name="register"),
 ]
 
 # Note: Additional legacy paths removed for clarity. 
