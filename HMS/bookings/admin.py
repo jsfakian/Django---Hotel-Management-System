@@ -18,6 +18,32 @@ from datetime import datetime, timedelta
 from bookings.models import PricingHistory
 
 
+class ConfidenceRangeFilter(admin.SimpleListFilter):
+    """Custom filter for confidence score ranges."""
+    
+    title = 'Confidence Range'
+    parameter_name = 'confidence_range'
+    
+    def lookups(self, request, model_admin):
+        return (
+            ('very_high', 'Very High (≥ 85%)'),
+            ('high', 'High (75-85%)'),
+            ('medium', 'Medium (60-75%)'),
+            ('low', 'Low (< 60%)'),
+        )
+    
+    def queryset(self, request, queryset):
+        if self.value() == 'very_high':
+            return queryset.filter(confidence_score__gte=0.85)
+        elif self.value() == 'high':
+            return queryset.filter(confidence_score__gte=0.75, confidence_score__lt=0.85)
+        elif self.value() == 'medium':
+            return queryset.filter(confidence_score__gte=0.60, confidence_score__lt=0.75)
+        elif self.value() == 'low':
+            return queryset.filter(confidence_score__lt=0.60)
+        return queryset
+
+
 @admin.register(PricingHistory)
 class PricingHistoryAdmin(admin.ModelAdmin):
     """
@@ -400,29 +426,3 @@ class PricingHistoryAdmin(admin.ModelAdmin):
             }
         
         return super().changelist_view(request, extra_context)
-
-
-class ConfidenceRangeFilter(admin.SimpleListFilter):
-    """Custom filter for confidence score ranges."""
-    
-    title = 'Confidence Range'
-    parameter_name = 'confidence_range'
-    
-    def lookups(self, request, model_admin):
-        return (
-            ('very_high', 'Very High (≥ 85%)'),
-            ('high', 'High (75-85%)'),
-            ('medium', 'Medium (60-75%)'),
-            ('low', 'Low (< 60%)'),
-        )
-    
-    def queryset(self, request, queryset):
-        if self.value() == 'very_high':
-            return queryset.filter(confidence_score__gte=0.85)
-        elif self.value() == 'high':
-            return queryset.filter(confidence_score__gte=0.75, confidence_score__lt=0.85)
-        elif self.value() == 'medium':
-            return queryset.filter(confidence_score__gte=0.60, confidence_score__lt=0.75)
-        elif self.value() == 'low':
-            return queryset.filter(confidence_score__lt=0.60)
-        return queryset
