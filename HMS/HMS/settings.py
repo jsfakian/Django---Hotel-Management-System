@@ -327,6 +327,25 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'bookings.tasks.train_task3_models',
         'schedule': timedelta(days=7),
     },
+    
+    # ============ PHASE 3: Automated Pricing Tasks ============
+    'auto-price-all-rooms': {
+        'task': 'bookings.tasks.auto_price_all_rooms',
+        'schedule': timedelta(hours=24),  # Daily at same time
+        'options': {'queue': 'pricing', 'priority': 10}
+    },
+    'generate-pricing-report-weekly': {
+        'task': 'bookings.tasks.generate_pricing_report',
+        'schedule': timedelta(days=7),  # Weekly
+        'kwargs': {'period_days': 7},
+        'options': {'queue': 'reports', 'priority': 5}
+    },
+    'cleanup-old-predictions': {
+        'task': 'bookings.tasks.cleanup_old_predictions',
+        'schedule': timedelta(hours=24),  # Daily
+        'kwargs': {'days': 90},
+        'options': {'queue': 'cleanup', 'priority': 1}
+    },
 }
 
 # ============ MyData (AADE) Integration ============
