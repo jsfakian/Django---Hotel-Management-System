@@ -1,7 +1,4 @@
 real-data/
 __pycache__/
 .env
-<<<<<<< HEAD
 *.log
-=======
->>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2

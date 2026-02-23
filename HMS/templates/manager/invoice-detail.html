@@ -155,15 +155,12 @@
                     <button class="btn btn-primary btn-block btn-sm mb-2" onclick="window.print()">
                         <i class="fas fa-print"></i> Print
                     </button>
-<<<<<<< HEAD
-=======
                     
                     {% if invoice.status != 'paid' and user.is_staff %}
                     <a href="{% url 'payments:edit-invoice' invoice.id %}" class="btn btn-warning btn-block btn-sm mb-2">
                         <i class="fas fa-edit"></i> Edit
                     </a>
                     {% endif %}
->>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
 
                     {% if user.is_staff %}
                     <form method="POST" action="{% url 'payments:mark-paid' invoice.id %}" style="display:inline;">

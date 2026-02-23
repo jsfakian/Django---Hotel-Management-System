@@ -78,9 +78,7 @@ class PricingHistoryAdmin(admin.ModelAdmin):
         'date',
         'season',
         'model_version',
-        'confidence_filter',
-        'is_accepted',
-        ('confidence_score', ConfidenceRangeFilter),
+        ConfidenceRangeFilter,
     )
     
     # Search

@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third-party apps
-    'phonenumber_field',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',

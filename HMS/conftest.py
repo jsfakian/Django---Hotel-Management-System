@@ -1,25 +1,30 @@
 """
-Test configuration for Django
-Disables foreign key constraints for SQLite to handle pre-existing issues
+Test configuration for Django and pytest
 """
 
-import sqlite3
-from django.test.utils import setup_databases, teardown_databases
-from django.db import connection
+import os
+import django
+from django.conf import settings
 
-def setup_test_environment():
-    """Patch SQLite to disable foreign key constraints during testing"""
-    original_execute = sqlite3.Connection.execute
-    
-    def patched_execute(self, sql, *args, **kwargs):
-        try:
-            return original_execute(self, sql, *args, **kwargs)
-        except sqlite3.IntegrityError:
-            # Disable foreign key constraints if there's an integrity error
-            original_execute(self, 'PRAGMA foreign_keys = OFF')
-            return original_execute(self, sql, *args, **kwargs)
-    
-    sqlite3.Connection.execute = patched_execute
+# Configure Django settings for pytest
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'HMS.settings')
+django.setup()
 
-# Apply the patch when this module is imported
-setup_test_environment()
+# pytest configuration
+pytest_plugins = ['pytest_django']
+
+def pytest_configure(config):
+    """Configure pytest for Django testing"""
+    # Set up test database configuration
+    if not hasattr(settings, 'DATABASES'):
+        settings.DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': 'test_hms',
+                'USER': 'hms',
+                'PASSWORD': 'hms_password',
+                'HOST': 'postgres',
+                'PORT': '5432',
+            }
+        }
+

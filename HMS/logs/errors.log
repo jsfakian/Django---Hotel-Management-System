@@ -444,3 +444,9 @@ Traceback (most recent call last):
     self.total_amount = self.amount + self.tax_amount
 TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'
 ERROR 2026-02-20 14:03:04,883 basehttp 1658 139580784236224 "GET /portal/invoices/create/?panel=1 HTTP/1.1" 500 89159
+ERROR 2026-02-23 20:11:46,445 log 64 129760270945152 Internal Server Error: /api/v1/bookings/pricing/predict/
+ERROR 2026-02-23 20:11:46,448 log 64 129760270945152 Internal Server Error: /api/v1/bookings/pricing/history/
+ERROR 2026-02-23 20:27:05,277 log 12 124716028995264 Internal Server Error: /api/v1/bookings/pricing/history/
+ERROR 2026-02-23 20:27:05,277 basehttp 12 124716028995264 "GET /api/v1/bookings/pricing/history/ HTTP/1.1" 500 131
+ERROR 2026-02-23 20:27:17,489 log 12 124716028995264 Internal Server Error: /api/v1/bookings/pricing/predict/
+ERROR 2026-02-23 20:27:17,489 basehttp 12 124716028995264 "GET /api/v1/bookings/pricing/predict/?room_id=10&date=2026-03-01 HTTP/1.1" 500 459

@@ -50,10 +50,7 @@ The system consists of 4 primary layers:
 | Deployment Architecture | ✅ Complete | Cloud infrastructure, containerization, CI/CD pipeline |
 | Scalability & Performance Design | ✅ Complete | Caching strategy, optimization, capacity planning |
 | **Invoice Management & MyData Integration** | **✅ Complete** | **Greek tax authority (AADE) invoice transmission system** |
-<<<<<<< HEAD
 | **Automatic Payment Creation on Booking** | **✅ Complete** | **Event-driven payment automation elimininating manual staff creation** |
-=======
->>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
 
 ### Recommendations for Development Team
 
@@ -312,7 +309,6 @@ Comprehensive module for transmitting invoices to Greek tax authority (MyData/AA
 
 ---
 
-<<<<<<< HEAD
 #### E. Automatic Payment Creation on Booking Confirmation (February 20, 2026)
 
 **NEW FEATURE: Event-Driven Payment Automation**
@@ -447,19 +443,12 @@ Comprehensive implementation of automatic payment transaction creation when book
 ---
 
 #### F. Validation Evidence
-=======
-#### E. Validation Evidence
->>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
 
 - `manage.py check` passes with **no system issues** after closure changes.
 - API and task modules load successfully under Django runtime checks.
 - `manage.py test analytics -v 1` passes (**6/6 tests**) after migration alignment.
 
-<<<<<<< HEAD
 #### G. Remaining Technical Debt (explicitly out-of-scope for this closure)
-=======
-#### F. Remaining Technical Debt (explicitly out-of-scope for this closure)
->>>>>>> 36f22eb830cab045863e3423e722c24956a9a0e2
 
 1. **Legacy module standardization (ongoing)**
   - Some non-API legacy view modules still contain transitional logic and broad exception handling patterns.

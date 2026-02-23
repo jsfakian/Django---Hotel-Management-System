@@ -1,0 +1,32 @@
+# Docker Compose Override for Local Development
+# This file overrides settings in docker-compose.yml for development
+# Docker automatically loads this file if it exists
+
+version: '3.9'
+
+services:
+  django:
+    # Enable Django debug toolbar and other development tools
+    environment:
+      DEBUG: 'True'
+      CELERY_TASK_ALWAYS_EAGER: 'True'
+    # Mount source code for hot reload
+    volumes:
+      - .:/app
+      - /app/.venv  # Exclude venv if using virtualenv
+    # Expose more ports for development tools
+    ports:
+      - "8000:8000"
+      - "8001:8001"  # Extra port for debugging
+
+  celery:
+    environment:
+      DEBUG: 'True'
+      CELERY_TASK_ALWAYS_EAGER: 'False'
+    # Allow viewing celery logs during development
+    command: celery -A HMS worker -l debug
+
+  celery-beat:
+    # Keep beat in development for testing scheduled tasks
+    environment:
+      DEBUG: 'True'

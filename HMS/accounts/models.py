@@ -8,7 +8,6 @@ Per deliverables:
 
 from django.db import models
 from django.contrib.auth.models import User, AbstractUser
-from phonenumber_field.modelfields import PhoneNumberField
 
 
 class Role(models.Model):

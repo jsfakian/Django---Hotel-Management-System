@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="960" y1="0" x2="960" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="0.55" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="960" y1="200" x2="960" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#2563EB" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <ellipse cx="960" cy="220" rx="560" ry="220" fill="url(#glow)"/>
+  <rect x="220" y="420" width="1480" height="520" rx="24" fill="#0B1220" fill-opacity="0.88"/>
+  <rect x="330" y="300" width="1260" height="140" rx="16" fill="#111827" fill-opacity="0.95"/>
+  <rect x="420" y="560" width="280" height="320" rx="14" fill="#0F1A2D"/>
+  <rect x="820" y="520" width="280" height="360" rx="14" fill="#0F1A2D"/>
+  <rect x="1220" y="560" width="280" height="320" rx="14" fill="#0F1A2D"/>
+  <g fill="#FDE68A" fill-opacity="0.75">
+    <rect x="460" y="600" width="36" height="36" rx="6"/>
+    <rect x="514" y="600" width="36" height="36" rx="6"/>
+    <rect x="568" y="600" width="36" height="36" rx="6"/>
+    <rect x="460" y="656" width="36" height="36" rx="6"/>
+    <rect x="514" y="656" width="36" height="36" rx="6"/>
+    <rect x="568" y="656" width="36" height="36" rx="6"/>
+    <rect x="860" y="560" width="36" height="36" rx="6"/>
+    <rect x="914" y="560" width="36" height="36" rx="6"/>
+    <rect x="968" y="560" width="36" height="36" rx="6"/>
+    <rect x="860" y="616" width="36" height="36" rx="6"/>
+    <rect x="914" y="616" width="36" height="36" rx="6"/>
+    <rect x="968" y="616" width="36" height="36" rx="6"/>
+    <rect x="1260" y="600" width="36" height="36" rx="6"/>
+    <rect x="1314" y="600" width="36" height="36" rx="6"/>
+    <rect x="1368" y="600" width="36" height="36" rx="6"/>
+    <rect x="1260" y="656" width="36" height="36" rx="6"/>
+    <rect x="1314" y="656" width="36" height="36" rx="6"/>
+    <rect x="1368" y="656" width="36" height="36" rx="6"/>
+  </g>
+  <rect y="920" width="1920" height="160" fill="#0A1020"/>
+</svg>
