@@ -1,5 +1,10 @@
 """
-Analytics URL Configuration
+Analytics REST API URL Configuration
+
+API endpoints for analytics dashboards and forecasting.
+Used by api_urls.py at /api/v1/analytics/
+
+Web views are in web_urls.py
 """
 
 from django.urls import path, include
@@ -24,6 +29,7 @@ from .views import (
 
 app_name = 'analytics'
 
+# API Router for REST endpoints
 router = DefaultRouter()
 router.register(r'executive-dashboard', ExecutiveDashboardViewSet, basename='executive-dashboard')
 router.register(r'operational-dashboard', OperationalDashboardViewSet, basename='operational-dashboard')
@@ -42,6 +48,7 @@ router.register(r'noshow-predictions', NoShowPredictionViewSet, basename='noshow
 router.register(r'forecast-metrics', ForecastingModelMetricsViewSet, basename='forecast-metrics')
 
 urlpatterns = [
+    # Forecasting custom actions
     path(
         'occupancy-forecasts/next-30-days/',
         OccupancyForecastViewSet.as_view({'get': 'next_30_days'}),
@@ -77,5 +84,10 @@ urlpatterns = [
         ReportExecutionViewSet.as_view({'get': 'delivery_status'}),
         name='delivery-tracking-alias',
     ),
+    
+    # Router endpoints
     path('', include(router.urls)),
 ]
+
+
+

@@ -30,6 +30,9 @@ urlpatterns = [
     # Django Admin
     path('admin/', admin.site.urls),
     
+    # Analytics Dashboard Web Views
+    path('analytics/', include('analytics.web_urls')),
+    
     # API v1 (REST)
     path('api/v1/', include('HMS.api_urls')),
     

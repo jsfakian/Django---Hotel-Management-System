@@ -1,0 +1,294 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block title %}Analytics Dashboard - NEPHELE HMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="app-surface p-4 mb-4 hero-dashboard">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h2 class="mb-1">Business Intelligence & Analytics</h2>
+        <p class="mb-0 text-muted">Strategic insights, real-time operations, revenue analysis, and guest analytics</p>
+      </div>
+      <div class="d-flex gap-2">
+        <select id="propertyFilter" class="form-select form-select-sm" style="max-width: 200px;">
+          <option value="">-- Select Property --</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Cards Grid -->
+  <div class="dashboard-grid">
+    <!-- Executive Dashboard -->
+    <a href="{% url 'analytics:executive-dashboard' %}" class="dashboard-card">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <h6 class="card-title mb-1">Executive Dashboard</h6>
+              <p class="card-text text-muted small">Strategic KPIs for decision makers</p>
+            </div>
+            <i class="fas fa-chart-line text-primary" style="font-size: 1.5rem;"></i>
+          </div>
+          <div class="dashboard-card-metrics">
+            <div class="metric-item">
+              <small class="text-muted">Revenue</small>
+              <strong id="exec-revenue">—</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">Occupancy</small>
+              <strong id="exec-occupancy">—</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">RevPAR</small>
+              <strong id="exec-revpar">—</strong>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-light border-top">
+          <small class="text-primary">View Details <i class="fas fa-arrow-right ms-1"></i></small>
+        </div>
+      </div>
+    </a>
+
+    <!-- Operational Dashboard -->
+    <a href="{% url 'analytics:operational-dashboard' %}" class="dashboard-card">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <h6 class="card-title mb-1">Operational Dashboard</h6>
+              <p class="card-text text-muted small">Real-time operations overview</p>
+            </div>
+            <i class="fas fa-tasks text-success" style="font-size: 1.5rem;"></i>
+          </div>
+          <div class="dashboard-card-metrics">
+            <div class="metric-item">
+              <small class="text-muted">Occupied</small>
+              <strong id="ops-occupied">—</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">Vacant</small>
+              <strong id="ops-vacant">—</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">Cleaning</small>
+              <strong id="ops-cleaning">—</strong>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-light border-top">
+          <small class="text-success">View Details <i class="fas fa-arrow-right ms-1"></i></small>
+        </div>
+      </div>
+    </a>
+
+    <!-- Revenue Analytics -->
+    <a href="{% url 'analytics:revenue-analytics' %}" class="dashboard-card">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <h6 class="card-title mb-1">Revenue Analytics</h6>
+              <p class="card-text text-muted small">Financial performance & insights</p>
+            </div>
+            <i class="fas fa-chart-bar text-warning" style="font-size: 1.5rem;"></i>
+          </div>
+          <div class="dashboard-card-metrics">
+            <div class="metric-item">
+              <small class="text-muted">ADR</small>
+              <strong id="rev-adr">—</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">Bookings</small>
+              <strong id="rev-bookings">—</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">Cancellations</small>
+              <strong id="rev-cancellations">—%</strong>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-light border-top">
+          <small class="text-warning">View Details <i class="fas fa-arrow-right ms-1"></i></small>
+        </div>
+      </div>
+    </a>
+
+    <!-- Guest Analytics -->
+    <a href="{% url 'analytics:guest-analytics' %}" class="dashboard-card">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <h6 class="card-title mb-1">Guest Analytics</h6>
+              <p class="card-text text-muted small">Guest segments & insights</p>
+            </div>
+            <i class="fas fa-users text-info" style="font-size: 1.5rem;"></i>
+          </div>
+          <div class="dashboard-card-metrics">
+            <div class="metric-item">
+              <small class="text-muted">Total Guests</small>
+              <strong id="guest-total">—</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">Retention</small>
+              <strong id="guest-retention">—%</strong>
+            </div>
+            <div class="metric-item">
+              <small class="text-muted">Avg Rating</small>
+              <strong id="guest-rating">—</strong>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-light border-top">
+          <small class="text-info">View Details <i class="fas fa-arrow-right ms-1"></i></small>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<style>
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.dashboard-card {
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+}
+
+.dashboard-card:hover .card {
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: 1px solid #dee2e6;
+  transition: box-shadow 0.2s ease;
+}
+
+.dashboard-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.metric-item strong {
+  font-size: 1.1rem;
+  color: #212529;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Load property filter
+  loadProperties();
+  
+  // Load dashboard summary data
+  loadDashboardSummary();
+});
+
+function loadProperties() {
+  const propertyFilter = document.getElementById('propertyFilter');
+  
+  fetch('/api/v1/properties/', {
+    headers: {
+      'Authorization': 'Bearer ' + localStorage.getItem('token'),
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.results) {
+      data.results.forEach(property => {
+        const option = document.createElement('option');
+        option.value = property.id;
+        option.textContent = property.name;
+        propertyFilter.appendChild(option);
+      });
+    }
+  })
+  .catch(error => console.error('Error loading properties:', error));
+  
+  // Handle property filter change
+  propertyFilter.addEventListener('change', function() {
+    if (this.value) {
+      loadDashboardSummary(this.value);
+    }
+  });
+}
+
+function loadDashboardSummary(propertyId) {
+  let url = '/api/v1/analytics/dashboard/summary/';
+  if (propertyId) {
+    url += '?property_id=' + propertyId;
+  }
+  
+  fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' + localStorage.getItem('token'),
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.data) {
+      // Executive metrics
+      if (data.data.executive) {
+        document.getElementById('exec-revenue').textContent = formatCurrency(data.data.executive.total_revenue);
+        document.getElementById('exec-occupancy').textContent = (data.data.executive.occupancy_rate || 0).toFixed(1) + '%';
+        document.getElementById('exec-revpar').textContent = formatCurrency(data.data.executive.revpar);
+      }
+      
+      // Operational metrics
+      if (data.data.operational) {
+        document.getElementById('ops-occupied').textContent = data.data.operational.occupied_count;
+        document.getElementById('ops-vacant').textContent = data.data.operational.vacant_count;
+        document.getElementById('ops-cleaning').textContent = data.data.operational.cleaning_count;
+      }
+      
+      // Revenue metrics
+      if (data.data.revenue) {
+        document.getElementById('rev-adr').textContent = formatCurrency(data.data.revenue.avg_daily_rate);
+        document.getElementById('rev-bookings').textContent = data.data.revenue.booking_count;
+        document.getElementById('rev-cancellations').textContent = (data.data.revenue.cancellation_rate || 0).toFixed(1);
+      }
+      
+      // Guest metrics
+      if (data.data.guest) {
+        document.getElementById('guest-total').textContent = data.data.guest.total_unique_guests;
+        document.getElementById('guest-retention').textContent = (data.data.guest.retention_rate || 0).toFixed(1);
+        document.getElementById('guest-rating').textContent = (data.data.guest.avg_review_score || 0).toFixed(1);
+      }
+    }
+  })
+  .catch(error => console.error('Error loading dashboard summary:', error));
+}
+
+function formatCurrency(value) {
+  if (!value) return '$0';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0
+  }).format(value);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,492 @@
+{% extends 'index.html' %}
+{% load static %}
+
+{% block title %}Revenue Analytics - NEPHELE HMS{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- Header -->
+  <div class="app-surface p-4 mb-4 hero-dashboard">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h2 class="mb-1">Revenue Analytics</h2>
+        <p class="mb-0 text-muted">Financial performance, pricing analysis, and booking source breakdown</p>
+      </div>
+      <div class="d-flex gap-2">
+        <select id="propertyFilter" class="form-select form-select-sm" style="max-width: 200px;">
+          <option value="">-- Select Property --</option>
+        </select>
+        <input type="date" id="fromDate" class="form-control form-control-sm" style="max-width: 150px;">
+        <input type="date" id="toDate" class="form-control form-control-sm" style="max-width: 150px;">
+        <button id="applyFilter" class="btn btn-sm btn-primary">Apply</button>
+        <a href="/analytics/" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> Back
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" id="total-revenue">$0</div>
+        <div class="kpi-footer">
+          <span class="text-success" id="revenue-trend">
+            <i class="fas fa-arrow-up"></i> +0%
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Average Daily Rate</div>
+        <div class="kpi-value" id="avg-daily-rate">$0</div>
+        <div class="kpi-footer">
+          <small class="text-muted">Per room per night</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Revenue per Available Room</div>
+        <div class="kpi-value" id="revpar">$0</div>
+        <div class="kpi-footer">
+          <small class="text-muted">RevPAR</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue Charts -->
+  <div class="row mb-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">Revenue Trend</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="revenueChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">Revenue by Booking Source</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="sourceChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing & Occupancy Analysis -->
+  <div class="row mb-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">Pricing Analysis</h5>
+        </div>
+        <div class="card-body">
+          <div class="pricing-metrics">
+            <div class="pricing-metric">
+              <span class="metric-label">ADR Trend</span>
+              <div class="metric-value" id="adr-trend">—</div>
+            </div>
+            <div class="pricing-metric">
+              <span class="metric-label">Dynamic Pricing Uplift</span>
+              <div class="metric-value" id="pricing-uplift">—</div>
+            </div>
+          </div>
+          <canvas id="adrChart" style="margin-top: 1rem;"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">Occupancy & Cancellations</h5>
+        </div>
+        <div class="card-body">
+          <div class="occupancy-metrics">
+            <div class="occupancy-metric">
+              <span class="metric-label">Occupancy Rate</span>
+              <div class="metric-value" id="occupancy-rate">—</div>
+            </div>
+            <div class="occupancy-metric">
+              <span class="metric-label">Cancellation Rate</span>
+              <div class="metric-value" id="cancellation-rate">—</div>
+            </div>
+            <div class="occupancy-metric">
+              <span class="metric-label">No-show Rate</span>
+              <div class="metric-value" id="noshow-rate">—</div>
+            </div>
+          </div>
+          <canvas id="occupancyChart" style="margin-top: 1rem;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking Source Breakdown -->
+  <div class="card">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Booking Source Breakdown</h5>
+    </div>
+    <div class="card-body">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Bookings</th>
+            <th>Revenue</th>
+            <th>Avg Rate</th>
+            <th>% of Total</th>
+          </tr>
+        </thead>
+        <tbody id="sourceTable">
+          <tr>
+            <td colspan="5" class="text-center text-muted">Loading...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.kpi-card {
+  background: white;
+  border-radius: 0.375rem;
+  padding: 1.5rem;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  margin-bottom: 1rem;
+}
+
+.kpi-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #212529;
+  margin-bottom: 0.75rem;
+}
+
+.kpi-footer {
+  border-top: 1px solid #e9ecef;
+  padding-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.pricing-metrics, .occupancy-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pricing-metric, .occupancy-metric {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 0.375rem;
+  border-left: 3px solid #0d6efd;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.card {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: 1px solid #dee2e6;
+}
+
+.card-header {
+  border-bottom: 1px solid #dee2e6;
+}
+</style>
+
+<script>
+let revenueChart, sourceChart, adrChart, occupancyChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Set default date range (last 30 days)
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+  
+  document.getElementById('toDate').valueAsDate = today;
+  document.getElementById('fromDate').valueAsDate = thirtyDaysAgo;
+  
+  loadProperties();
+  
+  document.getElementById('propertyFilter').addEventListener('change', () => loadRevenueAnalytics());
+  document.getElementById('applyFilter').addEventListener('click', () => loadRevenueAnalytics());
+});
+
+function loadProperties() {
+  const propertyFilter = document.getElementById('propertyFilter');
+  
+  fetch('/api/v1/properties/', {
+    headers: {
+      'Authorization': 'Bearer ' + localStorage.getItem('token'),
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.results) {
+      data.results.forEach(property => {
+        const option = document.createElement('option');
+        option.value = property.id;
+        option.textContent = property.name;
+        propertyFilter.appendChild(option);
+      });
+      if (data.results.length === 1) {
+        propertyFilter.value = data.results[0].id;
+        loadRevenueAnalytics();
+      }
+    }
+  })
+  .catch(error => console.error('Error loading properties:', error));
+}
+
+function loadRevenueAnalytics() {
+  const propertyId = document.getElementById('propertyFilter').value;
+  const fromDate = document.getElementById('fromDate').value;
+  const toDate = document.getElementById('toDate').value;
+  
+  if (!propertyId) {
+    alert('Please select a property');
+    return;
+  }
+  
+  let url = `/api/v1/analytics/revenue-analytics/?property_id=${propertyId}`;
+  if (fromDate) url += `&from_date=${fromDate}`;
+  if (toDate) url += `&to_date=${toDate}`;
+  
+  fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' + localStorage.getItem('token'),
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.results) {
+      updateDashboard(data.results);
+    }
+  })
+  .catch(error => {
+    console.error('Error loading revenue analytics:', error);
+    alert('Error loading analytics data');
+  });
+}
+
+function updateDashboard(metrics) {
+  if (metrics.length === 0) {
+    alert('No data available for selected period');
+    return;
+  }
+  
+  const latestMetric = metrics[metrics.length - 1];
+  
+  // Update KPI Cards
+  document.getElementById('total-revenue').textContent = formatCurrency(latestMetric.total_revenue);
+  document.getElementById('avg-daily-rate').textContent = formatCurrency(latestMetric.avg_daily_rate);
+  document.getElementById('revpar').textContent = formatCurrency(latestMetric.revpar);
+  
+  // Update metrics
+  document.getElementById('occupancy-rate').textContent = (latestMetric.occupancy_rate || 0).toFixed(1) + '%';
+  document.getElementById('cancellation-rate').textContent = (latestMetric.cancellation_rate || 0).toFixed(1) + '%';
+  document.getElementById('noshow-rate').textContent = '—'; // Would need noshow data
+  document.getElementById('pricing-uplift').textContent = (latestMetric.dynamic_pricing_uplift || 0).toFixed(1) + '%';
+  
+  // Render charts
+  renderCharts(metrics);
+  
+  // Update booking source breakdown
+  updateSourceTable(latestMetric.metrics_by_source);
+}
+
+function renderCharts(metrics) {
+  const labels = metrics.map(m => new Date(m.metric_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+  const revenueData = metrics.map(m => m.total_revenue || 0);
+  const occupancyData = metrics.map(m => m.occupancy_rate || 0);
+  const adrData = metrics.map(m => m.avg_daily_rate || 0);
+  
+  // Revenue Chart
+  const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+  if (revenueChart) revenueChart.destroy();
+  revenueChart = new Chart(revenueCtx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Revenue',
+        data: revenueData,
+        borderColor: '#198754',
+        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: (v) => '$' + v.toLocaleString() }
+        }
+      }
+    }
+  });
+  
+  // Source Chart (assuming latest metric has breakdown)
+  const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+  if (sourceChart) sourceChart.destroy();
+  const latestMetric = metrics[metrics.length - 1];
+  sourceChart = new Chart(sourceCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Direct', 'OTA', 'Travel Agency'],
+      datasets: [{
+        data: [
+          latestMetric.revenue_direct || 0,
+          latestMetric.revenue_ota || 0,
+          latestMetric.revenue_agency || 0
+        ],
+        backgroundColor: ['#0d6efd', '#198754', '#ffc107'],
+        borderColor: ['#0d6efd', '#198754', '#ffc107'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+  
+  // ADR Chart
+  const adrCtx = document.getElementById('adrChart').getContext('2d');
+  if (adrChart) adrChart.destroy();
+  adrChart = new Chart(adrCtx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'ADR',
+        data: adrData,
+        borderColor: '#ffc107',
+        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: (v) => '$' + v.toLocaleString() }
+        }
+      }
+    }
+  });
+  
+  // Occupancy Chart
+  const occupancyCtx = document.getElementById('occupancyChart').getContext('2d');
+  if (occupancyChart) occupancyChart.destroy();
+  occupancyChart = new Chart(occupancyCtx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Occupancy %',
+        data: occupancyData,
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+        tension: 0.4,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: { callback: (v) => v + '%' }
+        }
+      }
+    }
+  });
+}
+
+function updateSourceTable(sourceData) {
+  const sourceTable = document.getElementById('sourceTable');
+  
+  if (!sourceData || Object.keys(sourceData).length === 0) {
+    sourceTable.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No source data available</td></tr>';
+    return;
+  }
+  
+  let html = '';
+  let totalRevenue = 0;
+  
+  // Calculate total
+  Object.values(sourceData).forEach(source => {
+    totalRevenue += source.revenue || 0;
+  });
+  
+  Object.entries(sourceData).forEach(([source, data]) => {
+    const percentage = totalRevenue > 0 ? ((data.revenue / totalRevenue) * 100) : 0;
+    html += `
+      <tr>
+        <td><strong>${source}</strong></td>
+        <td>${data.bookings || 0}</td>
+        <td>${formatCurrency(data.revenue)}</td>
+        <td>${formatCurrency(data.avg_rate)}</td>
+        <td>${percentage.toFixed(1)}%</td>
+      </tr>
+    `;
+  });
+  
+  sourceTable.innerHTML = html || '<tr><td colspan="5" class="text-center text-muted">No data available</td></tr>';
+}
+
+function formatCurrency(value) {
+  if (!value) return '$0';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0
+  }).format(value);
+}
+</script>
+{% endblock %}

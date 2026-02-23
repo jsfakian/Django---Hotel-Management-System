@@ -1067,3 +1067,86 @@ from .serializers import (
     NoShowPredictionSerializer,
     ForecastingModelMetricsSerializer,
 )
+
+
+# ============================================================================
+# WEB/TEMPLATE VIEWS (HTML Pages)
+# ============================================================================
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+
+
+@login_required
+@require_http_methods(["GET"])
+def analytics_dashboard_view(request):
+    """Main analytics dashboard page"""
+    context = {
+        'page_title': 'Analytics Dashboard',
+        'breadcrumbs': [
+            {'label': 'Home', 'url': '/home/'},
+            {'label': 'Analytics', 'url': '/analytics/'},
+        ]
+    }
+    return render(request, 'analytics/dashboard.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def executive_dashboard_view(request):
+    """Executive dashboard page - strategic KPIs"""
+    context = {
+        'page_title': 'Executive Dashboard',
+        'breadcrumbs': [
+            {'label': 'Home', 'url': '/home/'},
+            {'label': 'Analytics', 'url': '/analytics/'},
+            {'label': 'Executive Dashboard', 'url': '/analytics/executive/'},
+        ]
+    }
+    return render(request, 'analytics/executive_dashboard.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def operational_dashboard_view(request):
+    """Operational dashboard page - real-time operations"""
+    context = {
+        'page_title': 'Operational Dashboard',
+        'breadcrumbs': [
+            {'label': 'Home', 'url': '/home/'},
+            {'label': 'Analytics', 'url': '/analytics/'},
+            {'label': 'Operational Dashboard', 'url': '/analytics/operational/'},
+        ]
+    }
+    return render(request, 'analytics/operational_dashboard.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def revenue_analytics_view(request):
+    """Revenue analytics page - financial performance"""
+    context = {
+        'page_title': 'Revenue Analytics',
+        'breadcrumbs': [
+            {'label': 'Home', 'url': '/home/'},
+            {'label': 'Analytics', 'url': '/analytics/'},
+            {'label': 'Revenue Analytics', 'url': '/analytics/revenue/'},
+        ]
+    }
+    return render(request, 'analytics/revenue_analytics.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def guest_analytics_view(request):
+    """Guest analytics page - guest insights and segmentation"""
+    context = {
+        'page_title': 'Guest Analytics',
+        'breadcrumbs': [
+            {'label': 'Home', 'url': '/home/'},
+            {'label': 'Analytics', 'url': '/analytics/'},
+            {'label': 'Guest Analytics', 'url': '/analytics/guests/'},
+        ]
+    }
+    return render(request, 'analytics/guest_analytics.html', context)
