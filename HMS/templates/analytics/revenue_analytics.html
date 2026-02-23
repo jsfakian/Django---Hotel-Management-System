@@ -284,11 +284,7 @@ function loadRevenueAnalytics() {
   if (fromDate) url += `&from_date=${fromDate}`;
   if (toDate) url += `&to_date=${toDate}`;
   
-  fetch(url, {
-    headers: {
-      'Authorization': 'Bearer ' + localStorage.getItem('token'),
-    }
-  })
+  fetch(url)
   .then(response => response.json())
   .then(data => {
     if (data.results) {

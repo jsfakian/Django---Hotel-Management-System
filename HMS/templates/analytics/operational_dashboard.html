@@ -275,24 +275,27 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadProperties() {
   const propertyFilter = document.getElementById('propertyFilter');
   
-  fetch('/api/v1/properties/', {
-    headers: {
-      'Authorization': 'Bearer ' + localStorage.getItem('token'),
-    }
-  })
+  fetch('/api/v1/properties/')
   .then(response => response.json())
   .then(data => {
-    if (data.results) {
-      data.results.forEach(property => {
+    const properties = data.results || (Array.isArray(data) ? data : []);
+    if (properties && properties.length > 0) {
+      properties.forEach(property => {
         const option = document.createElement('option');
         option.value = property.id;
-        option.textContent = property.name;
+        option.textContent = property.name || 'Property ' + property.id;
         propertyFilter.appendChild(option);
       });
+      if (propertyFilter.options.length > 1) {
+        propertyFilter.selectedIndex = 1;
+      }
     }
   })
-  .catch(error => console.error('Error loading properties:', error));
+  .catch(error => console.warn('Error loading properties:', error));
 }
+
+// Load data when property selected
+document.getElementById('propertyFilter').addEventListener('change', loadOperationalDashboard);
 
 function loadOperationalDashboard() {
   const propertyId = document.getElementById('propertyFilter').value;
@@ -302,11 +305,7 @@ function loadOperationalDashboard() {
     return;
   }
   
-  fetch(`/api/v1/analytics/operational-dashboard/current/?property_id=${propertyId}`, {
-    headers: {
-      'Authorization': 'Bearer ' + localStorage.getItem('token'),
-    }
-  })
+  fetch(`/api/v1/analytics/operational-dashboard/current/?property_id=${propertyId}`)
   .then(response => response.json())
   .then(data => {
     updateDashboard(data);

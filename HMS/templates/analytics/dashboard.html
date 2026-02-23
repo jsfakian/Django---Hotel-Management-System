@@ -209,29 +209,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function loadProperties() {
   const propertyFilter = document.getElementById('propertyFilter');
+  console.log('Loading properties...');
   
-  fetch('/api/v1/properties/', {
-    headers: {
-      'Authorization': 'Bearer ' + localStorage.getItem('token'),
+  // Try multiple endpoints to get properties
+  Promise.all([
+    fetch('/api/v1/properties/').then(r => r.json()).catch(e => {
+      console.warn('Properties API failed:', e);
+      return null;
+    }),
+    fetch('/properties/').then(r => r.json()).catch(e => {
+      console.warn('Properties endpoint failed:', e);
+      return null;
+    }),
+  ])
+  .then(results => {
+    console.log('Properties API Results:', results);
+    
+    let data = results.find(r => r && (r.results || r));
+    if (!data) {
+      console.warn('No properties found from API endpoints. Creating sample option to show status.');
+      const option = document.createElement('option');
+      option.textContent = 'No properties available - please create one in admin panel';
+      propertyFilter.appendChild(option);
+      return;
     }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.results) {
-      data.results.forEach(property => {
+    
+    // Handle both paginated results and direct arrays
+    const properties = data.results || (Array.isArray(data) ? data : []);
+    console.log('Properties found:', properties);
+    
+    if (properties && properties.length > 0) {
+      properties.forEach(property => {
         const option = document.createElement('option');
         option.value = property.id;
-        option.textContent = property.name;
+        option.textContent = property.name || property.title || 'Property ' + property.id;
         propertyFilter.appendChild(option);
       });
+      
+      // Auto-select first property if available
+      if (propertyFilter.options.length > 1) {
+        propertyFilter.selectedIndex = 1;
+        console.log('Auto-selected first property:', properties[0].id);
+      }
+    } else {
+      console.log('No properties in API response');
     }
   })
-  .catch(error => console.error('Error loading properties:', error));
+  .catch(error => console.warn('Error loading properties:', error));
   
   // Handle property filter change
   propertyFilter.addEventListener('change', function() {
     if (this.value) {
+      console.log('Property selected:', this.value);
       loadDashboardSummary(this.value);
+    } else {
+      console.log('No property selected');
+      loadDashboardSummary();
     }
   });
 }
@@ -242,12 +275,16 @@ function loadDashboardSummary(propertyId) {
     url += '?property_id=' + propertyId;
   }
   
-  fetch(url, {
-    headers: {
-      'Authorization': 'Bearer ' + localStorage.getItem('token'),
+  console.log('Loading dashboard summary from:', url);
+  
+  fetch(url)
+  .then(response => {
+    console.log('Dashboard API response status:', response.status);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
+    return response.json();
   })
-  .then(response => response.json())
   .then(data => {
     if (data.data) {
       // Executive metrics
