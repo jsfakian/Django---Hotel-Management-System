@@ -53,7 +53,7 @@ def pricing_analysis_view(request, room_id, date_str=None):
         'room': room,
         'selected_date': selected_date.isoformat(),
         'can_edit': can_edit,
-        'page_title': f'Pricing Analysis - {room.name}',
+        'page_title': f'Pricing Analysis - {room.room_type}',
         'room_id': room_id,
     }
     

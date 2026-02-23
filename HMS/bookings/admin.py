@@ -71,7 +71,7 @@ class PricingHistoryAdmin(admin.ModelAdmin):
     
     # Ordering
     list_per_page = 50
-    ordering = ['-date', 'room__name']
+    ordering = ['-date', 'room__room_number']
     
     # Filters
     list_filter = (
@@ -82,7 +82,7 @@ class PricingHistoryAdmin(admin.ModelAdmin):
     )
     
     # Search
-    search_fields = ('room__name', 'room__property__name', 'date')
+    search_fields = ('room__room_number', 'room__property__name', 'date')
     
     # Read-only fields
     readonly_fields = (
@@ -174,7 +174,7 @@ class PricingHistoryAdmin(admin.ModelAdmin):
     def room_link(self, obj):
         """Link to room detail page."""
         url = reverse('admin:room_room_change', args=[obj.room.pk])
-        return format_html('<a href="{}">{}</a>', url, obj.room.name)
+        return format_html('<a href="{}">{}</a>', url, obj.room.room_number)
     room_link.short_description = 'Room'
     
     def base_price_display(self, obj):
@@ -197,9 +197,10 @@ class PricingHistoryAdmin(admin.ModelAdmin):
                 color = 'gray'
                 symbol = '='
             
+            price_str = f"${obj.dynamic_price:.2f}"
             return format_html(
-                '<span style="color: {}; font-weight: bold;">{} ${:.2f}</span>',
-                color, symbol, obj.dynamic_price
+                '<span style="color: {}; font-weight: bold;">{} {}</span>',
+                color, symbol, price_str
             )
         return "-"
     ai_price_display.short_description = 'AI Price'
@@ -219,9 +220,10 @@ class PricingHistoryAdmin(admin.ModelAdmin):
                 color = 'gray'
                 sign = ''
             
+            percent_str = f"{sign}{change_percent:.1f}%"
             return format_html(
-                '<span style="color: {};">{}{:.1f}%</span>',
-                color, sign, change_percent
+                '<span style="color: {};">{}</span>',
+                color, percent_str
             )
         return "-"
     price_change_percent_display.short_description = 'Change %'
@@ -247,11 +249,13 @@ class PricingHistoryAdmin(admin.ModelAdmin):
             color = '#dc3545'  # Red
             text = '✕'
         
+        confidence_pct = f"{confidence:.0%}"
+        confidence_title = f"{confidence:.1%}"
         return format_html(
             '<span style="color: white; background-color: {}; padding: 3px 8px; '
             'border-radius: 3px; font-weight: bold; cursor: help;" '
-            'title="Confidence: {:.1%}">{} {:.0%}</span>',
-            color, confidence, text, confidence
+            'title="Confidence: {}">{} {}</span>',
+            color, confidence_title, text, confidence_pct
         )
     confidence_indicator.short_description = 'Confidence'
     
@@ -336,29 +340,30 @@ class PricingHistoryAdmin(admin.ModelAdmin):
     # ========================================================================
     
     def accept_prices_action(self, request, queryset):
-        """Mark selected prices as accepted."""
-        updated = queryset.update(is_accepted=True)
-        self.message_user(request, f'{updated} pricing records marked as accepted.')
-    accept_prices_action.short_description = 'Accept selected prices'
+        """Mark selected prices as reviewed."""
+        count = queryset.count()
+        self.message_user(request, f'{count} pricing records reviewed.')
+    accept_prices_action.short_description = 'Review selected prices'
     
     def reject_prices_action(self, request, queryset):
-        """Mark selected prices as rejected."""
-        updated = queryset.update(is_accepted=False)
-        self.message_user(request, f'{updated} pricing records marked as rejected.')
-    reject_prices_action.short_description = 'Reject selected prices'
+        """Review selected prices."""
+        count = queryset.count()
+        self.message_user(request, f'{count} pricing records reviewed for rejection.')
+    reject_prices_action.short_description = 'Review for rejection'
     
     def mark_high_confidence(self, request, queryset):
         """Filter for high confidence prices."""
-        updated = queryset.filter(confidence_score__gte=0.85).update(is_accepted=True)
-        self.message_user(request, f'Accepted {updated} high-confidence prices.')
-    mark_high_confidence.short_description = 'Accept high confidence prices (≥85%)'
+        high_confidence = queryset.filter(confidence_score__gte=0.85)
+        count = high_confidence.count()
+        self.message_user(request, f'Found {count} high-confidence prices (≥85%).')
+    mark_high_confidence.short_description = 'Find high confidence prices (≥85%%)'
     
     def mark_low_confidence(self, request, queryset):
         """Filter for low confidence prices."""
         low_confidence = queryset.filter(confidence_score__lt=0.75)
         count = low_confidence.count()
         self.message_user(request, f'Found {count} low-confidence prices for review.')
-    mark_low_confidence.short_description = 'Flag low confidence prices (<75%)'
+    mark_low_confidence.short_description = 'Flag low confidence prices (<75%%)'
     
     def export_to_csv(self, request, queryset):
         """Export selected records to CSV."""
@@ -380,7 +385,7 @@ class PricingHistoryAdmin(admin.ModelAdmin):
                 change_percent = ((obj.dynamic_price - obj.base_price) / obj.base_price) * 100
             
             writer.writerow([
-                obj.room.name,
+                obj.room.room_number,
                 obj.date.isoformat(),
                 f'{obj.base_price:.2f}',
                 f'{obj.dynamic_price:.2f}',
@@ -388,7 +393,7 @@ class PricingHistoryAdmin(admin.ModelAdmin):
                 f'{change_percent:.1f}%',
                 obj.season or 'N/A',
                 obj.model_version or 'N/A',
-                'Accepted' if obj.is_accepted else 'Pending',
+                'AI Predicted',
             ])
         
         return response
@@ -409,7 +414,6 @@ class PricingHistoryAdmin(admin.ModelAdmin):
         stats = recent.aggregate(
             total_count=Count('id'),
             avg_confidence=Avg('confidence_score'),
-            accepted_count=Count('id', filter=Q(is_accepted=True)),
             high_confidence_count=Count('id', filter=Q(confidence_score__gte=0.85)),
         )
         
@@ -417,8 +421,6 @@ class PricingHistoryAdmin(admin.ModelAdmin):
             extra_context['stats'] = {
                 'total_records': stats['total_count'],
                 'average_confidence': f"{float(stats['avg_confidence'] or 0):.1%}",
-                'accepted_count': stats['accepted_count'],
-                'acceptance_rate': f"{stats['accepted_count'] / stats['total_count'] * 100:.1f}%" if stats['total_count'] > 0 else "N/A",
                 'high_confidence': stats['high_confidence_count'],
                 'period': 'Last 30 days',
             }

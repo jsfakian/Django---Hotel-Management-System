@@ -131,7 +131,7 @@ def auto_price_all_rooms(self, date_str=None):
             }
         
         # Get all active rooms
-        rooms = Room.objects.filter(is_active=True)
+        rooms = Room.objects.filter(status='available')
         
         stats = {
             'total_rooms': rooms.count(),
@@ -149,7 +149,7 @@ def auto_price_all_rooms(self, date_str=None):
                 # Get AI recommendation
                 recommendation = analyzer.get_pricing_recommendation(
                     room_id=room.id,
-                    date=target_date
+                    date_obj=target_date
                 )
                 
                 if not recommendation:
@@ -238,7 +238,7 @@ def alert_low_confidence(room_id, date, confidence):
         
         # Create notification for each manager
         message = (
-            f"Low confidence pricing for {room.name} on {date}: "
+            f"Low confidence pricing for {room.room_type} on {date}: "
             f"{confidence:.1%} confidence. Please review recommendation."
         )
         
@@ -246,7 +246,7 @@ def alert_low_confidence(room_id, date, confidence):
             for manager in managers:
                 Notification.objects.create(
                     user=manager,
-                    title=f"Low Confidence Price - {room.name}",
+                    title=f"Low Confidence Price - {room.room_type}",
                     message=message,
                     notification_type='pricing_alert',
                     related_id=room.id,

@@ -1,0 +1,37 @@
+[run]
+source = .
+omit =
+    */tests/*
+    */migrations/*
+    */venv/*
+    */virtualenv/*
+    */__pycache__/*
+    */site-packages/*
+    */distutils/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @abstractproperty
+    raise NotImplemented
+    if settings.DEBUG:
+    if 0:
+    if False:
+    if not _PDEPS:
+
+precision = 2
+show_missing = True
+
+[html]
+directory = htmlcov
+
+[paths]
+source =
+    .
+    */site-packages/

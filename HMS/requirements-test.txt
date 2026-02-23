@@ -1,0 +1,51 @@
+# Testing requirements for HMS
+# Install with: pip install -r requirements-test.txt
+
+# Core testing frameworks
+pytest==7.4.0
+pytest-django==4.5.2
+pytest-cov==4.1.0
+pytest-xdist==3.3.1  # Parallel test execution
+pytest-timeout==2.1.0  # Timeout for long-running tests
+
+# Django and REST Framework testing
+djangorestframework==3.14.0
+django-extensions==3.2.3
+
+# Database testing
+factory-boy==3.3.0  # Test fixtures
+faker==19.2.0  # Fake data generation
+
+# Test utilities
+freezegun==1.2.2  # Mock datetime
+responses==0.23.1  # Mock HTTP requests
+requests-mock==1.11.0  # Mock requests library
+unittest-mock==1.5.0  # Enhanced mock utilities
+
+# Code quality and coverage
+coverage==7.2.7
+coverage-regions==1.1.0
+
+# Performance testing
+locust==2.15.1
+django-silk==5.0.0  # Request/response profiling
+
+# E2E and browser testing
+selenium==4.13.0
+webdriver-manager==4.0.1
+
+# API testing
+httpx==0.24.1
+pytest-httpx==0.21.2
+
+# Code analysis
+pylint==2.17.5
+flake8==6.0.0
+black==23.7.0
+isort==5.12.0
+mypy==1.4.1
+
+# CI/CD and reporting
+pytest-json-report==1.5.0
+pytest-html==3.2.0
+pytest-testmon==2.0.0  # Smart test selection

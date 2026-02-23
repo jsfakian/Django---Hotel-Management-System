@@ -113,7 +113,7 @@ class Booking(models.Model):
     # Dates
     check_in_date = models.DateField()
     check_out_date = models.DateField()
-    date_of_reservation = models.DateField(default=timezone.now)
+    date_of_reservation = models.DateField(default=lambda: timezone.now().date())
     
     # Booking details
     number_of_guests = models.PositiveIntegerField(default=1)

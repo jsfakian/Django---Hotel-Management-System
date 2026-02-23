@@ -275,7 +275,7 @@ class CacheWarmer:
         
         try:
             today = datetime.now().date()
-            active_rooms = Room.objects.filter(is_active=True)
+            active_rooms = Room.objects.filter(status='available')
             
             cached_count = 0
             
@@ -292,7 +292,7 @@ class CacheWarmer:
                         
                         prediction_data = {
                             'room_id': room.id,
-                            'room_name': room.name,
+                            'room_name': room.room_number,
                             'date': str(target_date),
                             'base_price': float(pricing.base_price),
                             'dynamic_price': float(pricing.dynamic_price),
@@ -335,7 +335,7 @@ class CacheWarmer:
                 date__gte=thirty_days_ago
             )
             
-            total_rooms = Room.objects.filter(is_active=True).count()
+            total_rooms = Room.objects.filter(status='available').count()
             rooms_using_ai = recent_pricing.values('room').distinct().count()
             avg_confidence = recent_pricing.aggregate(Avg('confidence_score'))['confidence_score__avg'] or 0
             

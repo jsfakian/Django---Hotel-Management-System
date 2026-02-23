@@ -244,9 +244,9 @@ def create_low_confidence_alert(sender, instance, created, **kwargs):
             alert = PricingAlert.objects.create(
                 alert_type='low_confidence',
                 severity='warning',
-                title=f"Low Confidence: {instance.room.name}",
+                title=f"Low Confidence: {instance.room.room_type}",
                 message=(
-                    f"Pricing prediction for {instance.room.name} on {instance.date} "
+                    f"Pricing prediction for {instance.room.room_type} on {instance.date} "
                     f"has low confidence ({float(instance.confidence_score):.1%}). "
                     f"Recommended price: ${instance.dynamic_price:.2f}. "
                     f"Please review before applying."
@@ -376,7 +376,7 @@ class PricingAlertAdmin(admin.ModelAdmin):
     severity_badge.allow_tags = True
     
     def room_name(self, obj):
-        return obj.room.name if obj.room else '-'
+        return obj.room.room_type if obj.room else '-'
     room_name.short_description = 'Room'
     
     def recipient_name(self, obj):
