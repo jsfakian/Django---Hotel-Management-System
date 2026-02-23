@@ -1,7 +1,7 @@
 VENV_PYTHON := .venv/bin/python
 COMPOSE := docker compose
 
-.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data
 
 help:
 	@echo "HMS (Hotel Management System) - Available Commands"
@@ -25,6 +25,7 @@ help:
 	@echo "  make migrate         Run Django migrations"
 	@echo "  make bootstrap       Bootstrap metadata tables"
 	@echo "  make create-admin    Create superuser admin account"
+	@echo "  make load-demo-data  Load comprehensive demo data (properties, bookings, etc.)"
 	@echo ""
 	@echo "Testing & Quality:"
 	@echo "  make check           Run Django system checks"
@@ -46,6 +47,8 @@ up:
 setup: up
 	$(COMPOSE) exec django python manage.py migrate --noinput
 	$(COMPOSE) exec django python manage.py bootstrap_metadata
+	@echo ""
+	@echo "Setup complete! Run 'make load-demo-data' to load demo data for testing."
 
 down:
 	$(COMPOSE) down
@@ -85,6 +88,12 @@ test-docker:
 smoke:
 	curl -fsS http://localhost:8000/api/v1/schema/ > /dev/null
 	@echo "Smoke check passed: /api/v1/schema/ reachable"
+
+load-demo-data:
+	$(COMPOSE) exec django python manage.py load_demo_data
+
+load-demo-data-fresh:
+	$(COMPOSE) exec django python manage.py load_demo_data --clear
 
 clean:
 	$(COMPOSE) down -v
