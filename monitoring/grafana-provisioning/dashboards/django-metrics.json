@@ -1,0 +1,126 @@
+{
+  "dashboard": {
+    "title": "HMS - Django Application Metrics",
+    "tags": ["hms", "django", "application"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "HTTP Request Rate by Status",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(django_http_requests_total[5m])) by (status)",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Request Latency Distribution",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))",
+            "refId": "A",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(django_http_requests_latency_seconds_bucket[5m])) by (le))",
+            "refId": "B",
+            "legendFormat": "p99"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Database Query Count",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(django_db_execute_total[5m])",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Model Operations",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(django_model_inserts_total[5m])",
+            "refId": "A",
+            "legendFormat": "Inserts"
+          },
+          {
+            "expr": "rate(django_model_updates_total[5m])",
+            "refId": "B",
+            "legendFormat": "Updates"
+          },
+          {
+            "expr": "rate(django_model_deletes_total[5m])",
+            "refId": "C",
+            "legendFormat": "Deletes"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Cache Hit Rate",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "(rate(django_cache_get_hits_total[5m]) / (rate(django_cache_get_hits_total[5m]) + rate(django_cache_get_misses_total[5m])))",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Exception Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(django_exceptions_total[5m])",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Requests by Endpoint",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(django_http_requests_total[5m])) by (endpoint))",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Active Connections",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "django_http_requests_in_progress_total",
+            "refId": "A"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 37,
+    "style": "dark",
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "uid": "hms-django-metrics",
+    "version": 1
+  }
+}

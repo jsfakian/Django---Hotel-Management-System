@@ -45,3 +45,6 @@ pytest-django==4.7.0
 pytest-cov==4.1.0
 factory-boy==3.3.0
 faker==20.1.0
+# Monitoring & Alerting
+prometheus-client==0.19.0
+django-prometheus==2.2.0  # Version 2.3.0 is yanked due to broken imports

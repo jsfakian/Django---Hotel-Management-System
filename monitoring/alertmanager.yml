@@ -1,0 +1,149 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL:-}'
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+# The root route with all parameters
+route:
+  receiver: 'default'
+  group_by: ['job', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  # Nested routes
+  routes:
+    # Critical alerts
+    - match:
+        severity: critical
+      receiver: 'critical'
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+
+    # Warning alerts
+    - match:
+        severity: warning
+      receiver: 'warning'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+    # Info alerts
+    - match:
+        severity: info
+      receiver: 'info'
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 24h
+
+    # Service-specific routes
+    - match:
+        service: django
+      receiver: 'django-team'
+      group_wait: 30s
+
+    - match:
+        service: postgres
+      receiver: 'database-team'
+      group_wait: 30s
+
+    - match:
+        service: redis
+      receiver: 'infrastructure-team'
+      group_wait: 30s
+
+    - match:
+        service: celery
+      receiver: 'backend-team'
+      group_wait: 30s
+
+# Receivers configuration
+receivers:
+  # Default receiver - no notifications
+  - name: 'default'
+
+  # Critical alerts - all channels
+  - name: 'critical'
+    slack_configs:
+      - channel: '#alerts-critical'
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        color: 'danger'
+        send_resolved: true
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY:-}'
+        description: '{{ .GroupLabels.alertname }}'
+
+  # Warning alerts
+  - name: 'warning'
+    slack_configs:
+      - channel: '#alerts-warning'
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        color: 'warning'
+        send_resolved: true
+
+  # Info alerts
+  - name: 'info'
+    slack_configs:
+      - channel: '#alerts-info'
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        color: 'good'
+        send_resolved: true
+
+  # Django team
+  - name: 'django-team'
+    slack_configs:
+      - channel: '#team-backend'
+        title: 'Django Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+  # Database team
+  - name: 'database-team'
+    slack_configs:
+      - channel: '#team-database'
+        title: 'Database Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+  # Infrastructure team
+  - name: 'infrastructure-team'
+    slack_configs:
+      - channel: '#team-infrastructure'
+        title: 'Infrastructure Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+  # Backend team
+  - name: 'backend-team'
+    slack_configs:
+      - channel: '#team-backend'
+        title: 'Task Queue Alert: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+# Inhibit rules to prevent alert noise
+inhibit_rules:
+  # Inhibit warning if critical exists
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['job']
+
+  # Inhibit info if warning exists
+  - source_match:
+      severity: 'warning'
+    target_match:
+      severity: 'info'
+    equal: ['job']
+
+  # Inhibit all if host is down
+  - source_match:
+      alertname: 'NodeDown'
+    target_match_re:
+      alertname: '.+'
+    equal: ['instance']

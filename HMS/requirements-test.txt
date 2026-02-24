@@ -20,7 +20,6 @@ faker==19.2.0  # Fake data generation
 freezegun==1.2.2  # Mock datetime
 responses==0.23.1  # Mock HTTP requests
 requests-mock==1.11.0  # Mock requests library
-unittest-mock==1.5.0  # Enhanced mock utilities
 
 # Code quality and coverage
 coverage==7.2.7

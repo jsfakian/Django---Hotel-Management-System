@@ -1,7 +1,7 @@
 VENV_PYTHON := .venv/bin/python
 COMPOSE := docker compose
 
-.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all
 
 help:
 	@echo "HMS (Hotel Management System) - Available Commands"
@@ -51,6 +51,10 @@ help:
 	@echo "  make test-gdpr-command Run GDPR management command tests (3 tests)"
 	@echo "  make test-gdpr-compliance Run GDPR compliance tests (3 tests)"
 	@echo "  make test-gdpr-integrity Run GDPR data integrity tests (3 tests)"
+	@echo ""
+	@echo "Testing - Monitoring System (NEW):"
+	@echo "  make test-monitoring Run monitoring system tests (checks Prometheus, Grafana, etc)"
+	@echo "  make test-all        Run ALL tests (pytest + GDPR + monitoring)"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make cov-report      Generate HTML coverage report"
@@ -296,6 +300,35 @@ ci-test:
 	@echo "3. Analyzing coverage..."
 	@cd HMS && python -c "import xml.etree.ElementTree as ET; tree = ET.parse('.coverage'); root = tree.getroot()" 2>/dev/null || echo "Coverage XML not found, using text report"
 	@echo "✓ CI/CD simulation complete"
+
+# ==============================================================================
+# Monitoring System Testing
+# ==============================================================================
+
+# Run monitoring system tests (Python test suite)
+test-monitoring:
+	@echo "Running monitoring system tests..."
+	@echo "Checking Prometheus, Alertmanager, Grafana, and exporters..."
+	@if [ -f "monitoring/test_monitoring.py" ]; then \
+		cd . && ../.venv/bin/python monitoring/test_monitoring.py; \
+	else \
+		echo "ERROR: monitoring/test_monitoring.py not found"; \
+		exit 1; \
+	fi
+
+# ==============================================================================
+# Comprehensive Testing - Run ALL Tests
+# ==============================================================================
+
+# Run ALL available tests (pytest + GDPR + monitoring)
+test-all: test test-gdpr test-monitoring
+	@echo ""
+	@echo "================================================================"
+	@echo "✓ ALL TESTS COMPLETED SUCCESSFULLY"
+	@echo "  - Pytest suite (unit, integration, E2E, performance)"
+	@echo "  - GDPR compliance tests (21 tests)"
+	@echo "  - Monitoring system tests"
+	@echo "================================================================"
 
 # ==============================================================================
 

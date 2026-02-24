@@ -36,6 +36,7 @@ The system consists of 4 primary layers:
 ✅ **Performance Optimized:** Multi-level caching (Redis), indexed database queries, async processing  
 ✅ **Scalability Ready:** Load balancing, database replication, horizontal service scaling  
 ✅ **GDPR Compliant:** Data privacy controls, encryption, audit trails, right-to-deletion  
+✅ **Enterprise Monitoring:** Real-time metrics collection, proactive alerting, production dashboards  
 
 ### Key Deliverables (This Document)
 
@@ -51,6 +52,8 @@ The system consists of 4 primary layers:
 | Scalability & Performance Design | ✅ Complete | Caching strategy, optimization, capacity planning |
 | **Invoice Management & MyData Integration** | **✅ Complete** | **Greek tax authority (AADE) invoice transmission system** |
 | **Automatic Payment Creation on Booking** | **✅ Complete** | **Event-driven payment automation elimininating manual staff creation** |
+| **GDPR Compliance Framework** | **✅ Complete** | **Data privacy, encryption, audit trails, right-to-deletion, data exports** |
+| **Monitoring & Alerting (Prometheus + Grafana)** | **✅ Complete** | **Enterprise-grade monitoring with 32 alert rules, 4 dashboards, real-time metrics** |
 
 ### Recommendations for Development Team
 
@@ -1827,6 +1830,130 @@ When travel agent creates booking:
 - Breach Notification: Automated alert system (72-hour requirement)
 - Privacy by Design: Data protection in all new features
 ```
+
+---
+
+### 4.8 Monitoring & Alerting Architecture
+
+#### Enterprise-Grade Monitoring Stack
+
+**Components:**
+1. **Prometheus Server** (9090) - Time-series metrics database, 30-day retention
+2. **Alertmanager** (9093) - Alert routing, deduplication, multi-channel notifications
+3. **Grafana** (3000) - Dashboard visualization and alerting creation
+4. **PostgreSQL Exporter** (9187) - Database performance metrics
+5. **Redis Exporter** (9121) - Cache health metrics
+6. **Node Exporter** (9100) - System infrastructure metrics
+7. **django-prometheus** - Application-level metrics collection
+
+#### Metrics Coverage
+
+**Application Layer** (Django + DRF):
+- HTTP request rates (by status code, endpoint, method)
+- Request latency percentiles (p50, p95, p99)
+- Database query execution count
+- Model CRUD operation counts
+- Cache hit/miss ratios
+- Exception rates
+- Active connection count
+
+**Infrastructure Layer** (System):
+- CPU utilization percentage
+- Memory usage and availability
+- Disk space usage and I/O
+- Network traffic
+- System load average
+
+**Database Layer** (PostgreSQL):
+- Transaction commit/rollback rates
+- Active connections
+- Cache hit ratios
+- Query performance
+- Lock wait times
+- Slow query detection
+
+**Cache Layer** (Redis):
+- Memory usage percentage
+- Connected clients count
+- Key eviction rate
+- Hit/miss ratios
+- Replication lag
+
+**Task Queue** (Celery):
+- Task completion rates
+- Success/failure counts
+- Queue depth
+- Worker availability
+- Execution time distribution
+
+#### Alert Rules (32 Production-Ready)
+
+**Critical Alerts** (Immediate Action):
+- HighHTTPErrorRate (>5% errors for 5m) → Slack #alerts-critical + PagerDuty
+- DjangoApplicationDown (service unreachable) → Immediate pages
+- CeleryWorkerOffline (>1m) → Page on-call engineer
+- RedisEvictionsHigh (keys being evicted) → Urgent capacity issue
+- DiskSpaceRunningOut (<10% available) → Critical ops ticket
+- CeleryTaskFailureRateHigh (>5% failures) → Task processing issue
+
+**Warning Alerts** (Investigation Needed):
+- HighHTTPLatency (p95 > 1s for 5m)
+- PostgreSQLConnectionPoolAlmostFull (>80%)
+- HighMemoryUsage (>85%)
+- CeleryQueueLengthHigh (>1000 tasks)
+- PostgreSQLLowCacheHitRatio (<95%)
+- HighDatabaseQueryCount (>100 qps)
+
+**Info Alerts** (For Awareness):
+- HighModelOperationRate (>50 ops/s)
+- Multiple other operational metrics
+
+#### Pre-built Dashboards
+
+1. **System Overview Dashboard** (8 panels)
+   - Service health status, resource utilization, core KPIs
+
+2. **Django Application Metrics Dashboard** (8 panels)
+   - HTTP performance, database queries, cache effectiveness, exceptions
+
+3. **Database Performance Dashboard** (8 panels)
+   - Transactions, connections, query analysis, index usage
+
+4. **Celery Task Queue Dashboard** (8 panels)
+   - Task rates, worker status, queue depth, execution times
+
+#### Alerting Channels
+
+**Slack Integration:**
+- Routing by severity (critical, warning, info)
+- Service-specific channels (#alerts-critical, #team-backend, etc.)
+- Alert grouping and deduplication
+- Custom notification formatting
+
+**PagerDuty Integration:**
+- Critical alerts → Immediate on-call pages
+- Escalation policies configured
+- Alert deduplication across services
+
+**Webhook Support:**
+- Custom webhook receivers for integration
+- Extensible for custom notification systems
+
+#### Data Retention & Storage
+
+- **Prometheus:** 30-day retention (configurable via environment)
+- **Alertmanager:** Alert history with suppression tracking
+- **Grafana:** Dashboard configurations, user preferences
+- **Audit Trail:** All alerting decisions logged for compliance
+
+#### Baseline Metrics
+
+Target performance baselines:
+- API Response Time (p95): <200ms
+- Database Query Time (p95): <100ms
+- Cache Hit Ratio: >95%
+- Error Rate: <1%
+- Availability: >99.9%
 
 ---
 

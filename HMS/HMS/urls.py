@@ -33,6 +33,9 @@ urlpatterns = [
     path('health/cache/', health_cache, name='health-cache'),
     path('healthz/', healthz, name='healthz'),  # Legacy endpoint
     
+    # Prometheus metrics endpoint
+    path('metrics/', include('django_prometheus.urls')),
+    
     # Django Admin
     path('admin/', admin.site.urls),
     
