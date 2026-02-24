@@ -310,7 +310,7 @@ test-monitoring:
 	@echo "Running monitoring system tests..."
 	@echo "Checking Prometheus, Alertmanager, Grafana, and exporters..."
 	@if [ -f "monitoring/test_monitoring.py" ]; then \
-		cd . && ../.venv/bin/python monitoring/test_monitoring.py; \
+		./.venv/bin/python monitoring/test_monitoring.py; \
 	else \
 		echo "ERROR: monitoring/test_monitoring.py not found"; \
 		exit 1; \
