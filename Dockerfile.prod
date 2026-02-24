@@ -1,0 +1,68 @@
+FROM python:3.11-slim as builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+# Install system dependencies for building
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python dependencies
+COPY requirements.docker.txt .
+RUN pip install --user --no-warn-script-location -r requirements.docker.txt
+
+# ============================================================================
+# Final Production Image
+# ============================================================================
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONFAULTHANDLER=1 \
+    ENVIRONMENT=production
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Python packages from builder
+COPY --from=builder /root/.local /home/appuser/.local
+
+# Copy application code
+COPY --chown=appuser:appuser . /app/
+
+# Create necessary directories
+RUN mkdir -p /app/HMS/static /app/HMS/media /app/logs /app/backup && \
+    chown -R appuser:appuser /app
+
+# Set PATH to use local pip installations
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+WORKDIR /app/HMS
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Run as non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Default command (can be overridden by docker-compose)
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "sync", "--worker-tmp-dir", "/dev/shm", "--max-requests", "1000", "--max-requests-jitter", "50", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-", "HMS.wsgi:application"]

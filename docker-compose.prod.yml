@@ -1,0 +1,344 @@
+version: '3.9'
+
+# Production Docker Compose Configuration for NEPHELE HMS
+# Optimized for security, performance, and reliability
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # ============================================================================
+  # PostgreSQL Database (Production Configuration)
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: hms-postgres-prod
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Production optimizations
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c effective_cache_size=1GB -c work_mem=16MB -c maintenance_work_mem=64MB"
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - ./backup:/backup  # For database backups
+    networks:
+      - hms-network-prod
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        labels: "service=postgres"
+
+  # ============================================================================
+  # Redis Cache & Message Broker (Production)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: hms-redis-prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-1gb} --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - hms-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=redis"
+
+  # ============================================================================
+  # Django Application (Production)
+  # ============================================================================
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: hms-django:latest
+    container_name: hms-django-prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    environment:
+      DEBUG: "False"
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CELERY_TASK_ALWAYS_EAGER: "False"
+      DJANGO_SETTINGS_MODULE: HMS.settings
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      SECURE_SSL_REDIRECT: "True"
+      SESSION_COOKIE_SECURE: "True"
+      CSRF_COOKIE_SECURE: "True"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./HMS:/app/HMS:ro  # Read-only application code
+      - static_volume_prod:/app/HMS/static
+      - media_volume_prod:/app/HMS/media
+      - logs_volume_prod:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - hms-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+      # Restart policy for production
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        labels: "service=django"
+    # Security options
+    read_only_root_filesystem: false  # Allow app to write to logs
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+  # ============================================================================
+  # Celery Worker (Production)
+  # ============================================================================
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: hms-django:latest
+    container_name: hms-celery-prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    environment:
+      DEBUG: "False"
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      CELERY_TASK_ALWAYS_EAGER: "False"
+      DJANGO_SETTINGS_MODULE: HMS.settings
+    command: celery -A HMS worker -l info --concurrency=4 --max-tasks-per-child=1000
+    volumes:
+      - ./HMS:/app/HMS:ro
+      - logs_volume_prod:/app/logs
+    networks:
+      - hms-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+      restart_policy:
+        condition: unless-stopped
+        delay: 5s
+        max_attempts: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=celery"
+    cap_drop:
+      - ALL
+
+  # ============================================================================
+  # Celery Beat Scheduler (Production)
+  # ============================================================================
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: hms-django:latest
+    container_name: hms-celery-beat-prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    environment:
+      DEBUG: "False"
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DJANGO_SETTINGS_MODULE: HMS.settings
+    command: celery -A HMS beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ./HMS:/app/HMS:ro
+      - logs_volume_prod:/app/logs
+      - celery_beat_data:/app/celery-beat
+    networks:
+      - hms-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+        labels: "service=celery-beat"
+    cap_drop:
+      - ALL
+
+  # ============================================================================
+  # Nginx Reverse Proxy (Production)
+  # ============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: hms-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deployment/ssl:/etc/nginx/ssl:ro  # SSL certificates
+      - static_volume_prod:/app/static:ro
+      - media_volume_prod:/app/media:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - django
+    networks:
+      - hms-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+        labels: "service=nginx"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only_root_filesystem: true
+    tmpfs:
+      - /var/run
+      - /var/cache
+
+# ============================================================================
+# Volumes (Production - Named for better management)
+# ============================================================================
+volumes:
+  postgres_data_prod:
+    driver: local
+  redis_data_prod:
+    driver: local
+  static_volume_prod:
+    driver: local
+  media_volume_prod:
+    driver: local
+  logs_volume_prod:
+    driver: local
+  nginx_logs:
+    driver: local
+  celery_beat_data:
+    driver: local
+
+# ============================================================================
+# Networks (Isolated production network)
+# ============================================================================
+networks:
+  hms-network-prod:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

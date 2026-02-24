@@ -12,7 +12,7 @@ Routes:
 
 from django.contrib import admin
 from django.urls import path, include
-from HMS.health import healthz
+from HMS.health import healthz, health_check, health_db, health_cache
 from HMS.web_views import landing_page, home_page, backend_navigation, module_portal, module_crud_page
 from accounts.views import login_page, logout_user, register_page
 
@@ -26,7 +26,13 @@ urlpatterns = [
     path('portal/<str:module_key>/<str:action>/', module_crud_page, name='module-crud'),
     path('portal/<str:module_key>/', module_portal, name='module-portal'),
     path('backend-navigation/', backend_navigation, name='backend-navigation'),
-    path('healthz/', healthz, name='healthz'),
+    
+    # Health check endpoints
+    path('health/', health_check, name='health'),
+    path('health/db/', health_db, name='health-db'),
+    path('health/cache/', health_cache, name='health-cache'),
+    path('healthz/', healthz, name='healthz'),  # Legacy endpoint
+    
     # Django Admin
     path('admin/', admin.site.urls),
     

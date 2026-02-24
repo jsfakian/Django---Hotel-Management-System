@@ -47,7 +47,14 @@ CACHES = {
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 
 # Simplified storage for tests
-DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
 STATIC_ROOT = '/tmp/hms_test_static/'
 
 # Disable email sending in tests
