@@ -1,7 +1,7 @@
 VENV_PYTHON := .venv/bin/python
 COMPOSE := docker compose
 
-.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-migrate prod-static prod-health prod-backup prod-restore backup-setup backup-daily backup-weekly backup-monthly backup-health backup-verify backup-test
 
 help:
 	@echo "HMS (Hotel Management System) - Available Commands"
@@ -61,6 +61,27 @@ help:
 	@echo "  make cov-clean       Clean coverage data and reports"
 	@echo "  make lint            Run code quality checks (flake8, pylint)"
 	@echo "  make format          Format code with black and isort"
+	@echo ""
+	@echo "Production Deployment:"
+	@echo "  make prod-build      Build production Docker images"
+	@echo "  make prod-up         Start production containers"
+	@echo "  make prod-down       Stop production containers"
+	@echo "  make prod-restart    Restart production containers"
+	@echo "  make prod-logs       View production container logs"
+	@echo "  make prod-ps         Show production container status"
+	@echo "  make prod-migrate    Run database migrations in production"
+	@echo "  make prod-health     Check production system health"
+	@echo "  make prod-backup     Backup production database"
+	@echo "  make prod-restore    Restore production database from backup"
+	@echo ""
+	@echo "Database Backup & Recovery (Gap #2):"
+	@echo "  make backup-setup    Setup backup automation with cron scheduler"
+	@echo "  make backup-daily    Run daily backup manually"
+	@echo "  make backup-weekly   Run weekly backup manually"
+	@echo "  make backup-monthly  Run monthly backup manually (encrypted)"
+	@echo "  make backup-health   Check backup health and integrity"
+	@echo "  make backup-verify   Verify latest backup (no restore)"
+	@echo "  make backup-test     Test restore procedure (dry-run mode)"
 	@echo ""
 	@echo "Usage:"
 	@echo "  make help            Display this help message"
@@ -329,6 +350,151 @@ test-all: test test-gdpr test-monitoring
 	@echo "  - GDPR compliance tests (21 tests)"
 	@echo "  - Monitoring system tests"
 	@echo "================================================================"
+
+# ==============================================================================
+# Production Deployment Commands (Gap #1: Production Docker Compose)
+# ==============================================================================
+
+# Build production Docker images
+prod-build:
+	@echo "Building production Docker images..."
+	$(COMPOSE) -f docker-compose.prod.yml build
+	@echo "✓ Production images built successfully"
+
+# Start production services
+prod-up:
+	@echo "Starting production services..."
+	$(COMPOSE) -f docker-compose.prod.yml up -d
+	@echo "Waiting for services to become healthy..."
+	@sleep 30
+	@echo "✓ Production services started"
+	@echo "Access points:"
+	@echo "  - Django API: https://yourdomain.com/api/v1/schema/"
+	@echo "  - Grafana: https://grafana.yourdomain.com"
+	@echo "  - Admin: https://yourdomain.com/admin/"
+
+# Stop production services
+prod-down:
+	@echo "Stopping production services..."
+	$(COMPOSE) -f docker-compose.prod.yml down
+	@echo "✓ Production services stopped"
+
+# Restart production services
+prod-restart:
+	@echo "Restarting production services..."
+	$(COMPOSE) -f docker-compose.prod.yml down
+	$(COMPOSE) -f docker-compose.prod.yml up -d
+	@sleep 30
+	@echo "✓ Production services restarted"
+
+# View production logs
+prod-logs:
+	$(COMPOSE) -f docker-compose.prod.yml logs -f --tail=100
+
+# Show production container status
+prod-ps:
+	$(COMPOSE) -f docker-compose.prod.yml ps
+
+# Run database migrations in production
+prod-migrate:
+	@echo "Running database migrations in production..."
+	$(COMPOSE) -f docker-compose.prod.yml run --rm django \
+		python manage.py migrate --noinput
+	@echo "✓ Migrations completed"
+
+# Collect static files in production
+prod-static:
+	@echo "Collecting static files in production..."
+	$(COMPOSE) -f docker-compose.prod.yml run --rm django \
+		python manage.py collectstatic --noinput
+	@echo "✓ Static files collected"
+
+# Health check for production system
+prod-health:
+	@echo "Running production health check..."
+	@echo ""
+	@echo "1. Docker Compose Status:"
+	@$(COMPOSE) -f docker-compose.prod.yml ps
+	@echo ""
+	@echo "2. Database Health:"
+	@$(COMPOSE) -f docker-compose.prod.yml exec -T postgres pg_isready -U $$(grep POSTGRES_USER .env.prod | cut -d'=' -f2) || echo "❌ Database unhealthy"
+	@echo ""
+	@echo "3. Redis Health:"
+	@$(COMPOSE) -f docker-compose.prod.yml exec -T redis redis-cli ping || echo "❌ Redis unhealthy"
+	@echo ""
+	@echo "4. Django API Health:"
+	@curl -sf http://localhost:8000/api/v1/health/ > /dev/null && echo "✓ Django API healthy" || echo "❌ Django API unhealthy"
+	@echo ""
+	@echo "5. Prometheus Health:"
+	@curl -sf http://localhost:9090/-/healthy > /dev/null && echo "✓ Prometheus healthy" || echo "❌ Prometheus unhealthy"
+	@echo ""
+	@echo "6. Grafana Health:"
+	@curl -sf http://localhost:3000/api/health > /dev/null && echo "✓ Grafana healthy" || echo "❌ Grafana unhealthy"
+	@echo ""
+	@echo "✓ Health check complete"
+
+# Backup production database
+prod-backup:
+	@echo "Creating production database backup..."
+	@bash scripts/backup-database.sh
+	@echo "✓ Backup completed"
+
+# Restore production database
+prod-restore:
+	@echo "Restoring production database from backup..."
+	@if [ -z "$(BACKUP_FILE)" ]; then \
+		echo "Usage: make prod-restore BACKUP_FILE=./backup/hms_backup.sql"; \
+		exit 1; \
+	fi
+	@bash scripts/backup-database.sh --restore $(BACKUP_FILE)
+	@echo "✓ Restore completed"
+
+# Full production deployment (build, start, migrate)
+prod-deploy: prod-build prod-up prod-migrate prod-static
+	@echo ""
+	@echo "================================================================"
+	@echo "✓ PRODUCTION DEPLOYMENT COMPLETE"
+	@echo "================================================================"
+	@echo ""
+	@echo "Next steps:"
+	@echo "1. Verify services: make prod-health"
+	@echo "2. Check logs: make prod-logs"
+	@echo "3. Access admin: https://yourdomain.com/admin/"
+	@echo "4. Configure monitoring: https://grafana.yourdomain.com"
+	@echo "5. Setup backups: make backup-setup"
+	@echo ""
+
+# ==============================================================================
+# Gap #2: Database Backup & Recovery Commands
+# ==============================================================================
+
+backup-setup:
+	@echo "Setting up database backup automation..."
+	@bash scripts/setup-backup-automation.sh
+
+backup-daily:
+	@echo "Running daily backup..."
+	@bash scripts/backup-daily.sh
+
+backup-weekly:
+	@echo "Running weekly backup..."
+	@bash scripts/backup-weekly.sh
+
+backup-monthly:
+	@echo "Running monthly encrypted backup..."
+	@bash scripts/backup-monthly.sh
+
+backup-health:
+	@echo "Running backup health checks..."
+	@bash scripts/backup-health-check.sh
+
+backup-verify:
+	@echo "Verifying latest backup (no restore)..."
+	@bash scripts/restore-database.sh --latest --verify-only
+
+backup-test:
+	@echo "Testing restore procedure in dry-run mode..."
+	@bash scripts/restore-database.sh --latest --dry-run
 
 # ==============================================================================
 

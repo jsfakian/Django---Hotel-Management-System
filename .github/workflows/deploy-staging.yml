@@ -1,0 +1,221 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ develop, staging ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # Test Job: Run tests before deploying
+  # ============================================================================
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: test_hms
+          POSTGRES_USER: hms
+          POSTGRES_PASSWORD: hms_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r HMS/requirements-test.txt
+
+    - name: Run Django checks
+      env:
+        DJANGO_SETTINGS_MODULE: HMS.settings
+        SECRET_KEY: test-secret-key
+        DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
+        DEBUG: 'False'
+      run: |
+        cd HMS
+        python manage.py check --deploy
+
+    - name: Run tests
+      env:
+        DJANGO_SETTINGS_MODULE: HMS.settings
+        SECRET_KEY: test-secret-key
+        DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
+        DEBUG: 'False'
+      run: |
+        cd HMS
+        pytest --cov=. --cov-report=xml -v
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./HMS/coverage.xml
+
+  # ============================================================================
+  # Security Scan Job: Check for vulnerabilities
+  # ============================================================================
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install security tools
+      run: |
+        pip install bandit safety semgrep
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r HMS -f json -o bandit-report.json || true
+        cat bandit-report.json
+
+    - name: Check dependencies for vulnerabilities
+      run: |
+        pip install -r requirements.txt
+        safety check --json || true
+
+    - name: Run Semgrep security checks
+      run: |
+        semgrep --config=p/security-audit HMS/ --json > semgrep-report.json || true
+
+  # ============================================================================
+  # Build Job: Build Docker images
+  # ============================================================================
+  build:
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./Dockerfile.prod
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # Deploy Job: Deploy to staging environment
+  # ============================================================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.your-domain.com
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Deploy to staging server
+      env:
+        DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+        DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+        DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+        DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+        
+        # Connect and deploy
+        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" << 'EOF'
+        cd "$DEPLOY_PATH"
+        git pull origin develop
+        docker-compose -f docker-compose.prod.yml pull
+        docker-compose -f docker-compose.prod.yml up -d
+        docker-compose -f docker-compose.prod.yml exec -T django python manage.py migrate
+        docker-compose -f docker-compose.prod.yml exec -T django python manage.py collectstatic --noinput
+        EOF
+
+    - name: Run health checks
+      run: |
+        # Wait for deployment to stabilize
+        sleep 30
+        
+        # Check health endpoint
+        for i in {1..5}; do
+          if curl -sf https://staging.your-domain.com/health/ > /dev/null; then
+            echo "✓ Health check passed"
+            exit 0
+          fi
+          echo "Health check attempt $i/5..."
+          sleep 10
+        done
+        
+        echo "✗ Health check failed"
+        exit 1
+
+    - name: Notify deployment
+      if: success()
+      run: |
+        echo "Deployment to staging successful!"
+        # Add Slack/email notification here if needed
+
+    - name: Notify deployment failure
+      if: failure()
+      run: |
+        echo "Deployment to staging failed!"
+        # Add Slack/email notification here if needed
