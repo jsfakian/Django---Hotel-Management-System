@@ -26,6 +26,12 @@ from HMS.api_viewsets import (
 )
 from channels.views import ChannelViewSet
 from inventory.views import RoomAvailabilityViewSet
+from accounts.views import (
+    request_data_export,
+    get_data_export,
+    check_export_status,
+    request_data_deletion,
+)
 
 # Create router for ViewSets
 router = DefaultRouter()
@@ -54,6 +60,12 @@ urlpatterns = [
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/register/', RegisterAPIView.as_view(), name='auth_register'),
     path('auth/forgot-password/', ForgotPasswordAPIView.as_view(), name='auth_forgot_password'),
+    
+    # GDPR Data Subject Access & Privacy Endpoints (Articles 15, 17, 20)
+    path('gdpr/request-export/', request_data_export, name='gdpr_request_export'),
+    path('gdpr/download-export/', get_data_export, name='gdpr_download_export'),
+    path('gdpr/export-status/<str:task_id>/', check_export_status, name='gdpr_export_status'),
+    path('gdpr/request-deletion/', request_data_deletion, name='gdpr_request_deletion'),
     
     # API Documentation
     path('schema/', SpectacularAPIView.as_view(), name='schema'),

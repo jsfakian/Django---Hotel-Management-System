@@ -1,7 +1,7 @@
 VENV_PYTHON := .venv/bin/python
 COMPOSE := docker compose
 
-.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity
 
 help:
 	@echo "HMS (Hotel Management System) - Available Commands"
@@ -43,6 +43,16 @@ help:
 	@echo "  make test-verbose    Run all tests with verbose output"
 	@echo "  make test-fast       Run faster tests (skip slow/performance)"
 	@echo "  make test-failed     Re-run only failed tests"
+	@echo ""
+	@echo "Testing - GDPR Compliance (NEW):"
+	@echo "  make test-gdpr       Run all GDPR tests (21 tests)"
+	@echo "  make test-gdpr-service Run GDPR export service tests (6 tests)"
+	@echo "  make test-gdpr-api   Run GDPR REST API tests (6 tests)"
+	@echo "  make test-gdpr-command Run GDPR management command tests (3 tests)"
+	@echo "  make test-gdpr-compliance Run GDPR compliance tests (3 tests)"
+	@echo "  make test-gdpr-integrity Run GDPR data integrity tests (3 tests)"
+	@echo ""
+	@echo "Code Quality:"
 	@echo "  make cov-report      Generate HTML coverage report"
 	@echo "  make cov-clean       Clean coverage data and reports"
 	@echo "  make lint            Run code quality checks (flake8, pylint)"
@@ -146,6 +156,50 @@ test-e2e:
 test-performance:
 	@echo "Running performance and load tests..."
 	cd HMS && ../.venv/bin/python -m pytest HMS/tests/test_performance.py -v --tb=short
+
+# ==============================================================================
+# GDPR Compliance Testing (Article 15, 17, 20)
+# ==============================================================================
+
+# Run all GDPR tests (21 total: service, API, command, data integrity, compliance)
+test-gdpr:
+	@echo "Running all GDPR compliance tests (21 tests total)..."
+	@echo "  - GDPRExportServiceTests (6 tests)"
+	@echo "  - GDPRAPITests (6 tests)"
+	@echo "  - ManagementCommandTests (3 tests)"
+	@echo "  - GDPRExportDataIntegrityTests (3 tests)"
+	@echo "  - GDPRComplianceTests (3 tests)"
+	cd HMS && SECRET_KEY="test-secret-key" DEBUG="True" DB_ENGINE="django.db.backends.sqlite3" ../.venv/bin/python manage.py test accounts.tests_gdpr -v 2
+
+# Run GDPR export service tests (6 tests)
+# Tests: initialization, profile export, complete export, JSON/dict conversions
+test-gdpr-service:
+	@echo "Running GDPR Export Service tests (6 tests)..."
+	cd HMS && SECRET_KEY="test-secret-key" DEBUG="True" DB_ENGINE="django.db.backends.sqlite3" ../.venv/bin/python manage.py test accounts.tests_gdpr.GDPRExportServiceTests -v 2
+
+# Run GDPR REST API tests (6 tests)
+# Tests: request export, download export, delete confirmation, anonymous access
+test-gdpr-api:
+	@echo "Running GDPR REST API tests (6 tests)..."
+	cd HMS && SECRET_KEY="test-secret-key" DEBUG="True" DB_ENGINE="django.db.backends.sqlite3" ../.venv/bin/python manage.py test accounts.tests_gdpr.GDPRAPITests -v 2
+
+# Run GDPR management command tests (3 tests)
+# Tests: export by ID, export by email, invalid user handling
+test-gdpr-command:
+	@echo "Running GDPR Management Command tests (3 tests)..."
+	cd HMS && SECRET_KEY="test-secret-key" DEBUG="True" DB_ENGINE="django.db.backends.sqlite3" ../.venv/bin/python manage.py test accounts.tests_gdpr.ManagementCommandTests -v 2
+
+# Run GDPR compliance verification tests (3 tests)
+# Tests: DSAR metadata, user identifier inclusion, version tracking
+test-gdpr-compliance:
+	@echo "Running GDPR Compliance Verification tests (3 tests)..."
+	cd HMS && SECRET_KEY="test-secret-key" DEBUG="True" DB_ENGINE="django.db.backends.sqlite3" ../.venv/bin/python manage.py test accounts.tests_gdpr.GDPRComplianceTests -v 2
+
+# Run GDPR data integrity tests (3 tests)
+# Tests: all data categories exported, required field presence, format validation
+test-gdpr-integrity:
+	@echo "Running GDPR Data Integrity tests (3 tests)..."
+	cd HMS && SECRET_KEY="test-secret-key" DEBUG="True" DB_ENGINE="django.db.backends.sqlite3" ../.venv/bin/python manage.py test accounts.tests_gdpr.GDPRExportDataIntegrityTests -v 2
 
 # Run all tests with verbose output
 test-verbose:

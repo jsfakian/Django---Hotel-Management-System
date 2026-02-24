@@ -95,7 +95,7 @@ jobs:
         pytest --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml -v
     
     - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./HMS/coverage.xml
         fail_ci_if_error: false
@@ -103,23 +103,17 @@ jobs:
     
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.python-version }}
         path: HMS/test-results.xml
     
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report-${{ matrix.python-version }}
         path: HMS/htmlcov/
-    
-    - name: Comment PR with coverage
-      if: github.event_name == 'pull_request'
-      uses: py-cov-action/comment@main
-      with:
-        path: ./HMS/coverage.xml
 
   performance:
     runs-on: ubuntu-latest
@@ -185,7 +179,7 @@ jobs:
     
     - name: Upload security reports
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: security-reports
         path: |
@@ -236,7 +230,7 @@ jobs:
     
     - name: Upload integration test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: integration-test-results
         path: HMS/test-results.xml

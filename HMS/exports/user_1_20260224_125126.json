@@ -1,0 +1,38 @@
+{
+  "export_info": {
+    "export_date": "2026-02-24T12:51:26.428084+00:00",
+    "export_version": "1.0",
+    "data_format": "JSON",
+    "compliance": "GDPR Article 20 - Right to Data Portability",
+    "user_id": 1,
+    "user_email": "cmd@example.com"
+  },
+  "user_profile": {
+    "id": 1,
+    "username": "cmdtest",
+    "email": "cmd@example.com",
+    "first_name": "",
+    "last_name": "",
+    "is_active": true,
+    "is_staff": false,
+    "is_superuser": false,
+    "date_joined": "2026-02-24T12:51:26.325148+00:00",
+    "last_login": null,
+    "groups": []
+  },
+  "guest_profile": null,
+  "employee_profile": null,
+  "travel_agent_profile": null,
+  "bookings": [],
+  "payments": [],
+  "invoices": [],
+  "refunds": [],
+  "contracts": [],
+  "notifications": [],
+  "communication": [],
+  "reports": [],
+  "audit_trail": {
+    "note": "Activity audit trail data is handled separately by Django admin logs and application-specific audit records.",
+    "data_subject_access_request_date": "2026-02-24T12:51:26.428084+00:00"
+  }
+}

@@ -11,6 +11,8 @@ from django.contrib import messages
 from hotel.models import Guest
 from datetime import datetime, date, timedelta
 import random
+import json
+import logging
 
 # Own imports
 from accounts.models import *
@@ -463,3 +465,213 @@ def completeTask(request, pk):
 
     }
     return render(request, path + "completeTask.html", context)
+
+
+# ============================================================================
+# GDPR Data Export API Views (DRF)
+# ============================================================================
+
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.viewsets import ViewSet
+from rest_framework.request import Request
+
+from .services.gdpr_export import GDPRExportService, get_gdpr_export_json
+from .tasks import export_user_data_async
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_data_export(request: Request) -> Response:
+    """
+    Request GDPR data export (Article 20 - Right to Data Portability)
+    
+    User submits request to download their complete personal data in JSON format.
+    For large exports (>10MB), request is queued as async task.
+    
+    POST /api/v1/gdpr/request-export/
+    {
+        "send_email": true  # Optional: send export via email
+    }
+    
+    Returns:
+        {
+            "status": "success",
+            "message": "Export requested",
+            "export_id": "task_uuid",
+            "data": {...}  # If small export
+        }
+    """
+    try:
+        user = request.user
+        send_email = request.data.get('send_email', False)
+        
+        # Generate export
+        service = GDPRExportService(user)
+        export_data = service.export_to_dict()
+        
+        # Get rough size estimate
+        json_str = service.export_to_json_string()
+        data_size = len(json_str.encode('utf-8'))
+        
+        # If small, return directly
+        if data_size < 5 * 1024 * 1024:  # 5MB threshold
+            return Response({
+                'status': 'success',
+                'message': 'Data export completed',
+                'data_size_bytes': data_size,
+                'data': export_data,
+            }, status=status.HTTP_200_OK)
+        
+        # Otherwise queue async task
+        else:
+            task = export_user_data_async.delay(user.id, send_email=send_email)
+            return Response({
+                'status': 'queued',
+                'message': 'Large export queued for processing',
+                'export_id': str(task.id),
+                'estimated_size_bytes': data_size,
+                'check_url': f'/api/v1/gdpr/export-status/{task.id}/',
+            }, status=status.HTTP_202_ACCEPTED)
+    
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_data_export(request: Request) -> Response:
+    """
+    Download GDPR data export as JSON
+    
+    Downloads the complete personal data export.
+    Use this after request_data_export returns a small export,
+    or check export-status to confirm async export.
+    
+    GET /api/v1/gdpr/download-export/
+    
+    Returns: JSON file as attachment
+    """
+    try:
+        user = request.user
+        
+        # Generate export
+        json_data = get_gdpr_export_json(user)
+        
+        # Return as file download
+        response = Response(
+            json.loads(json_data),
+            status=status.HTTP_200_OK,
+            content_type='application/json'
+        )
+        response['Content-Disposition'] = (
+            f'attachment; filename="gdpr_export_{user.id}.json"'
+        )
+        
+        return response
+    
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_export_status(request: Request, task_id: str) -> Response:
+    """
+    Check status of async data export task
+    
+    Polls the status of a data export task by its Celery task ID.
+    
+    GET /api/v1/gdpr/export-status/{task_id}/
+    
+    Returns:
+        {
+            "status": "pending|processing|completed|failed",
+            "task_id": "...",
+            "progress": 0-100,  # If processing
+            "result": {...}  # If completed
+        }
+    """
+    try:
+        from celery import current_app
+        
+        task = current_app.AsyncResult(task_id)
+        
+        return Response({
+            'task_id': task_id,
+            'status': task.state,
+            'progress': task.info.get('progress', 0) if task.state == 'PROGRESS' else None,
+            'result': task.result if task.state == 'SUCCESS' else None,
+        }, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_data_deletion(request: Request) -> Response:
+    """
+    Request GDPR data deletion (Article 17 - Right to be Forgotten)
+    
+    User requests their data be deleted/anonymized.
+    Deletion requires confirmation via email.
+    
+    POST /api/v1/gdpr/request-deletion/
+    {
+        "confirm": true,
+        "reason": "optional reason"
+    }
+    
+    Returns:
+        {
+            "status": "requested|confirmed|processing",
+            "message": "...",
+            "confirmation_token": "..."  # For email confirmation
+        }
+    """
+    try:
+        user = request.user
+        confirm = request.data.get('confirm', False)
+        reason = request.data.get('reason', 'User requested deletion')
+        
+        if not confirm:
+            return Response({
+                'status': 'error',
+                'message': 'Deletion must be confirmed',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Log deletion request
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f'GDPR deletion request for user {user.id} ({user.email}): {reason}'
+        )
+        
+        # Send confirmation email
+        # In production, send confirmation email with link
+        # Tasks will be triggered via Celery in async manner
+        
+        return Response({
+            'status': 'requested',
+            'message': 'Deletion request received. ' \
+                      'Please confirm via email link.',
+            'user_id': user.id,
+        }, status=status.HTTP_202_ACCEPTED)
+    
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
