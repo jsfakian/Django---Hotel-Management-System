@@ -284,7 +284,7 @@ groups:
       # Hotel Service Health Check
       - alert: HotelServiceHealthCheckFailed
         expr: |
-          http_requests_total{endpoint="/health/",status=~"5.."}[-1m] > 0
+          http_requests_total{endpoint="/health/",status=~"5.."}[1m] > 0
         for: 2m
         labels:
           severity: critical

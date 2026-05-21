@@ -4,6 +4,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: hms-redis
+    restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6380}:6379"
     healthcheck:
@@ -19,6 +20,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: hms-postgres
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -42,6 +44,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: hms-django
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,11 +82,33 @@ services:
     networks:
       - hms-network
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: builder
+    container_name: hms-frontend
+    restart: unless-stopped
+    depends_on:
+      django:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+    command: npm run dev
+    networks:
+      - hms-network
+
   celery:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: hms-celery
+    restart: unless-stopped
     depends_on:
       - redis
       - postgres
@@ -113,6 +138,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: hms-celery-beat
+    restart: unless-stopped
     depends_on:
       - redis
       - postgres
@@ -140,6 +166,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: hms-prometheus
+    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
@@ -170,6 +197,7 @@ services:
   alertmanager:
     image: prom/alertmanager:latest
     container_name: hms-alertmanager
+    restart: unless-stopped
     ports:
       - "9093:9093"
     volumes:
@@ -194,6 +222,7 @@ services:
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: hms-postgres-exporter
+    restart: unless-stopped
     ports:
       - "9187:9187"
     environment:
@@ -212,6 +241,7 @@ services:
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: hms-redis-exporter
+    restart: unless-stopped
     ports:
       - "9121:9121"
     environment:
@@ -230,6 +260,7 @@ services:
   node-exporter:
     image: prom/node-exporter:latest
     container_name: hms-node-exporter
+    restart: unless-stopped
     ports:
       - "9100:9100"
     volumes:
@@ -253,8 +284,9 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: hms-grafana
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
@@ -264,7 +296,6 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana-provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      - ./monitoring/grafana-provisioning/dashboards-provider.yml:/etc/grafana/provisioning/dashboards/provider.yml:ro
       - ./monitoring/grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]

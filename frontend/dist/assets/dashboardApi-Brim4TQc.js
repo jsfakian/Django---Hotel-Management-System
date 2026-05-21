@@ -1,0 +1,1 @@
+import{d as a}from"./index-DcmSayNP.js";const t=a.injectEndpoints({endpoints:s=>({getDashboardStats:s.query({query:()=>({url:"/dashboard/stats/",method:"GET"}),providesTags:["Dashboard"]})}),overrideExisting:!1}),{useGetDashboardStatsQuery:r}=t;export{r as u};

@@ -139,3 +139,41 @@ def download_contract_pdf(request, contract_id):
     p.showPage()
     p.save()
     return response
+
+
+# ---------------------------------------------------------------------------
+# HTML views (used by the web portal workspace)
+# ---------------------------------------------------------------------------
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages as django_messages
+from django.views.decorators.http import require_http_methods as _require_http_methods
+
+
+def _user_role(user):
+    try:
+        return str(user.groups.all()[0])
+    except Exception:
+        return None
+
+
+@login_required(login_url='login')
+@_require_http_methods(["GET"])
+def contract_list_html(request):
+    """HTML workspace view for listing contracts."""
+    role = _user_role(request.user)
+
+    if role == 'admin':
+        contracts = Contract.objects.select_related('property', 'travel_agency').all().order_by('-created_at')
+    elif role == 'manager':
+        contracts = Contract.objects.select_related('property', 'travel_agency').filter(
+            property_manager=request.user
+        ).order_by('-created_at')
+    else:
+        contracts = Contract.objects.none()
+
+    return render(request, 'common_pages/contracts.html', {
+        'role': role,
+        'contracts': contracts,
+    })

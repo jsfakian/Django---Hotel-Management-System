@@ -7,9 +7,10 @@ API versioning: /api/v1/
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from HMS.auth_api import RegisterAPIView, LogoutAPIView, ForgotPasswordAPIView
+from HMS.auth_api import RegisterAPIView, LogoutAPIView, ForgotPasswordAPIView, HMSTokenObtainPairView
+from HMS.dashboard_api import dashboard_stats, trends
 from HMS.api_viewsets import (
     UserViewSet,
     GuestViewSet,
@@ -55,7 +56,7 @@ app_name = 'api'
 
 urlpatterns = [
     # Authentication endpoints (JWT)
-    path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/login/', HMSTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/logout/', LogoutAPIView.as_view(), name='auth_logout'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/register/', RegisterAPIView.as_view(), name='auth_register'),
@@ -83,6 +84,10 @@ urlpatterns = [
     # Routers
     path('', include(router.urls)),
     
+    # Dashboard aggregates and trend series
+    path('dashboard/stats/', dashboard_stats, name='dashboard-stats'),
+    path('trends/', trends, name='trends'),
+
     # App-specific API endpoints
     path('analytics/', include('analytics.urls')),
     

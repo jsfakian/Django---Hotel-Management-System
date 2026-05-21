@@ -120,7 +120,7 @@ MODULE_CATALOG = {
     'travel-agencies': {
         'title': 'Travel Agencies',
         'description': 'Third-party travel agency partnerships and commission management.',
-        'workspace_url': '/admin/properties/travelagency/',
+        'workspace_url': '/properties/travel-agencies/',
     },
     'payments': {
         'title': 'Payments',
@@ -135,7 +135,7 @@ MODULE_CATALOG = {
     'contracts': {
         'title': 'Contracts',
         'description': 'Contract creation, signature flow, and retrieval.',
-        'workspace_url': '/contracts/',
+        'workspace_url': '/contracts/',  # now renders contracts.html instead of JSON
     },
     'pricing': {
         'title': 'Pricing',

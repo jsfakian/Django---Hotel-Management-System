@@ -2,17 +2,40 @@
 
 {% block context %}
 <div class="container py-4">
-    <div class="card border-success">
+    <div class="card border-success"
+         id="payment-success-message"
+         tabindex="-1"
+         role="region"
+         aria-labelledby="success-heading">
         <div class="card-body">
-            <h3 class="text-success">Payment Completed</h3>
+            <h3 class="text-success" id="success-heading">
+                <span class="sr-only">Success: </span>Payment Completed
+            </h3>
             <p class="mb-1"><strong>Amount:</strong> {{ payment.amount }} {{ payment.currency }}</p>
             <p class="mb-1"><strong>Reference:</strong> {{ payment.reference_code }}</p>
-            <p class="mb-3"><strong>Status:</strong> {{ payment.get_status_display }}</p>
+            <p class="mb-3">
+                <strong>Status:</strong>
+                <span class="badge badge-success">{{ payment.get_status_display }}</span>
+                <span class="sr-only">{{ payment.get_status_display }}</span>
+            </p>
             {% if invoice %}
             <a class="btn btn-dark" href="{% url 'invoice-detail' invoice.id %}">View Invoice</a>
+            <a class="btn btn-outline-secondary" href="{% url 'invoice-pdf' invoice.id %}"
+               aria-label="Download invoice {{ invoice.invoice_number }} as accessible PDF">
+                Download PDF
+            </a>
             {% endif %}
             <a class="btn btn-outline-secondary" href="{% url 'payment-history' %}">Back to History</a>
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var successEl = document.getElementById('payment-success-message');
+    if (successEl) {
+        successEl.focus();
+    }
+}());
+</script>
 {% endblock %}

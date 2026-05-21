@@ -1,7 +1,7 @@
 VENV_PYTHON := .venv/bin/python
 COMPOSE := docker compose
 
-.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-migrate prod-static prod-health prod-backup prod-restore backup-setup backup-daily backup-weekly backup-monthly backup-health backup-verify backup-test tf-init tf-validate tf-plan tf-apply tf-destroy tf-apply-dev tf-apply-staging tf-apply-prod tf-plan-dev tf-plan-staging tf-plan-prod tf-destroy-dev tf-destroy-staging tf-destroy-prod tf-output tf-fmt tf-import lb-info lb-targets lb-rules lb-test lb-metrics asg-info asg-tasks asg-activity asg-metrics asg-test-scaling cache-status cache-flush cache-warm cache-bench perf-report db-indexes db-analyze security-check waf-status rotate-secrets compliance-audit dr-status failover-simulate backup-restore rto-test rpo-verify
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-e2e-browser playwright-install test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-migrate prod-static prod-health prod-backup prod-restore backup-setup backup-daily backup-weekly backup-monthly backup-health backup-verify backup-test tf-init tf-validate tf-plan tf-apply tf-destroy tf-apply-dev tf-apply-staging tf-apply-prod tf-plan-dev tf-plan-staging tf-plan-prod tf-destroy-dev tf-destroy-staging tf-destroy-prod tf-output tf-fmt tf-import lb-info lb-targets lb-rules lb-test lb-metrics asg-info asg-tasks asg-activity asg-metrics asg-test-scaling cache-status cache-flush cache-warm cache-bench perf-report db-indexes db-analyze security-check waf-status rotate-secrets compliance-audit dr-status failover-simulate backup-restore rto-test rpo-verify
 
 help:
 	@echo "HMS (Hotel Management System) - Available Commands"
@@ -229,7 +229,19 @@ test-integration:
 # Run E2E tests only (5% of pyramid - critical paths)
 test-e2e:
 	@echo "Running E2E tests (Critical user journeys)..."
-	cd HMS && ../.venv/bin/python -m pytest HMS/tests/e2e_base.py -v --tb=short
+	cd HMS && ../.venv/bin/python -m pytest HMS/tests/e2e_base.py tests/e2e/ -v --tb=short
+
+# Install Playwright browsers
+playwright-install:
+	@echo "Installing Playwright browsers..."
+	.venv/bin/playwright install chromium
+	@echo "Playwright browsers installed"
+
+# Run browser-based E2E tests with Playwright (requires stack running: make up)
+test-e2e-browser:
+	@echo "Running Playwright E2E browser tests..."
+	@echo "Prerequisites: make up && make load-demo-data"
+	cd HMS && ../.venv/bin/python -m pytest tests/e2e/ -v --tb=short -m "e2e"
 
 # Run performance tests
 test-performance:

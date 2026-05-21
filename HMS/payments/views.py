@@ -558,12 +558,185 @@ def invoice_mydata_export(request, invoice_id):
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         
         from .mydata_service import get_mydata_service
-        
+
         mydata_service = get_mydata_service()
         export_data = mydata_service.export_invoice(invoice)
-        
+
         return JsonResponse(export_data, safe=False)
-        
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def invoice_pdf(request, invoice_id):
+    """
+    Generate an accessible PDF for an invoice.
+
+    Uses ReportLab Platypus to produce a text-extractable, semantically
+    structured PDF with document metadata (title, author, language) so that
+    assistive technologies (screen readers) can read the document correctly.
+    Alt-text equivalents are provided for any graphical/logo elements.
+    """
+    try:
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import cm
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    except ImportError:
+        messages.error(request, 'PDF generation is not available. Please contact support.')
+        return redirect('invoice-detail', invoice_id=invoice_id)
+
+    try:
+        guest = Guest.objects.get(user=request.user)
+    except Guest.DoesNotExist:
+        messages.error(request, 'Guest profile not found.')
+        return redirect('home')
+
+    if request.user.is_staff:
+        invoice = get_object_or_404(Invoice, id=invoice_id)
+    else:
+        invoice = get_object_or_404(Invoice, id=invoice_id, guest=guest)
+
+    from django.http import HttpResponse
+    import io
+
+    buffer = io.BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=2 * cm,
+        leftMargin=2 * cm,
+        topMargin=2 * cm,
+        bottomMargin=2 * cm,
+        title=f"Invoice {invoice.invoice_number}",
+        author="NEPHELE Hotel Management System",
+        subject=f"Invoice for {invoice.guest.user.get_full_name() or invoice.guest.user.username}",
+        creator="NEPHELE HMS",
+        producer="NEPHELE HMS — ReportLab",
+        lang="en",
+    )
+
+    styles = getSampleStyleSheet()
+    heading_style = ParagraphStyle(
+        'Heading',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=6,
+    )
+    subheading_style = ParagraphStyle(
+        'SubHeading',
+        parent=styles['Heading2'],
+        fontSize=13,
+        spaceBefore=12,
+        spaceAfter=4,
+    )
+    label_style = ParagraphStyle(
+        'Label',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+    )
+    value_style = ParagraphStyle(
+        'Value',
+        parent=styles['Normal'],
+        fontSize=10,
+    )
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=TA_CENTER,
+    )
+
+    story = []
+
+    # Header — hotel logo alt-text equivalent as text block
+    story.append(Paragraph("NEPHELE Hotel Management System", heading_style))
+    story.append(Paragraph(
+        "Logo: stylised wave representing NEPHELE HMS (text equivalent for accessibility)",
+        ParagraphStyle('LogoAlt', parent=styles['Normal'], fontSize=7, textColor=colors.grey)
+    ))
+    story.append(Spacer(1, 0.4 * cm))
+
+    story.append(Paragraph(f"Invoice {invoice.invoice_number}", subheading_style))
+    story.append(Spacer(1, 0.2 * cm))
+
+    # Invoice metadata table
+    meta_data = [
+        [Paragraph("Status:", label_style), Paragraph(invoice.get_status_display(), value_style)],
+        [Paragraph("Issued:", label_style), Paragraph(str(invoice.issued_date.strftime('%d %B %Y')), value_style)],
+        [Paragraph("Due date:", label_style), Paragraph(str(invoice.due_date.strftime('%d %B %Y')), value_style)],
+        [Paragraph("Guest:", label_style), Paragraph(
+            invoice.guest.user.get_full_name() or invoice.guest.user.username, value_style
+        )],
+    ]
+    if invoice.booking:
+        meta_data.append([
+            Paragraph("Booking:", label_style),
+            Paragraph(f"#{invoice.booking.id}", value_style),
+        ])
+
+    meta_table = Table(meta_data, colWidths=[4 * cm, 12 * cm])
+    meta_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 0.4 * cm))
+
+    # Description
+    if invoice.description:
+        story.append(Paragraph("Description", subheading_style))
+        story.append(Paragraph(invoice.description, value_style))
+        story.append(Spacer(1, 0.3 * cm))
+
+    # Financials table
+    story.append(Paragraph("Charges", subheading_style))
+    fin_data = [
+        [Paragraph("Item", label_style), Paragraph("Amount (EUR)", label_style)],
+        [Paragraph("Subtotal", value_style), Paragraph(str(invoice.amount), value_style)],
+        [Paragraph("Tax", value_style), Paragraph(str(invoice.tax_amount), value_style)],
+        [Paragraph("Total", label_style), Paragraph(str(invoice.total_amount), label_style)],
+    ]
+    fin_table = Table(fin_data, colWidths=[12 * cm, 4 * cm])
+    fin_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#343a40')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('LINEBELOW', (0, -1), (-1, -1), 1, colors.black),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+    ]))
+    story.append(fin_table)
+
+    if invoice.notes:
+        story.append(Spacer(1, 0.4 * cm))
+        story.append(Paragraph("Notes", subheading_style))
+        story.append(Paragraph(invoice.notes, value_style))
+
+    story.append(Spacer(1, 1 * cm))
+    story.append(Paragraph(
+        "This document was generated by NEPHELE HMS and is accessible to assistive technologies.",
+        footer_style,
+    ))
+
+    doc.build(story)
+
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'attachment; filename="invoice_{invoice.invoice_number}.pdf"'
+    )
+    return response
 

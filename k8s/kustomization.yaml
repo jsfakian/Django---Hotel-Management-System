@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hms
+
+resources:
+  # Namespace first
+  - namespace.yaml
+
+  # Shared config
+  - configmap.yaml
+  - secret.yaml
+
+  # Data layer
+  - redis/pvc.yaml
+  - redis/deployment.yaml
+  - redis/service.yaml
+  - postgres/pvc.yaml
+  - postgres/deployment.yaml
+  - postgres/service.yaml
+
+  # Application layer
+  - django/deployment.yaml
+  - django/service.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - celery/deployment.yaml
+  - celery-beat/deployment.yaml
+
+  # Monitoring
+  - monitoring/prometheus-configmap.yaml
+  - monitoring/prometheus-pvc.yaml
+  - monitoring/prometheus-deployment.yaml
+  - monitoring/prometheus-service.yaml
+  - monitoring/alertmanager-configmap.yaml
+  - monitoring/alertmanager-pvc.yaml
+  - monitoring/alertmanager-deployment.yaml
+  - monitoring/alertmanager-service.yaml
+  - monitoring/grafana-pvc.yaml
+  - monitoring/grafana-provisioning-configmap.yaml
+  - monitoring/grafana-deployment.yaml
+  - monitoring/grafana-service.yaml
+  - monitoring/postgres-exporter.yaml
+  - monitoring/redis-exporter.yaml
+  - monitoring/node-exporter.yaml

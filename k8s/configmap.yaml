@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hms-config
+  namespace: hms
+data:
+  DEBUG: "False"
+  DB_ENGINE: django.db.backends.postgresql
+  DB_NAME: hms
+  DB_USER: hms
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  CELERY_TASK_ALWAYS_EAGER: "False"
+  DJANGO_SUPERUSER_USERNAME: admin
+  DJANGO_SUPERUSER_EMAIL: admin@example.com
+  POSTGRES_DB: hms
+  POSTGRES_USER: hms
+  GF_USERS_ALLOW_SIGN_UP: "false"
+  GF_INSTALL_PLUGINS: grafana-piechart-panel
+  GF_SERVER_ROOT_URL: http://localhost:3001

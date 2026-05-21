@@ -405,8 +405,8 @@ def payment(request):
 
     context = {
         "role": role,
-        "code": code
-
+        "code": code,
+        "stripe_public_key": settings.STRIPE_PUBLIC_KEY,
     }
 
     def send(request, receiver, code):

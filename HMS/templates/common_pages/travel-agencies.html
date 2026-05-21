@@ -1,0 +1,115 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-5">
+
+    <div class="table-header row mb-3">
+        <div class="col-12 col-md-8">
+            <h2>Travel Agencies</h2>
+            <p class="text-muted mb-0">Third-party travel agency partnerships and commission management.</p>
+        </div>
+        {% if role == 'admin' or role == 'manager' %}
+        <div class="col-12 col-md-4 text-md-right mt-2 mt-md-0">
+            <a href="/admin/properties/travelagency/add/" class="btn btn-dark">
+                <i class="fas fa-plus mr-1"></i> Add Agency
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Summary cards -->
+    <div class="row mb-4">
+        <div class="col-sm-6 col-md-3 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="text-uppercase text-muted small mb-1">Total Agencies</div>
+                    <div class="h3 mb-0">{{ agencies.count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="text-uppercase text-muted small mb-1">Active</div>
+                    <div class="h3 mb-0 text-success">
+                        {{ agencies|dictsort:"status"|length }}
+                        <small class="text-muted" style="font-size:0.5em;">
+                            {% with active_count=0 %}
+                            {% for a in agencies %}{% if a.status == 'active' %}{% with active_count=active_count|add:1 %}{% endwith %}{% endif %}{% endfor %}
+                            {% endwith %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agency table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" aria-label="Travel agencies list">
+                    <thead class="thead-light">
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Contact</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">City</th>
+                            <th scope="col">Commission %</th>
+                            <th scope="col">Status</th>
+                            {% if role == 'admin' or role == 'manager' %}
+                            <th scope="col" class="text-right">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for agency in agencies %}
+                        <tr>
+                            <td class="text-muted small">{{ agency.id }}</td>
+                            <td><strong>{{ agency.name }}</strong></td>
+                            <td>{{ agency.contact_name|default:"—" }}</td>
+                            <td>
+                                {% if agency.email %}
+                                <a href="mailto:{{ agency.email }}">{{ agency.email }}</a>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>{{ agency.city|default:"—" }}</td>
+                            <td>{{ agency.commission_percentage }}%</td>
+                            <td>
+                                {% if agency.status == 'active' %}
+                                <span class="badge badge-success">Active</span>
+                                {% elif agency.status == 'inactive' %}
+                                <span class="badge badge-secondary">Inactive</span>
+                                {% else %}
+                                <span class="badge badge-warning">{{ agency.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            {% if role == 'admin' or role == 'manager' %}
+                            <td class="text-right">
+                                <a href="/admin/properties/travelagency/{{ agency.id }}/change/"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   aria-label="Edit {{ agency.name }}">
+                                    <i class="fas fa-pen" aria-hidden="true"></i>
+                                </a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                No travel agencies found.
+                                {% if role == 'admin' or role == 'manager' %}
+                                <a href="/admin/properties/travelagency/add/">Add the first one.</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

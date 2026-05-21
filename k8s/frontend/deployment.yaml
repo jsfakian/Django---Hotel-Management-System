@@ -1,0 +1,49 @@
+# Build and push before deploying (VITE_API_BASE_URL is baked in at build time):
+#   docker build --target nginx \
+#     --build-arg VITE_API_BASE_URL=/api/v1 \
+#     -t <registry>/hms-frontend:latest ./frontend
+#   docker push <registry>/hms-frontend:latest
+#
+# Uses the nginx stage from frontend/Dockerfile: npm run build → nginx:alpine.
+# The nginx.conf inside the image proxies /api/ to http://django:8000
+# (resolved via the django ClusterIP Service in the same namespace).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: hms
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: hms-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

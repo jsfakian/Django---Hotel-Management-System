@@ -13,20 +13,26 @@ class PaymentForm(forms.ModelForm):
             'class': 'form-control',
             'placeholder': '1234 5678 9012 3456',
             'pattern': '[0-9 ]*',
-            'autocomplete': 'cc-number'
+            'autocomplete': 'cc-number',
+            'aria-label': 'Card number',
+            'aria-describedby': 'card-number-error',
+            'aria-required': 'false',
         })
     )
-    
+
     card_name = forms.CharField(
         max_length=100,
         required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': 'Cardholder Name',
-            'autocomplete': 'cc-name'
+            'autocomplete': 'cc-name',
+            'aria-label': 'Name on card',
+            'aria-describedby': 'card-name-error',
+            'aria-required': 'false',
         })
     )
-    
+
     expiry_date = forms.CharField(
         max_length=5,
         required=False,
@@ -34,10 +40,13 @@ class PaymentForm(forms.ModelForm):
             'class': 'form-control',
             'placeholder': 'MM/YY',
             'pattern': '[0-9/]*',
-            'autocomplete': 'cc-exp'
+            'autocomplete': 'cc-exp',
+            'aria-label': 'Card expiry date (MM/YY)',
+            'aria-describedby': 'expiry-error',
+            'aria-required': 'false',
         })
     )
-    
+
     cvc = forms.CharField(
         max_length=4,
         min_length=3,
@@ -45,19 +54,28 @@ class PaymentForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
             'placeholder': 'CVC',
-            'autocomplete': 'cc-csc'
+            'autocomplete': 'cc-csc',
+            'aria-label': 'Card security code (CVC)',
+            'aria-describedby': 'cvc-error',
+            'aria-required': 'false',
         })
     )
-    
+
     class Meta:
         model = Payment
         fields = ['payment_method', 'amount']
         widgets = {
-            'payment_method': forms.Select(attrs={'class': 'form-control'}),
+            'payment_method': forms.Select(attrs={
+                'class': 'form-control',
+                'aria-label': 'Payment method',
+                'aria-required': 'true',
+            }),
             'amount': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'readonly': True,
-                'step': '0.01'
+                'step': '0.01',
+                'aria-label': 'Payment amount',
+                'aria-readonly': 'true',
             }),
         }
 
@@ -71,9 +89,13 @@ class PaymentVerificationForm(forms.Form):
         widget=forms.TextInput(attrs={
             'class': 'form-control text-center',
             'placeholder': '000000',
-            'autocomplete': 'off',
+            'autocomplete': 'one-time-code',
             'pattern': '[0-9]{6}',
-            'autofocus': True
+            'inputmode': 'numeric',
+            'autofocus': True,
+            'aria-label': 'Six-digit verification code',
+            'aria-describedby': 'verification-hint verification-error',
+            'aria-required': 'true',
         }),
         label='Enter the 6-digit verification code sent to your email'
     )

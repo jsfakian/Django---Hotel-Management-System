@@ -14,6 +14,7 @@ urlpatterns = [
     # Invoices
     path('invoices/', views.invoice_list, name='invoice-list'),
     path('invoices/<int:invoice_id>/', views.invoice_detail, name='invoice-detail'),
+    path('invoices/<int:invoice_id>/pdf/', views.invoice_pdf, name='invoice-pdf'),
     
     # Refunds
     path('refund/<int:payment_id>/', views.request_refund, name='request-refund'),

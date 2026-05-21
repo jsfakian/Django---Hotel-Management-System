@@ -1,0 +1,83 @@
+# Build and push the image before deploying:
+#   docker build -t <registry>/hms-django:latest .
+#   docker push <registry>/hms-django:latest
+# Then update the image field below.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django
+  namespace: hms
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: django
+  template:
+    metadata:
+      labels:
+        app: django
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done
+        - name: wait-for-redis
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - until nc -z redis 6379; do echo waiting for redis; sleep 2; done
+        - name: migrate
+          image: hms-django:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "manage.py", "migrate", "--noinput"]
+          workingDir: /app/HMS
+          envFrom:
+            - configMapRef:
+                name: hms-config
+            - secretRef:
+                name: hms-secret
+      containers:
+        - name: django
+          image: hms-django:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: hms-config
+            - secretRef:
+                name: hms-secret
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: static
+              mountPath: /app/HMS/static
+            - name: media
+              mountPath: /app/HMS/media
+      volumes:
+        - name: static
+          emptyDir: {}
+        - name: media
+          emptyDir: {}

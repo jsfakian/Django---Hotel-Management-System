@@ -1,0 +1,14 @@
+# Populated from monitoring/alertmanager.yml at deploy time.
+# Recreate after edits:
+#
+#   kubectl create configmap alertmanager-config \
+#     --from-file=alertmanager.yml=monitoring/alertmanager.yml \
+#     -n hms --dry-run=client -o yaml | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: hms
+data:
+  alertmanager.yml: |
+    # Populated at deploy time — see comment above.

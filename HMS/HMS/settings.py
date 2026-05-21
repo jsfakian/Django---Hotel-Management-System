@@ -367,3 +367,7 @@ HOTEL_TAX_ID = os.environ.get('HOTEL_TAX_ID', '')
 MYDATA_AUTO_TRANSMISSION = os.environ.get('MYDATA_AUTO_TRANSMISSION', 'False') == 'True'
 MYDATA_SANDBOX_MODE = os.environ.get('MYDATA_SANDBOX_MODE', 'True') == 'True'  # Use sandbox for testing
 MYDATA_TRANSMISSION_RETRIES = int(os.environ.get('MYDATA_TRANSMISSION_RETRIES', '3'))
+
+# ============ Stripe Payment Integration ============
+STRIPE_PUBLIC_KEY = os.environ.get('STRIPE_PUBLIC_KEY', '')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')

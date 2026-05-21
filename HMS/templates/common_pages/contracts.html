@@ -1,0 +1,117 @@
+{% extends '../index.html' %}
+
+{% block context %}
+<div class="container py-5">
+
+    <div class="table-header row mb-3">
+        <div class="col-12 col-md-8">
+            <h2>Contracts</h2>
+            <p class="text-muted mb-0">Contract creation, signature flow, and retrieval.</p>
+        </div>
+        {% if role == 'admin' or role == 'manager' %}
+        <div class="col-12 col-md-4 text-md-right mt-2 mt-md-0">
+            <a href="/admin/contracts/contract/add/" class="btn btn-dark">
+                <i class="fas fa-plus mr-1"></i> New Contract
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Summary cards -->
+    <div class="row mb-4">
+        {% with total=contracts.count %}
+        <div class="col-sm-6 col-md-3 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="text-uppercase text-muted small mb-1">Total</div>
+                    <div class="h3 mb-0">{{ total }}</div>
+                </div>
+            </div>
+        </div>
+        {% endwith %}
+        <div class="col-sm-6 col-md-3 mb-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <div class="text-uppercase text-muted small mb-1">Active</div>
+                    <div class="h3 mb-0 text-success">
+                        {{ contracts|dictsortreversed:"status"|length }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contracts table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" aria-label="Contracts list">
+                    <thead class="thead-light">
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Property</th>
+                            <th scope="col">Travel Agency</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Commission %</th>
+                            <th scope="col">Start</th>
+                            <th scope="col">End</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for contract in contracts %}
+                        <tr>
+                            <td class="text-muted small">{{ contract.id }}</td>
+                            <td>{{ contract.property.name|default:"—" }}</td>
+                            <td>{{ contract.travel_agency.name|default:"—" }}</td>
+                            <td>{{ contract.get_contract_type_display }}</td>
+                            <td>{{ contract.commission_percentage }}%</td>
+                            <td>{{ contract.start_date }}</td>
+                            <td>{{ contract.end_date }}</td>
+                            <td>
+                                {% if contract.status == 'active' %}
+                                <span class="badge badge-success">Active</span>
+                                {% elif contract.status == 'pending' %}
+                                <span class="badge badge-warning">Pending</span>
+                                {% elif contract.status == 'draft' %}
+                                <span class="badge badge-secondary">Draft</span>
+                                {% elif contract.status == 'expired' %}
+                                <span class="badge badge-danger">Expired</span>
+                                {% elif contract.status == 'terminated' %}
+                                <span class="badge badge-danger">Terminated</span>
+                                {% else %}
+                                <span class="badge badge-light">{{ contract.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-right">
+                                <a href="/contracts/{{ contract.id }}/"
+                                   class="btn btn-sm btn-outline-secondary mr-1"
+                                   aria-label="View contract {{ contract.id }}">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
+                                </a>
+                                <a href="/contracts/{{ contract.id }}/pdf/"
+                                   class="btn btn-sm btn-outline-dark"
+                                   aria-label="Download PDF for contract {{ contract.id }}">
+                                    <i class="fas fa-file-pdf" aria-hidden="true"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-5">
+                                No contracts found.
+                                {% if role == 'admin' or role == 'manager' %}
+                                <a href="/admin/contracts/contract/add/">Create the first contract.</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

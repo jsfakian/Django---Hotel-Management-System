@@ -1,0 +1,19 @@
+# Populated from the existing monitoring/ files.
+# Recreate after editing monitoring/prometheus.yml or monitoring/alerts.yml:
+#
+#   kubectl create configmap prometheus-config \
+#     --from-file=prometheus.yml=monitoring/prometheus.yml \
+#     --from-file=alerts.yml=monitoring/alerts.yml \
+#     -n hms --dry-run=client -o yaml | kubectl apply -f -
+#
+# The placeholder below is overwritten by that command.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: hms
+data:
+  prometheus.yml: |
+    # Populated at deploy time — see comment above.
+  alerts.yml: |
+    # Populated at deploy time — see comment above.

@@ -2,19 +2,53 @@
 
 {% block context %}
 <div class="container py-4">
-    <h3 class="mb-3">Process Payment</h3>
+    <h3 class="mb-3" id="payment-form-heading">Process Payment</h3>
     <div class="card">
         <div class="card-body">
             {% if booking %}<p class="text-muted">Booking #{{ booking.id }}</p>{% endif %}
-            <form method="post">
+
+            <div id="form-errors" role="alert" aria-live="assertive" aria-atomic="true">
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <span class="sr-only">Error: </span>
+                    <strong>Please correct the following errors:</strong>
+                    <ul class="mb-0 mt-1">
+                        {% for field in form %}{% for error in field.errors %}
+                        <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}{% endfor %}
+                        {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+
+            <form method="post" aria-labelledby="payment-form-heading" novalidate>
                 {% csrf_token %}
                 <div class="form-row">
-                    {% for field in form %}
                     <div class="form-group col-md-6">
-                        <label>{{ field.label }}</label>
-                        {{ field }}
+                        <label for="{{ form.payment_method.id_for_label }}">
+                            {{ form.payment_method.label }}
+                            <span class="text-danger" aria-hidden="true">*</span>
+                        </label>
+                        {{ form.payment_method }}
+                        {% if form.payment_method.errors %}
+                        <div id="payment-method-error" class="text-danger small" role="alert">
+                            <span class="sr-only">Error: </span>{{ form.payment_method.errors|join:", " }}
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endfor %}
+                    <div class="form-group col-md-6">
+                        <label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>
+                        {{ form.amount }}
+                        <small id="amount-hint" class="form-text text-muted">Amount is calculated from your booking.</small>
+                        {% if form.amount.errors %}
+                        <div id="amount-error" class="text-danger small" role="alert">
+                            <span class="sr-only">Error: </span>{{ form.amount.errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
                 <button class="btn btn-dark" type="submit">Submit Payment</button>
                 <a class="btn btn-outline-secondary" href="{% url 'payment-history' %}">History</a>

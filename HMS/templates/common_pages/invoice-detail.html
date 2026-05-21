@@ -2,10 +2,10 @@
 
 {% block context %}
 <div class="container py-4">
-    <div class="card">
+    <div class="card" role="region" aria-labelledby="invoice-heading">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <h3 class="mb-0">Invoice {{ invoice.invoice_number }}</h3>
+                <h3 class="mb-0" id="invoice-heading">Invoice {{ invoice.invoice_number }}</h3>
                 <a class="btn btn-outline-secondary" href="{% url 'invoice-list' %}">Back</a>
             </div>
             <p class="mb-1"><strong>Status:</strong> {{ invoice.get_status_display }}</p>
@@ -15,7 +15,12 @@
             <p class="mb-1"><strong>Tax:</strong> {{ invoice.tax_amount }}</p>
             <p class="mb-3"><strong>Total:</strong> {{ invoice.total_amount }}</p>
             <h6>Description</h6>
-            <p class="mb-0">{{ invoice.description }}</p>
+            <p class="mb-3">{{ invoice.description }}</p>
+            <a class="btn btn-dark"
+               href="{% url 'invoice-pdf' invoice.id %}"
+               aria-label="Download invoice {{ invoice.invoice_number }} as accessible PDF">
+                Download Accessible PDF
+            </a>
         </div>
     </div>
 </div>

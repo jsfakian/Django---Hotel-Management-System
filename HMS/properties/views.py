@@ -5,7 +5,7 @@ from django.contrib.auth.models import Group
 from django.db.models import Q, Count
 from django.views.decorators.http import require_http_methods
 
-from .models import Property, PropertyAmenity, PropertyPolicy
+from .models import Property, PropertyAmenity, PropertyPolicy, TravelAgency
 from .forms import PropertyForm, PropertyAmenityForm, PropertyPolicyForm
 
 
@@ -268,3 +268,15 @@ def property_policy(request, pk):
     }
     
     return render(request, 'common_pages/property-policy.html', context)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def travel_agency_list(request):
+    """HTML list view for all travel agencies."""
+    role = get_user_role(request.user)
+    agencies = TravelAgency.objects.all().order_by('name')
+    return render(request, 'common_pages/travel-agencies.html', {
+        'role': role,
+        'agencies': agencies,
+    })

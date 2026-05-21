@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery
+  namespace: hms
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: celery
+  template:
+    metadata:
+      labels:
+        app: celery
+    spec:
+      containers:
+        - name: celery
+          image: hms-django:latest
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "HMS", "worker", "-l", "info"]
+          workingDir: /app/HMS
+          envFrom:
+            - configMapRef:
+                name: hms-config
+            - secretRef:
+                name: hms-secret
+          env:
+            - name: CELERY_TASK_ALWAYS_EAGER
+              value: "False"
+          livenessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - HMS
+                - inspect
+                - ping
+                - -d
+                - celery@$HOSTNAME
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi

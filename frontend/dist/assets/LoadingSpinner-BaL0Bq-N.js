@@ -1,0 +1,1 @@
+import{z as e,B as r,C as s}from"./index-DcmSayNP.js";function i({height:n="100%"}){return e.jsx(r,{sx:{display:"flex",justifyContent:"center",alignItems:"center",height:n,width:"100%",minHeight:120},children:e.jsx(s,{})})}export{i as L};

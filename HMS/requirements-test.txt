@@ -32,6 +32,8 @@ django-silk==5.0.0  # Request/response profiling
 # E2E and browser testing
 selenium==4.13.0
 webdriver-manager==4.0.1
+playwright==1.40.0
+pytest-playwright==0.4.3
 
 # API testing
 httpx==0.24.1

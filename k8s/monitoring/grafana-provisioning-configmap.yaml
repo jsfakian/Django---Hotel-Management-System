@@ -1,0 +1,25 @@
+# Populated from monitoring/grafana-provisioning/ at deploy time.
+# Recreate after edits:
+#
+#   kubectl create configmap grafana-provisioning-datasources \
+#     --from-file=monitoring/grafana-provisioning/datasources/ \
+#     -n hms --dry-run=client -o yaml | kubectl apply -f -
+#
+#   kubectl create configmap grafana-provisioning-dashboards \
+#     --from-file=monitoring/grafana-provisioning/dashboards/ \
+#     -n hms --dry-run=client -o yaml | kubectl apply -f -
+#
+# Placeholder entries below are overwritten by those commands.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning-datasources
+  namespace: hms
+data: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning-dashboards
+  namespace: hms
+data: {}

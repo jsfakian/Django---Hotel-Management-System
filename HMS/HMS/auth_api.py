@@ -7,8 +7,31 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from accounts.models import Guest
+
+
+def get_user_role(user):
+    if user.is_superuser:
+        return 'admin'
+    group = user.groups.first()
+    return group.name if group else 'guest'
+
+
+class HMSTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['role'] = get_user_role(user)
+        token['username'] = user.username
+        token['email'] = user.email
+        return token
+
+
+class HMSTokenObtainPairView(TokenObtainPairView):
+    serializer_class = HMSTokenObtainPairSerializer
 
 
 class RegisterSerializer(serializers.Serializer):

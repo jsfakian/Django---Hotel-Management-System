@@ -2,13 +2,46 @@
 
 {% block context %}
 <div class="container py-4">
-    <h3 class="mb-3">Verify Payment</h3>
+    <h3 class="mb-3" id="verify-heading">Verify Payment</h3>
     <div class="card">
         <div class="card-body">
             <p class="text-muted">Reference: {{ payment.reference_code }}</p>
-            <form method="post">
+
+            <div id="verify-errors" role="alert" aria-live="assertive" aria-atomic="true">
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    <span class="sr-only">Error: </span>
+                    <strong>Please correct the following errors:</strong>
+                    <ul class="mb-0 mt-1">
+                        {% for field in form %}{% for error in field.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+
+            <form method="post" aria-labelledby="verify-heading" novalidate>
                 {% csrf_token %}
-                {{ form.as_p }}
+
+                <div class="form-group">
+                    <label for="{{ form.verification_code.id_for_label }}">
+                        {{ form.verification_code.label }}
+                        <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    {{ form.verification_code }}
+                    <small id="verification-hint" class="form-text text-muted">
+                        Enter the 6-digit numeric code sent to your email address.
+                    </small>
+                    {% if form.verification_code.errors %}
+                    <div id="verification-error" class="text-danger small" role="alert" aria-live="polite">
+                        <span class="sr-only">Error: </span>{{ form.verification_code.errors|join:", " }}
+                    </div>
+                    {% else %}
+                    <div id="verification-error" class="text-danger small"></div>
+                    {% endif %}
+                </div>
+
                 <button class="btn btn-dark" type="submit">Verify</button>
                 <a class="btn btn-outline-secondary" href="{% url 'payment-history' %}">Cancel</a>
             </form>
