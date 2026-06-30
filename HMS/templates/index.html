@@ -1,9 +1,10 @@
 {% include 'incs/head.html' %}
 
 <body class="{% block body_class %}bg-hotel{% endblock %}">
+    <a href="#main-content" class="sr-only sr-only-focusable skip-to-content">Skip to main content</a>
     {% include 'incs/nav.html' %}
 
-    <main class="site-main">
+    <main class="site-main" id="main-content">
         {% if messages %}
         <div class="container pt-3" aria-live="polite" aria-atomic="true">
             {% for message in messages %}

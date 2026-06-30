@@ -775,6 +775,7 @@ def module_portal(request, module_key):
         module_items = _build_rows(queryset, list_columns)
 
     return render(request, 'module-portal.html', {
+        'page_title': module['title'],
         'role': _user_role(request.user),
         'module_key': module_key,
         'module': module,
@@ -1058,6 +1059,7 @@ def backend_navigation(request):
     ]
 
     return render(request, 'backend-navigation.html', {
+        'page_title': 'API Reference',
         'role': _user_role(request.user),
         'endpoint_groups': endpoint_groups,
     })

@@ -25,7 +25,7 @@
           <option value="year">This Year</option>
         </select>
         <a href="/analytics/" class="btn btn-sm btn-outline-secondary">
-          <i class="fas fa-arrow-left"></i> Back
+          <i class="fas fa-arrow-left" aria-hidden="true"></i> Back
         </a>
       </div>
     </div>
@@ -50,7 +50,7 @@
           <h5 class="mb-0">Revenue Trend (30 days)</h5>
         </div>
         <div class="card-body">
-          <canvas id="revenueChart"></canvas>
+          <canvas id="revenueChart" role="img" aria-label="Revenue trend over 30 days"><p class="sr-only">Revenue trend chart showing daily revenue over the last 30 days.</p></canvas>
         </div>
       </div>
     </div>
@@ -60,7 +60,7 @@
           <h5 class="mb-0">Occupancy Rate (30 days)</h5>
         </div>
         <div class="card-body">
-          <canvas id="occupancyChart"></canvas>
+          <canvas id="occupancyChart" role="img" aria-label="Occupancy rate over 30 days"><p class="sr-only">Occupancy rate chart showing daily occupancy percentage over the last 30 days.</p></canvas>
         </div>
       </div>
     </div>
@@ -74,7 +74,7 @@
           <h5 class="mb-0">ADR Trend (30 days)</h5>
         </div>
         <div class="card-body">
-          <canvas id="adrChart"></canvas>
+          <canvas id="adrChart" role="img" aria-label="Average Daily Rate trend over 30 days"><p class="sr-only">ADR trend chart showing average daily rate over the last 30 days.</p></canvas>
         </div>
       </div>
     </div>
@@ -88,10 +88,10 @@
             <table class="table table-sm table-hover">
               <thead>
                 <tr>
-                  <th>Metric</th>
-                  <th>This Period</th>
-                  <th>Last Year</th>
-                  <th>Change</th>
+                  <th scope="col">Metric</th>
+                  <th scope="col">This Period</th>
+                  <th scope="col">Last Year</th>
+                  <th scope="col">Change</th>
                 </tr>
               </thead>
               <tbody>

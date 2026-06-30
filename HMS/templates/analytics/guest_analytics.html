@@ -22,7 +22,7 @@
         <input type="date" id="toDate" class="form-control form-control-sm" style="max-width: 150px;">
         <button id="applyFilter" class="btn btn-sm btn-primary">Apply</button>
         <a href="/analytics/" class="btn btn-sm btn-outline-secondary">
-          <i class="fas fa-arrow-left"></i> Back
+          <i class="fas fa-arrow-left" aria-hidden="true"></i> Back
         </a>
       </div>
     </div>
@@ -76,7 +76,7 @@
           <h5 class="mb-0">Guest Segmentation</h5>
         </div>
         <div class="card-body">
-          <canvas id="segmentChart"></canvas>
+          <canvas id="segmentChart" role="img" aria-label="Guest segmentation chart"><p class="sr-only">Doughnut chart showing guest segments: business, leisure, family, and couple.</p></canvas>
         </div>
       </div>
     </div>
@@ -133,7 +133,7 @@
               <small class="text-muted">guests leaving reviews</small>
             </div>
           </div>
-          <canvas id="satisfactionChart" style="margin-top: 1.5rem;"></canvas>
+          <canvas id="satisfactionChart" role="img" aria-label="Guest satisfaction rating distribution" style="margin-top: 1.5rem;"><p class="sr-only">Bar chart showing distribution of guest review scores from 1 to 5 stars.</p></canvas>
         </div>
       </div>
     </div>
@@ -160,7 +160,7 @@
               <small class="text-muted">low satisfaction</small>
             </div>
           </div>
-          <canvas id="churnChart" style="margin-top: 1.5rem;"></canvas>
+          <canvas id="churnChart" role="img" aria-label="Guest retention versus churn rate" style="margin-top: 1.5rem;"><p class="sr-only">Doughnut chart showing the split between retained and churned guests.</p></canvas>
         </div>
       </div>
     </div>
@@ -204,10 +204,10 @@
       <table class="table table-hover" id="geoTable">
         <thead>
           <tr>
-            <th>Country / Region</th>
-            <th>Guest Count</th>
-            <th>% of Total</th>
-            <th>Avg Rating</th>
+            <th scope="col">Country / Region</th>
+            <th scope="col">Guest Count</th>
+            <th scope="col">% of Total</th>
+            <th scope="col">Avg Rating</th>
           </tr>
         </thead>
         <tbody>

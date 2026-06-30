@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEPHELE Hotel Management System</title>
+    <title>{% if page_title %}{{ page_title }} | NEPHELE HMS{% else %}NEPHELE Hotel Management System{% endif %}</title>
     <meta name="description" content="NEPHELE HMS dashboard and operations portal">
     <link rel="icon" type="image/svg+xml" href="{% static '/images/favicon.svg' %}">
     <link rel="apple-touch-icon" href="{% static '/images/favicon.svg' %}">

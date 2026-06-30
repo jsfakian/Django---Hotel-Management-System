@@ -67,15 +67,17 @@
                             </div>
                             {% else %}
                             <div class="d-flex align-items-center justify-content-between">
-                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                <label for="{{ field.id_for_label }}">
+                                    {{ field.label }}{% if field.field.required %}<span class="text-danger ml-1" aria-hidden="true">*</span><span class="sr-only"> (required)</span>{% endif %}
+                                </label>
                                 {% if field.name == 'property' and module_key == 'rooms' %}
-                                <a href="/portal/properties/" class="btn btn-sm btn-outline-secondary" title="Manage Properties">
-                                    <i class="fas fa-building"></i> Properties
+                                <a href="/portal/properties/" class="btn btn-sm btn-outline-secondary" aria-label="Manage Properties">
+                                    <i class="fas fa-building" aria-hidden="true"></i> Properties
                                 </a>
                                 {% endif %}
                                 {% if field.name == 'travel_agency' and module_key == 'bookings' %}
-                                <a href="/portal/travel-agencies/" class="btn btn-sm btn-outline-secondary" title="Manage Travel Agencies">
-                                    <i class="fas fa-globe"></i> Agencies
+                                <a href="/portal/travel-agencies/" class="btn btn-sm btn-outline-secondary" aria-label="Manage Travel Agencies">
+                                    <i class="fas fa-globe" aria-hidden="true"></i> Agencies
                                 </a>
                                 {% endif %}
                             </div>
@@ -106,7 +108,7 @@
                         <tbody>
                             {% for detail in detail_rows %}
                             <tr>
-                                <th class="text-muted" style="width: 36%;">{{ detail.label }}</th>
+                                <th scope="row" class="text-muted" style="width: 36%;">{{ detail.label }}</th>
                                 <td>{{ detail.value }}</td>
                             </tr>
                             {% endfor %}
@@ -138,9 +140,9 @@
                         <thead class="thead-light">
                             <tr>
                                 {% for col in columns %}
-                                <th>{{ col }}</th>
+                                <th scope="col">{{ col }}</th>
                                 {% endfor %}
-                                <th class="text-right">Actions</th>
+                                <th scope="col" class="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>

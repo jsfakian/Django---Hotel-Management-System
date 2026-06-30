@@ -52,7 +52,7 @@
                                 <div class="small text-muted">{{ trend.label }}</div>
                                 <div class="small trend-delta" data-series="{{ trend.series|join:',' }}">--</div>
                             </div>
-                            <svg class="sparkline" data-series="{{ trend.series|join:',' }}" viewBox="0 0 120 36" preserveAspectRatio="none"></svg>
+                            <svg class="sparkline" data-series="{{ trend.series|join:',' }}" data-label="{{ trend.label }}" viewBox="0 0 120 36" preserveAspectRatio="none" role="img"><title>{{ trend.label }} trend</title></svg>
                         </div>
                     </div>
                     {% endfor %}
@@ -67,9 +67,9 @@
                         <thead class="thead-light">
                             <tr class="row-viewable" data-view-url="/portal/{{ module_key }}/view/{{ row.pk }}/" data-panel-title="View {{ module.title }}">
                                 {% for col in list_columns %}
-                                <th>{{ col }}</th>
+                                <th scope="col">{{ col }}</th>
                                 {% endfor %}
-                                <th class="text-right">Actions</th>
+                                <th scope="col" class="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -79,14 +79,14 @@
                                 <td>{{ val }}</td>
                                 {% endfor %}
                                 <td class="text-right">
-                                    <a class="icon-action icon-view js-slide-panel" data-panel-title="View {{ module.title }}" href="/portal/{{ module_key }}/view/{{ row.pk }}/" title="View item">
-                                        <i class="fas fa-eye"></i>
+                                    <a class="icon-action icon-view js-slide-panel" data-panel-title="View {{ module.title }}" href="/portal/{{ module_key }}/view/{{ row.pk }}/" aria-label="View {{ module.title }}">
+                                        <i class="fas fa-eye" aria-hidden="true"></i>
                                     </a>
-                                    <a class="icon-action icon-edit ml-2 js-slide-panel" data-panel-title="Edit {{ module.title }}" href="/portal/{{ module_key }}/update/{{ row.pk }}/" title="Edit item">
-                                        <i class="fas fa-pen"></i>
+                                    <a class="icon-action icon-edit ml-2 js-slide-panel" data-panel-title="Edit {{ module.title }}" href="/portal/{{ module_key }}/update/{{ row.pk }}/" aria-label="Edit {{ module.title }}">
+                                        <i class="fas fa-pen" aria-hidden="true"></i>
                                     </a>
-                                    <a class="icon-action icon-delete ml-2 js-slide-panel" data-panel-title="Delete {{ module.title }}" href="/portal/{{ module_key }}/delete/{{ row.pk }}/" title="Delete item">
-                                        <i class="fas fa-trash"></i>
+                                    <a class="icon-action icon-delete ml-2 js-slide-panel" data-panel-title="Delete {{ module.title }}" href="/portal/{{ module_key }}/delete/{{ row.pk }}/" aria-label="Delete {{ module.title }}">
+                                        <i class="fas fa-trash" aria-hidden="true"></i>
                                     </a>
                                 </td>
                             </tr>
