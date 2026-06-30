@@ -272,9 +272,9 @@ function loadProperties() {
 }
 
 function loadDashboardSummary(propertyId) {
-  let url = '/api/v1/analytics/dashboard/summary/';
+  let url = '/api/v1/analytics/dashboard/summary/?dashboard_type=all';
   if (propertyId) {
-    url += '?property_id=' + propertyId;
+    url += '&property_id=' + propertyId;
   }
   
   console.log('Loading dashboard summary from:', url);
@@ -292,29 +292,29 @@ function loadDashboardSummary(propertyId) {
       // Executive metrics
       if (data.data.executive) {
         document.getElementById('exec-revenue').textContent = formatCurrency(data.data.executive.total_revenue);
-        document.getElementById('exec-occupancy').textContent = (data.data.executive.occupancy_rate || 0).toFixed(1) + '%';
+        document.getElementById('exec-occupancy').textContent = (parseFloat(data.data.executive.occupancy_rate) || 0).toFixed(1) + '%';
         document.getElementById('exec-revpar').textContent = formatCurrency(data.data.executive.revpar);
       }
-      
+
       // Operational metrics
       if (data.data.operational) {
         document.getElementById('ops-occupied').textContent = data.data.operational.occupied_count;
         document.getElementById('ops-vacant').textContent = data.data.operational.vacant_count;
         document.getElementById('ops-cleaning').textContent = data.data.operational.cleaning_count;
       }
-      
+
       // Revenue metrics
       if (data.data.revenue) {
         document.getElementById('rev-adr').textContent = formatCurrency(data.data.revenue.avg_daily_rate);
         document.getElementById('rev-bookings').textContent = data.data.revenue.booking_count;
-        document.getElementById('rev-cancellations').textContent = (data.data.revenue.cancellation_rate || 0).toFixed(1);
+        document.getElementById('rev-cancellations').textContent = (parseFloat(data.data.revenue.cancellation_rate) || 0).toFixed(1);
       }
-      
+
       // Guest metrics
       if (data.data.guest) {
         document.getElementById('guest-total').textContent = data.data.guest.total_unique_guests;
-        document.getElementById('guest-retention').textContent = (data.data.guest.retention_rate || 0).toFixed(1);
-        document.getElementById('guest-rating').textContent = (data.data.guest.avg_review_score || 0).toFixed(1);
+        document.getElementById('guest-retention').textContent = (parseFloat(data.data.guest.retention_rate) || 0).toFixed(1);
+        document.getElementById('guest-rating').textContent = (parseFloat(data.data.guest.avg_review_score) || 0).toFixed(1);
       }
     }
   })
