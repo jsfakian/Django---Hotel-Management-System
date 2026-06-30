@@ -1,6 +1,8 @@
 {% extends 'index.html' %}
 {% load static %}
 
+{% block body_class %}bg-portal{% endblock %}
+
 {% block title %}Guest Analytics - NEPHELE HMS{% endblock %}
 
 {% block context %}
@@ -361,28 +363,28 @@ function updateDashboard(data) {
   // Update KPI Cards
   document.getElementById('total-guests').textContent = data.total_unique_guests || 0;
   document.getElementById('new-guests').textContent = data.new_guests || 0;
-  document.getElementById('retention-rate').textContent = (data.retention_rate || 0).toFixed(1) + '%';
-  document.getElementById('avg-rating').textContent = (data.avg_review_score || 0).toFixed(1);
+  document.getElementById('retention-rate').textContent = (parseFloat(data.retention_rate) || 0).toFixed(1) + '%';
+  document.getElementById('avg-rating').textContent = (parseFloat(data.avg_review_score) || 0).toFixed(1);
   
   // Update behavior metrics
   document.getElementById('lead-time').textContent = data.avg_booking_lead_days || 0;
-  document.getElementById('los').textContent = (data.avg_length_of_stay || 0).toFixed(1);
-  document.getElementById('repeat-rate').textContent = (data.repeat_booking_rate || 0).toFixed(1) + '%';
+  document.getElementById('los').textContent = (parseFloat(data.avg_length_of_stay) || 0).toFixed(1);
+  document.getElementById('repeat-rate').textContent = (parseFloat(data.repeat_booking_rate) || 0).toFixed(1) + '%';
   
   // Update satisfaction metrics
-  document.getElementById('review-score').textContent = (data.avg_review_score || 0).toFixed(1);
+  document.getElementById('review-score').textContent = (parseFloat(data.avg_review_score) || 0).toFixed(1);
   document.getElementById('nps').textContent = data.avg_nps || 0;
-  document.getElementById('review-rate').textContent = (data.review_rate || 0).toFixed(1) + '%';
+  document.getElementById('review-rate').textContent = (parseFloat(data.review_rate) || 0).toFixed(1) + '%';
   
   // Update churn metrics
-  document.getElementById('ret-rate').textContent = (data.retention_rate || 0).toFixed(1) + '%';
-  document.getElementById('churn-rate').textContent = (data.churn_rate || 0).toFixed(1) + '%';
+  document.getElementById('ret-rate').textContent = (parseFloat(data.retention_rate) || 0).toFixed(1) + '%';
+  document.getElementById('churn-rate').textContent = (parseFloat(data.churn_rate) || 0).toFixed(1) + '%';
   document.getElementById('at-risk').textContent = data.at_risk_guests || 0;
   
   // Update personalization
   document.getElementById('recommendations').textContent = data.recommendations_generated || 0;
   document.getElementById('upsells').textContent = data.upsell_conversions || 0;
-  document.getElementById('uplift').textContent = (data.personalization_revenue_uplift || 0).toFixed(1) + '%';
+  document.getElementById('uplift').textContent = (parseFloat(data.personalization_revenue_uplift) || 0).toFixed(1) + '%';
   
   // Render charts
   renderCharts(data);

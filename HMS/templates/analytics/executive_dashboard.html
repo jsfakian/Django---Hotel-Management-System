@@ -1,6 +1,8 @@
 {% extends 'index.html' %}
 {% load static %}
 
+{% block body_class %}bg-portal{% endblock %}
+
 {% block title %}Executive Dashboard - NEPHELE HMS{% endblock %}
 
 {% block context %}
@@ -163,8 +165,6 @@ let revenueChart, occupancyChart, adrChart;
 
 document.addEventListener('DOMContentLoaded', function() {
   loadProperties();
-  loadExecutiveDashboard();
-  
   document.getElementById('propertyFilter').addEventListener('change', loadExecutiveDashboard);
   document.getElementById('periodFilter').addEventListener('change', loadExecutiveDashboard);
 });
@@ -185,24 +185,19 @@ function loadProperties() {
       });
       if (propertyFilter.options.length > 1) {
         propertyFilter.selectedIndex = 1;
+        loadExecutiveDashboard();
       }
     }
   })
   .catch(error => console.warn('Error loading properties:', error));
 }
 
-// Load data when property selected
-document.getElementById('propertyFilter').addEventListener('change', loadExecutiveDashboard);
-
 function loadExecutiveDashboard() {
   const propertyId = document.getElementById('propertyFilter').value;
   const period = document.getElementById('periodFilter').value;
   
-  if (!propertyId) {
-    alert('Please select a property');
-    return;
-  }
-  
+  if (!propertyId) return;
+
   showLoading(true);
   
   fetch(`/api/v1/analytics/executive-dashboard/?property_id=${propertyId}`)
@@ -261,9 +256,9 @@ function renderCharts(metrics) {
   const sortedMetrics = [...metrics].sort((a, b) => new Date(a.metric_date) - new Date(b.metric_date));
   
   const labels = sortedMetrics.map(m => new Date(m.metric_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-  const revenueData = sortedMetrics.map(m => m.total_revenue || 0);
-  const occupancyData = sortedMetrics.map(m => m.occupancy_rate || 0);
-  const adrData = sortedMetrics.map(m => m.avg_daily_rate || 0);
+  const revenueData = sortedMetrics.map(m => parseFloat(m.total_revenue) || 0);
+  const occupancyData = sortedMetrics.map(m => parseFloat(m.occupancy_rate) || 0);
+  const adrData = sortedMetrics.map(m => parseFloat(m.avg_daily_rate) || 0);
   
   // Revenue Chart
   const revenueCtx = document.getElementById('revenueChart').getContext('2d');
@@ -374,16 +369,17 @@ function renderCharts(metrics) {
 
 function formatValue(value, type) {
   if (value === null || value === undefined) return '—';
-  
+  const num = parseFloat(value);
+  if (isNaN(num)) return value;
   switch (type) {
     case 'currency':
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 0
-      }).format(value);
+      }).format(num);
     case 'percentage':
-      return (value).toFixed(1) + '%';
+      return num.toFixed(1) + '%';
     default:
       return value;
   }

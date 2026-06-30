@@ -18,8 +18,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # Production optimizations
-      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c effective_cache_size=1GB -c work_mem=16MB -c maintenance_work_mem=64MB"
     ports:
       - "${POSTGRES_HOST_PORT}:5432"
     healthcheck:
@@ -91,7 +89,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-    image: hms-django:latest
+    image: hms-django-prod:latest
     container_name: hms-django-prod
     restart: unless-stopped
     depends_on:
@@ -120,8 +118,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./HMS:/app/HMS:ro  # Read-only application code
-      - static_volume_prod:/app/HMS/static
+      - static_volume_prod:/app/HMS/staticfiles
       - media_volume_prod:/app/HMS/media
       - logs_volume_prod:/app/logs
     healthcheck:
@@ -140,9 +137,8 @@ services:
         reservations:
           cpus: '1'
           memory: 1G
-      # Restart policy for production
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -152,8 +148,6 @@ services:
         max-size: "100m"
         max-file: "10"
         labels: "service=django"
-    # Security options
-    read_only_root_filesystem: false  # Allow app to write to logs
     cap_drop:
       - ALL
     cap_add:
@@ -166,7 +160,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-    image: hms-django:latest
+    image: hms-django-prod:latest
     container_name: hms-celery-prod
     restart: unless-stopped
     depends_on:
@@ -190,7 +184,6 @@ services:
       DJANGO_SETTINGS_MODULE: HMS.settings
     command: celery -A HMS worker -l info --concurrency=4 --max-tasks-per-child=1000
     volumes:
-      - ./HMS:/app/HMS:ro
       - logs_volume_prod:/app/logs
     networks:
       - hms-network-prod
@@ -203,7 +196,7 @@ services:
           cpus: '1'
           memory: 1G
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 5s
         max_attempts: 5
     logging:
@@ -222,7 +215,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-    image: hms-django:latest
+    image: hms-django-prod:latest
     container_name: hms-celery-beat-prod
     restart: unless-stopped
     depends_on:
@@ -245,7 +238,6 @@ services:
       DJANGO_SETTINGS_MODULE: HMS.settings
     command: celery -A HMS beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
-      - ./HMS:/app/HMS:ro
       - logs_volume_prod:/app/logs
       - celery_beat_data:/app/celery-beat
     networks:
@@ -259,7 +251,7 @@ services:
           cpus: '0.25'
           memory: 256M
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
     logging:
@@ -283,7 +275,8 @@ services:
       - "443:443"
     volumes:
       - ./deployment/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./deployment/ssl:/etc/nginx/ssl:ro  # SSL certificates
+      - /etc/letsencrypt:/etc/letsencrypt:ro          # host-managed by certbot
+      - /var/www/certbot:/var/www/certbot:ro           # ACME webroot for renewals
       - static_volume_prod:/app/static:ro
       - media_volume_prod:/app/media:ro
       - nginx_logs:/var/log/nginx
@@ -305,14 +298,6 @@ services:
         max-size: "50m"
         max-file: "10"
         labels: "service=nginx"
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    read_only_root_filesystem: true
-    tmpfs:
-      - /var/run
-      - /var/cache
 
 # ============================================================================
 # Volumes (Production - Named for better management)
@@ -341,4 +326,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.21.0.0/16

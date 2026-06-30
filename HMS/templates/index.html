@@ -1,6 +1,6 @@
 {% include 'incs/head.html' %}
 
-<body class="bg-hotel">
+<body class="{% block body_class %}bg-hotel{% endblock %}">
     {% include 'incs/nav.html' %}
 
     <main class="site-main">

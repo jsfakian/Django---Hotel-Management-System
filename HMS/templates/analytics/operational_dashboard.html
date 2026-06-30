@@ -1,6 +1,8 @@
 {% extends 'index.html' %}
 {% load static %}
 
+{% block body_class %}bg-portal{% endblock %}
+
 {% block title %}Operational Dashboard - NEPHELE HMS{% endblock %}
 
 {% block context %}
@@ -266,8 +268,6 @@ let statusChart, occupancyChart;
 
 document.addEventListener('DOMContentLoaded', function() {
   loadProperties();
-  loadOperationalDashboard();
-  
   document.getElementById('propertyFilter').addEventListener('change', loadOperationalDashboard);
   document.getElementById('refreshBtn').addEventListener('click', loadOperationalDashboard);
 });
@@ -288,22 +288,17 @@ function loadProperties() {
       });
       if (propertyFilter.options.length > 1) {
         propertyFilter.selectedIndex = 1;
+        loadOperationalDashboard();
       }
     }
   })
   .catch(error => console.warn('Error loading properties:', error));
 }
 
-// Load data when property selected
-document.getElementById('propertyFilter').addEventListener('change', loadOperationalDashboard);
-
 function loadOperationalDashboard() {
   const propertyId = document.getElementById('propertyFilter').value;
   
-  if (!propertyId) {
-    alert('Please select a property');
-    return;
-  }
+  if (!propertyId) return;
   
   fetch(`/api/v1/analytics/operational-dashboard/current/?property_id=${propertyId}`)
   .then(response => response.json())

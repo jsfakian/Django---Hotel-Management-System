@@ -1,4 +1,8 @@
 real-data/
 __pycache__/
 .env
+.env.prod
 *.log
+hms/
+HMS/logs/
+hms_screenshots/

@@ -1,6 +1,8 @@
 {% extends 'index.html' %}
 {% load static %}
 
+{% block body_class %}bg-portal{% endblock %}
+
 {% block title %}Revenue Analytics - NEPHELE HMS{% endblock %}
 
 {% block context %}
@@ -311,10 +313,10 @@ function updateDashboard(metrics) {
   document.getElementById('revpar').textContent = formatCurrency(latestMetric.revpar);
   
   // Update metrics
-  document.getElementById('occupancy-rate').textContent = (latestMetric.occupancy_rate || 0).toFixed(1) + '%';
-  document.getElementById('cancellation-rate').textContent = (latestMetric.cancellation_rate || 0).toFixed(1) + '%';
+  document.getElementById('occupancy-rate').textContent = (parseFloat(latestMetric.occupancy_rate) || 0).toFixed(1) + '%';
+  document.getElementById('cancellation-rate').textContent = (parseFloat(latestMetric.cancellation_rate) || 0).toFixed(1) + '%';
   document.getElementById('noshow-rate').textContent = '—'; // Would need noshow data
-  document.getElementById('pricing-uplift').textContent = (latestMetric.dynamic_pricing_uplift || 0).toFixed(1) + '%';
+  document.getElementById('pricing-uplift').textContent = (parseFloat(latestMetric.dynamic_pricing_uplift) || 0).toFixed(1) + '%';
   
   // Render charts
   renderCharts(metrics);
@@ -325,9 +327,9 @@ function updateDashboard(metrics) {
 
 function renderCharts(metrics) {
   const labels = metrics.map(m => new Date(m.metric_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-  const revenueData = metrics.map(m => m.total_revenue || 0);
-  const occupancyData = metrics.map(m => m.occupancy_rate || 0);
-  const adrData = metrics.map(m => m.avg_daily_rate || 0);
+  const revenueData = metrics.map(m => parseFloat(m.total_revenue) || 0);
+  const occupancyData = metrics.map(m => parseFloat(m.occupancy_rate) || 0);
+  const adrData = metrics.map(m => parseFloat(m.avg_daily_rate) || 0);
   
   // Revenue Chart
   const revenueCtx = document.getElementById('revenueChart').getContext('2d');

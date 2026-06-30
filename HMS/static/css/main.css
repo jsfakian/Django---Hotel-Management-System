@@ -23,6 +23,10 @@ body {
     background-position: center;
 }
 
+.bg-portal {
+    background: #eef1f6;
+}
+
 a {
     transition: 0.2s ease;
 }
@@ -139,13 +143,17 @@ a {
     border: 0;
 }
 
+.module-sidebar {
+    overflow: hidden;
+}
+
 .module-sidebar .list-group-item {
     border: 0;
     border-radius: 10px !important;
     margin-bottom: 6px;
     color: #1e293b;
     font-weight: 600;
-    background: #f8fbff;
+    background: #f0f4f8;
 }
 
 .module-sidebar .list-group-item.active {
