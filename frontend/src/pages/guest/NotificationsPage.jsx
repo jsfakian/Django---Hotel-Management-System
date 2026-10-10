@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Button, List, ListItem, ListItemText, ListItemAvatar, Avatar, Typography, Divider, Badge } from '@mui/material'
 import { Notifications, Bookmark } from '@mui/icons-material'
-import AppLayout from '../../components/layout/AppLayout'
+import GuestLayout from '../../components/layout/GuestLayout'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorAlert from '../../components/common/ErrorAlert'
 import { useGetNotificationsQuery, useMarkReadMutation, useMarkAllReadMutation } from '../../features/notifications/notificationsApi'
@@ -13,10 +13,10 @@ export default function NotificationsPage() {
   const notifications = data?.results || data || []
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
-  if (isLoading) return <AppLayout><LoadingSpinner /></AppLayout>
+  if (isLoading) return <GuestLayout><LoadingSpinner /></GuestLayout>
 
   return (
-    <AppLayout>
+    <GuestLayout>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Badge badgeContent={unreadCount} color="error"><Notifications /></Badge>
         <Button size="small" onClick={() => markAllRead()} disabled={marking || unreadCount === 0}>Mark all read</Button>
@@ -34,6 +34,6 @@ export default function NotificationsPage() {
           </React.Fragment>
         ))}
       </List>
-    </AppLayout>
+    </GuestLayout>
   )
 }

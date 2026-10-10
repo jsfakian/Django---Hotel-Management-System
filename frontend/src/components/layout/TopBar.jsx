@@ -14,6 +14,7 @@ import {
   ListItemText,
   Divider,
   Box,
+  Chip,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -21,15 +22,23 @@ import {
   AccountCircle,
   Logout,
 } from '@mui/icons-material'
-import { clearCredentials, selectCurrentUser } from '../../features/auth/authSlice'
+import { clearCredentials, selectCurrentUser, selectUserRole } from '../../features/auth/authSlice'
 import { useLogoutMutation } from '../../features/auth/authApi'
+import { DRAWER_WIDTH } from './Sidebar'
 
-const DRAWER_WIDTH = 240
+const ROLE_LABELS = {
+  admin: 'Administrator',
+  manager: 'Manager',
+  receptionist: 'Reception',
+  staff: 'Staff',
+  guest: 'Guest',
+}
 
 export default function TopBar({ onDrawerToggle }) {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const user = useSelector(selectCurrentUser)
+  const role = useSelector(selectUserRole)
   const [logout] = useLogoutMutation()
 
   const [anchorEl, setAnchorEl] = useState(null)
@@ -39,7 +48,8 @@ export default function TopBar({ onDrawerToggle }) {
 
   const handleProfile = () => {
     handleMenuClose()
-    navigate('/guest/profile')
+    if (role === 'guest') navigate('/guest/profile')
+    else navigate(`/${role}/dashboard`)
   }
 
   const handleLogout = async () => {
@@ -85,12 +95,23 @@ export default function TopBar({ onDrawerToggle }) {
           <MenuIcon />
         </IconButton>
 
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700 }}>
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{ fontFamily: '"Fraunces", Georgia, serif', fontWeight: 600, mr: 2 }}
+        >
           Nephele
         </Typography>
+        <Chip
+          size="small"
+          label={ROLE_LABELS[role] || role || 'Workspace'}
+          color="primary"
+          variant="outlined"
+          sx={{ mr: 'auto', display: { xs: 'none', sm: 'inline-flex' } }}
+        />
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton color="inherit">
+          <IconButton color="inherit" aria-label="Notifications">
             <Badge badgeContent={0} color="error">
               <Notifications />
             </Badge>

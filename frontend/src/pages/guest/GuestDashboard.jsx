@@ -10,11 +10,20 @@ import {
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { EventNote, Receipt } from '@mui/icons-material'
+import { EventNote, Receipt, RoomService, Shield } from '@mui/icons-material'
 import { selectCurrentUser } from '../../features/auth/authSlice'
 import { useGetBookingsQuery } from '../../features/bookings/bookingsApi'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
-import AppLayout from '../../components/layout/AppLayout'
+import EmptyState from '../../components/common/EmptyState'
+import GuestLayout from '../../components/layout/GuestLayout'
+
+const STATUS_LABELS = {
+  confirmed: 'Confirmed',
+  pending: 'Pending',
+  checked_in: 'Checked in',
+  checked_out: 'Checked out',
+  cancelled: 'Cancelled',
+}
 
 const STATUS_COLORS = {
   confirmed: 'success',
@@ -33,106 +42,133 @@ const formatDate = (dateStr) => {
   })
 }
 
+const QUICK = [
+  { label: 'My stays', path: '/guest/bookings', icon: <EventNote /> },
+  { label: 'Invoices', path: '/guest/invoices', icon: <Receipt /> },
+  { label: 'Room services', path: '/guest/room-services', icon: <RoomService /> },
+  { label: 'Privacy & data', path: '/guest/privacy', icon: <Shield /> },
+]
+
 export default function GuestDashboard() {
   const navigate = useNavigate()
   const user = useSelector(selectCurrentUser)
-  const { data, isLoading } = useGetBookingsQuery({ status: 'confirmed,checked_in', limit: 3 })
+  const { data, isLoading } = useGetBookingsQuery({
+    status: 'confirmed,checked_in',
+    limit: 3,
+  })
 
   const upcomingBookings = data?.results ?? (Array.isArray(data) ? data.slice(0, 3) : [])
+  const nextStay = upcomingBookings[0]
 
   return (
-    <AppLayout>
-      {/* Welcome card */}
-      <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #1565C0 0%, #1E88E5 100%)', color: 'white' }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h5" fontWeight={700}>
-            Welcome back, {user?.username || 'Guest'}!
+    <GuestLayout>
+      <Box
+        sx={{
+          mb: 4,
+          p: { xs: 3, md: 4 },
+          borderRadius: 3,
+          color: 'common.white',
+          background: 'linear-gradient(135deg, #084852 0%, #0B5F6B 55%, #1A7A88 100%)',
+          animation: 'guestHeroIn 0.7s ease-out',
+          '@keyframes guestHeroIn': {
+            from: { opacity: 0, transform: 'translateY(10px)' },
+            to: { opacity: 1, transform: 'translateY(0)' },
+          },
+        }}
+      >
+        <Typography variant="overline" sx={{ opacity: 0.85, letterSpacing: 1.5 }}>
+          Your stay
+        </Typography>
+        <Typography variant="h3" sx={{ mb: 1, fontFamily: '"Fraunces", Georgia, serif' }}>
+          Welcome, {user?.first_name || user?.username || 'guest'}
+        </Typography>
+        {nextStay ? (
+          <>
+            <Typography variant="body1" sx={{ opacity: 0.92, mb: 2, maxWidth: 520 }}>
+              Next arrival {formatDate(nextStay.check_in_date)}
+              {nextStay.room_number || nextStay.room?.number
+                ? ` · Room ${nextStay.room_number || nextStay.room?.number}`
+                : ''}
+            </Typography>
+            <Chip
+              label={STATUS_LABELS[nextStay.status] || nextStay.status}
+              color={STATUS_COLORS[nextStay.status] || 'default'}
+              sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: 'common.white', fontWeight: 600 }}
+            />
+          </>
+        ) : (
+          <Typography variant="body1" sx={{ opacity: 0.92, maxWidth: 480 }}>
+            When you have an upcoming reservation, it will appear here with everything you need for
+            arrival.
           </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
-            Here is a summary of your upcoming stays at Nephele.
-          </Typography>
-        </CardContent>
-      </Card>
-
-      {/* Upcoming bookings */}
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">Upcoming Bookings</Typography>
-        <Button
-          size="small"
-          startIcon={<EventNote />}
-          onClick={() => navigate('/guest/bookings')}
-        >
-          View All
-        </Button>
+        )}
       </Box>
 
-      {isLoading && <LoadingSpinner />}
-
-      {!isLoading && upcomingBookings.length === 0 && (
-        <Card variant="outlined">
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <EventNote sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-            <Typography color="text.secondary">No upcoming bookings</Typography>
-            <Typography variant="body2" color="text.disabled">
-              Contact the hotel to make a reservation
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
-
-      <Grid container spacing={2}>
-        {upcomingBookings.map((booking) => (
-          <Grid item xs={12} sm={6} md={4} key={booking.id}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="subtitle2" fontWeight={600}>
-                    Booking #{booking.id}
-                  </Typography>
-                  <Chip
-                    label={booking.status?.replace('_', ' ')}
-                    size="small"
-                    color={STATUS_COLORS[booking.status] || 'default'}
-                    sx={{ textTransform: 'capitalize' }}
-                  />
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  Room: {booking.room_number || booking.room?.number || booking.room || '—'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Check-in: {formatDate(booking.check_in_date)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Check-out: {formatDate(booking.check_out_date)}
-                </Typography>
-                {booking.total_price != null && (
-                  <Typography variant="body2" fontWeight={500} sx={{ mt: 1 }}>
-                    Total: €{Number(booking.total_price).toLocaleString()}
-                  </Typography>
-                )}
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Quick links
+      </Typography>
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        {QUICK.map(({ label, path, icon }) => (
+          <Grid item xs={6} sm={3} key={path}>
+            <Card
+              sx={{
+                cursor: 'pointer',
+                height: '100%',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': { transform: 'translateY(-2px)', boxShadow: 3 },
+              }}
+              onClick={() => navigate(path)}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                <Box sx={{ color: 'primary.main', mb: 1 }}>{icon}</Box>
+                <Typography fontWeight={600}>{label}</Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      {/* Quick links */}
-      <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-        <Button
-          variant="outlined"
-          startIcon={<EventNote />}
-          onClick={() => navigate('/guest/bookings')}
-        >
-          My Bookings
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<Receipt />}
-          onClick={() => navigate('/guest/invoices')}
-        >
-          My Invoices
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 2 }}>
+        <Typography variant="h6">Upcoming stays</Typography>
+        <Button size="small" onClick={() => navigate('/guest/bookings')}>
+          View all
         </Button>
       </Box>
-    </AppLayout>
+
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : upcomingBookings.length === 0 ? (
+        <EmptyState
+          title="No upcoming stays"
+          description="Confirmed and in-house reservations will show here."
+          actionLabel="Browse history"
+          onAction={() => navigate('/guest/bookings')}
+          icon={<EventNote fontSize="large" />}
+        />
+      ) : (
+        <Grid container spacing={2}>
+          {upcomingBookings.map((booking) => (
+            <Grid item xs={12} md={4} key={booking.id}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Chip
+                    size="small"
+                    label={STATUS_LABELS[booking.status] || booking.status}
+                    color={STATUS_COLORS[booking.status] || 'default'}
+                    sx={{ mb: 1.5, textTransform: 'capitalize' }}
+                  />
+                  <Typography variant="h6" sx={{ mb: 0.5 }}>
+                    {formatDate(booking.check_in_date)} → {formatDate(booking.check_out_date)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Room {booking.room_number || booking.room?.number || booking.room || '—'}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </GuestLayout>
   )
 }

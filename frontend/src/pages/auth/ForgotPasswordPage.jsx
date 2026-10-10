@@ -1,19 +1,9 @@
 import React, { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import {
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Typography,
-  Link,
-  CircularProgress,
-  Alert,
-} from '@mui/material'
-import { Hotel } from '@mui/icons-material'
+import { Box, TextField, Button, Typography, Link, CircularProgress, Alert } from '@mui/material'
 import { useForgotPasswordMutation } from '../../features/auth/authApi'
 import ErrorAlert from '../../components/common/ErrorAlert'
+import AuthShell from '../../components/auth/AuthShell'
 
 export default function ForgotPasswordPage() {
   const [forgotPassword, { isLoading, error }] = useForgotPasswordMutation()
@@ -31,69 +21,49 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'background.default',
-        p: 2,
-      }}
+    <AuthShell
+      title="Reset password"
+      subtitle="Enter the email on your account and we will send a reset link if it exists."
     >
-      <Card sx={{ width: '100%', maxWidth: 420 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Hotel sx={{ fontSize: 48, color: 'primary.main' }} />
-            <Typography variant="h5" fontWeight={700} color="primary.main">
-              Reset Password
-            </Typography>
-            <Typography variant="body2" color="text.secondary" mt={0.5}>
-              Enter your email to receive a reset link
-            </Typography>
+      {submitted ? (
+        <Alert severity="success">
+          If that email address is registered, you will receive a password reset link shortly.
+          Please check your inbox.
+        </Alert>
+      ) : (
+        <>
+          {error && <ErrorAlert error={error} />}
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+            <TextField
+              fullWidth
+              label="Email Address"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              margin="normal"
+              required
+              autoFocus
+              autoComplete="email"
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={isLoading}
+              sx={{ mt: 2.5, mb: 1.5 }}
+            >
+              {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Send Reset Link'}
+            </Button>
           </Box>
+        </>
+      )}
 
-          {submitted ? (
-            <Alert severity="success">
-              If that email address is registered, you will receive a password reset link shortly.
-              Please check your inbox.
-            </Alert>
-          ) : (
-            <>
-              {error && <ErrorAlert error={error} />}
-              <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Email Address"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  margin="normal"
-                  required
-                  autoFocus
-                  autoComplete="email"
-                />
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  size="large"
-                  disabled={isLoading}
-                  sx={{ mt: 2, mb: 1 }}
-                >
-                  {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Send Reset Link'}
-                </Button>
-              </Box>
-            </>
-          )}
-
-          <Box sx={{ textAlign: 'center', mt: 2 }}>
-            <Link component={RouterLink} to="/login" variant="body2">
-              Back to sign in
-            </Link>
-          </Box>
-        </CardContent>
-      </Card>
-    </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+        <Link component={RouterLink} to="/login">
+          Back to sign in
+        </Link>
+      </Typography>
+    </AuthShell>
   )
 }

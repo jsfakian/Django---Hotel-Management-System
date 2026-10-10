@@ -33,6 +33,7 @@
 | [BI_ML_INTEGRATION_ARCHITECTURE.md](guides/BI_ML_INTEGRATION_ARCHITECTURE.md) | BI + ML pricing notes |
 | [DEMO_DATA_SETUP.md](guides/DEMO_DATA_SETUP.md) | Demo data |
 | [API_QUICK_REFERENCE.md](guides/API_QUICK_REFERENCE.md) | API cheat sheet (prefer live Swagger) |
+| [UI_UX_BRIEF.md](guides/UI_UX_BRIEF.md) | Hospitality UI direction (guest vs ops) |
 
 Also under `guides/`: logging, performance, load balancing, auto-scaling, troubleshooting.
 

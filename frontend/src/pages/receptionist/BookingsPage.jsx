@@ -1,11 +1,5 @@
 import React, { useState } from 'react'
-import {
-  Box,
-  Typography,
-  Button,
-  Chip,
-  Stack,
-} from '@mui/material'
+import { Button, Chip, Stack } from '@mui/material'
 import {
   useGetBookingsQuery,
   useCheckInMutation,
@@ -13,6 +7,7 @@ import {
 } from '../../features/bookings/bookingsApi'
 import DataTable from '../../components/common/DataTable'
 import ErrorAlert from '../../components/common/ErrorAlert'
+import PageHeader from '../../components/common/PageHeader'
 import AppLayout from '../../components/layout/AppLayout'
 
 const STATUS_COLORS = {
@@ -118,12 +113,10 @@ export default function BookingsPage() {
 
   return (
     <AppLayout>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5">Bookings</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Manage reservations, check-ins, and check-outs
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Bookings"
+        subtitle="Manage reservations, check-ins, and check-outs"
+      />
 
       {error && <ErrorAlert error={error} title="Failed to load bookings" />}
 

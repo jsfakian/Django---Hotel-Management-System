@@ -11,6 +11,7 @@ import {
   TableSortLabel,
 } from '@mui/material'
 import LoadingSpinner from './LoadingSpinner'
+import EmptyState from './EmptyState'
 
 export default function DataTable({
   columns = [],
@@ -33,6 +34,15 @@ export default function DataTable({
 
   const paginatedRows = rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
+  if (!rows.length) {
+    return (
+      <EmptyState
+        title="No records yet"
+        description="Nothing matches this view. Create a record or adjust filters to continue."
+      />
+    )
+  }
+
   return (
     <Paper variant="outlined" sx={{ width: '100%', overflow: 'hidden' }}>
       <TableContainer>
@@ -54,7 +64,7 @@ export default function DataTable({
             {paginatedRows.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                  No records found.
+                  No records on this page.
                 </TableCell>
               </TableRow>
             ) : (

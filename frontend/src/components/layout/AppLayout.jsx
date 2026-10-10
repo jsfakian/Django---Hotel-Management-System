@@ -3,7 +3,7 @@ import { Box, Toolbar } from '@mui/material'
 import TopBar from './TopBar'
 import Sidebar from './Sidebar'
 
-const DRAWER_WIDTH = 240
+import { DRAWER_WIDTH } from './Sidebar'
 
 export default function AppLayout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false)

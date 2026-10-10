@@ -4,6 +4,7 @@ import { Box, FormControl, InputLabel, Select, MenuItem, TextField, Chip } from 
 import AppLayout from '../../../components/layout/AppLayout'
 import DataTable from '../../../components/common/DataTable'
 import ErrorAlert from '../../../components/common/ErrorAlert'
+import PageHeader from '../../../components/common/PageHeader'
 import { useGetPaymentsQuery } from '../../../features/payments/paymentsApi'
 
 const STATUS_COLORS = { pending: 'warning', completed: 'success', failed: 'error', refunded: 'info' }
@@ -27,6 +28,7 @@ export default function PaymentsListPage() {
 
   return (
     <AppLayout>
+      <PageHeader title="Payments" subtitle="Filter and review guest payments" />
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <InputLabel>Status</InputLabel>

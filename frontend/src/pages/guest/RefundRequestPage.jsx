@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Box, Button, TextField, Paper, Typography, Grid, Alert } from '@mui/material'
 import { Save } from '@mui/icons-material'
-import AppLayout from '../../components/layout/AppLayout'
+import GuestLayout from '../../components/layout/GuestLayout'
 import ErrorAlert from '../../components/common/ErrorAlert'
 import { useCreateRefundMutation } from '../../features/refunds/refundsApi'
 
@@ -19,7 +19,7 @@ export default function RefundRequestPage() {
   }
 
   return (
-    <AppLayout>
+    <GuestLayout>
       <Typography variant="h5" sx={{ mb: 3 }}>Request a Refund</Typography>
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(false)}>Refund request submitted. We'll review it shortly.</Alert>}
       {error && <ErrorAlert error={error} />}
@@ -37,6 +37,6 @@ export default function RefundRequestPage() {
           </Box>
         </Box>
       </Paper>
-    </AppLayout>
+    </GuestLayout>
   )
 }

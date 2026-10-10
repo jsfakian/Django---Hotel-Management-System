@@ -14,6 +14,7 @@ import {
   Typography,
   Divider,
   Button,
+  ListSubheader,
 } from '@mui/material'
 import {
   Dashboard,
@@ -46,9 +47,9 @@ import {
   Shield,
 } from '@mui/icons-material'
 import { clearCredentials, selectCurrentUser, selectUserRole } from '../../features/auth/authSlice'
-import { SIDEBAR_ITEMS } from './sidebarConfig'
+import { SIDEBAR_ITEMS, groupSidebarItems } from './sidebarConfig'
 
-const DRAWER_WIDTH = 240
+const DRAWER_WIDTH = 260
 
 const ICON_MAP = {
   Dashboard,
@@ -80,12 +81,12 @@ const ICON_MAP = {
   Shield,
 }
 
-const ROLE_COLORS = {
-  admin: 'error',
-  manager: 'warning',
-  receptionist: 'info',
-  staff: 'success',
-  guest: 'secondary',
+const ROLE_LABELS = {
+  admin: 'Administrator',
+  manager: 'Property manager',
+  receptionist: 'Reception',
+  staff: 'Staff',
+  guest: 'Guest',
 }
 
 export default function Sidebar({ mobileOpen, onDrawerToggle }) {
@@ -96,6 +97,7 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
   const role = useSelector(selectUserRole)
 
   const items = SIDEBAR_ITEMS[role] || []
+  const groups = groupSidebarItems(items)
 
   const handleLogout = () => {
     dispatch(clearCredentials())
@@ -104,62 +106,75 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar />
-      {/* User info */}
-      <Box sx={{ px: 2, py: 1.5 }}>
+      <Toolbar sx={{ px: 2 }}>
+        <Typography
+          variant="h6"
+          sx={{ fontFamily: '"Fraunces", Georgia, serif', color: 'primary.main' }}
+        >
+          Nephele
+        </Typography>
+      </Toolbar>
+      <Box sx={{ px: 2, pb: 1.5 }}>
         <Typography variant="subtitle2" fontWeight={600} noWrap>
           {user?.username || user?.email || 'User'}
         </Typography>
         <Chip
-          label={role || 'unknown'}
+          label={ROLE_LABELS[role] || role || 'unknown'}
           size="small"
-          color={ROLE_COLORS[role] || 'default'}
-          sx={{ mt: 0.5, textTransform: 'capitalize' }}
+          color="primary"
+          variant="outlined"
+          sx={{ mt: 0.5 }}
         />
       </Box>
       <Divider />
 
-      {/* Navigation items */}
-      <List sx={{ flex: 1, py: 1 }}>
-        {items.map((item) => {
-          const IconComponent = ICON_MAP[item.icon]
-          const isActive = location.pathname === item.path
-
-          return (
-            <ListItem key={item.path} disablePadding>
-              <ListItemButton
-                selected={isActive}
-                onClick={() => navigate(item.path)}
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
+        {groups.map((group) => (
+          <List
+            key={group.name}
+            dense
+            subheader={
+              <ListSubheader
+                disableSticky
                 sx={{
-                  mx: 1,
-                  borderRadius: 1,
-                  '&.Mui-selected': {
-                    backgroundColor: 'primary.main',
-                    color: 'primary.contrastText',
-                    '& .MuiListItemIcon-root': {
-                      color: 'primary.contrastText',
-                    },
-                    '&:hover': {
-                      backgroundColor: 'primary.dark',
-                    },
-                  },
+                  bgcolor: 'transparent',
+                  lineHeight: 2.2,
+                  fontWeight: 700,
+                  color: 'text.secondary',
+                  textTransform: 'uppercase',
+                  fontSize: '0.68rem',
+                  letterSpacing: 0.6,
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40 }}>
-                  {IconComponent ? <IconComponent fontSize="small" /> : null}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{ fontSize: '0.875rem' }}
-                />
-              </ListItemButton>
-            </ListItem>
-          )
-        })}
-      </List>
+                {group.name}
+              </ListSubheader>
+            }
+          >
+            {group.items.map((item) => {
+              const IconComponent = ICON_MAP[item.icon]
+              const isActive =
+                location.pathname === item.path ||
+                (item.path !== '/' && location.pathname.startsWith(`${item.path}/`))
+
+              return (
+                <ListItem key={item.path} disablePadding>
+                  <ListItemButton selected={isActive} onClick={() => navigate(item.path)}>
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      {IconComponent ? <IconComponent fontSize="small" /> : null}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={item.label}
+                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isActive ? 600 : 500 }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              )
+            })}
+          </List>
+        ))}
+      </Box>
 
       <Divider />
-      {/* Logout */}
       <Box sx={{ p: 1.5 }}>
         <Button
           fullWidth
@@ -169,18 +184,14 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
           onClick={handleLogout}
           sx={{ justifyContent: 'flex-start' }}
         >
-          Logout
+          Sign out
         </Button>
       </Box>
     </Box>
   )
 
   return (
-    <Box
-      component="nav"
-      sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
-    >
-      {/* Mobile drawer */}
+    <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
       <Drawer
         variant="temporary"
         open={mobileOpen}
@@ -193,8 +204,6 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
       >
         {drawerContent}
       </Drawer>
-
-      {/* Desktop drawer */}
       <Drawer
         variant="permanent"
         sx={{
@@ -208,3 +217,5 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
     </Box>
   )
 }
+
+export { DRAWER_WIDTH }

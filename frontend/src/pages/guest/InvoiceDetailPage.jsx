@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Box, Button, Paper, Typography, Grid, Chip, Table, TableBody, TableCell, TableHead, TableRow, Divider } from '@mui/material'
 import { ArrowBack, Print } from '@mui/icons-material'
-import AppLayout from '../../components/layout/AppLayout'
+import GuestLayout from '../../components/layout/GuestLayout'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorAlert from '../../components/common/ErrorAlert'
 import { useGetInvoiceQuery } from '../../features/payments/paymentsApi'
@@ -14,14 +14,14 @@ export default function InvoiceDetailPage() {
   const navigate = useNavigate()
   const { data: invoice, isLoading, error } = useGetInvoiceQuery(id)
 
-  if (isLoading) return <AppLayout><LoadingSpinner /></AppLayout>
-  if (error) return <AppLayout><ErrorAlert error={error} /></AppLayout>
+  if (isLoading) return <GuestLayout><LoadingSpinner /></GuestLayout>
+  if (error) return <GuestLayout><ErrorAlert error={error} /></GuestLayout>
   if (!invoice) return null
 
   const lineItems = invoice.line_items || invoice.items || []
 
   return (
-    <AppLayout>
+    <GuestLayout>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Button startIcon={<ArrowBack />} onClick={() => navigate('/guest/invoices')}>Back</Button>
         <Button startIcon={<Print />} variant="outlined" onClick={() => window.print()}>Print</Button>
@@ -51,6 +51,6 @@ export default function InvoiceDetailPage() {
           </Box>
         </Box>
       </Paper>
-    </AppLayout>
+    </GuestLayout>
   )
 }

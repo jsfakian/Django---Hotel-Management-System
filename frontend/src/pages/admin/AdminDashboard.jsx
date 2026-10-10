@@ -15,6 +15,8 @@ import {
 import { useGetDashboardStatsQuery } from '../../features/dashboard/dashboardApi'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorAlert from '../../components/common/ErrorAlert'
+import PageHeader from '../../components/common/PageHeader'
+import EmptyState from '../../components/common/EmptyState'
 import AppLayout from '../../components/layout/AppLayout'
 
 function StatCard({ title, value, icon: Icon, color }) {
@@ -54,15 +56,19 @@ export default function AdminDashboard() {
 
   return (
     <AppLayout>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5">Admin Dashboard</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Overview of hotel operations
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Operations overview"
+        subtitle="Live snapshot of bookings, revenue, occupancy, and guests"
+      />
 
       {isLoading && <LoadingSpinner />}
       {error && <ErrorAlert error={error} title="Failed to load dashboard stats" />}
+      {!isLoading && !error && !stats && (
+        <EmptyState
+          title="No metrics yet"
+          description="Dashboard totals appear once bookings and payments are flowing."
+        />
+      )}
 
       {stats && (
         <Grid container spacing={3}>

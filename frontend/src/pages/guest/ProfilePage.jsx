@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Box, Paper, Typography, Grid, TextField, Button, Alert, Divider } from '@mui/material'
 import { Save, Lock } from '@mui/icons-material'
-import AppLayout from '../../components/layout/AppLayout'
+import GuestLayout from '../../components/layout/GuestLayout'
 import { useSelector } from 'react-redux'
 import { selectCurrentUser } from '../../features/auth/authSlice'
 import axiosInstance from '../../services/axiosInstance'
@@ -30,8 +30,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <AppLayout>
-      <Typography variant="h5" sx={{ mb: 3 }}>My Profile</Typography>
+    <GuestLayout>
+      <Typography variant="h4" sx={{ mb: 3, fontFamily: '"Fraunces", Georgia, serif' }}>
+        Your profile
+      </Typography>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>Account Information</Typography>
         <Grid container spacing={2}>
@@ -59,6 +61,6 @@ export default function ProfilePage() {
           </Button>
         </Box>
       </Paper>
-    </AppLayout>
+    </GuestLayout>
   )
 }

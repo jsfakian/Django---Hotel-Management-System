@@ -3,6 +3,7 @@ import { Box, Button, TextField, Paper, Typography, Grid, FormControl, InputLabe
 import { Search } from '@mui/icons-material'
 import AppLayout from '../../../components/layout/AppLayout'
 import LoadingSpinner from '../../../components/common/LoadingSpinner'
+import PageHeader from '../../../components/common/PageHeader'
 import {
   useGetPricingAnalysisQuery,
   useGetPricingModelsQuery,
@@ -50,7 +51,10 @@ export default function PricingAnalysisPage() {
 
   return (
     <AppLayout>
-      <Typography variant="h5" sx={{ mb: 3 }}>Dynamic Pricing Analysis</Typography>
+      <PageHeader
+        title="Dynamic pricing"
+        subtitle="Model recommendations and scenario analysis for a room and date"
+      />
       <Paper sx={{ p: 3, mb: 3 }}>
         <Box component="form" onSubmit={handleSubmit}>
           <Grid container spacing={2} alignItems="flex-end">

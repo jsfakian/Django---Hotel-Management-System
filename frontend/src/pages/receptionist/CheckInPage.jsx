@@ -15,6 +15,8 @@ import {
 import { Search, Login as CheckInIcon, Logout as CheckOutIcon } from '@mui/icons-material'
 import { useGetBookingQuery, useCheckInMutation, useCheckOutMutation } from '../../features/bookings/bookingsApi'
 import ErrorAlert from '../../components/common/ErrorAlert'
+import PageHeader from '../../components/common/PageHeader'
+import EmptyState from '../../components/common/EmptyState'
 import AppLayout from '../../components/layout/AppLayout'
 
 const STATUS_COLORS = {
@@ -75,14 +77,11 @@ export default function CheckInPage() {
 
   return (
     <AppLayout>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5">Check-In / Check-Out</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Look up a booking by ID and process check-in or check-out
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Check-In / Check-Out"
+        subtitle="Look up a booking by ID to arrive or depart a guest"
+      />
 
-      {/* Search form */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box component="form" onSubmit={handleSearch} sx={{ display: 'flex', gap: 2 }}>
@@ -102,6 +101,14 @@ export default function CheckInPage() {
         </CardContent>
       </Card>
 
+      {!searchId && !loadingBooking && (
+        <EmptyState
+          title="Ready for the next arrival"
+          description="Enter a booking ID above to check a guest in or out."
+          icon={<Search fontSize="large" />}
+        />
+      )}
+
       {loadingBooking && (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress />
@@ -116,7 +123,6 @@ export default function CheckInPage() {
           {successMsg}
         </Alert>
       )}
-
       {booking && (
         <Card>
           <CardContent>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Grid, Alert } from '@mui/material'
 import { EventNote } from '@mui/icons-material'
-import AppLayout from '../../components/layout/AppLayout'
+import GuestLayout from '../../components/layout/GuestLayout'
 import DataTable from '../../components/common/DataTable'
 import ErrorAlert from '../../components/common/ErrorAlert'
 import { useGetEventsQuery, useAttendEventMutation } from '../../features/events/eventsApi'
@@ -27,7 +27,7 @@ export default function EventsPage() {
   }
 
   return (
-    <AppLayout>
+    <GuestLayout>
       {attendMsg && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setAttendMsg('')}>{attendMsg}</Alert>}
       {error && <ErrorAlert error={error} />}
       <DataTable columns={columns} rows={rows} loading={isLoading} onRowClick={setSelected} />
@@ -50,6 +50,6 @@ export default function EventsPage() {
           </>
         )}
       </Dialog>
-    </AppLayout>
+    </GuestLayout>
   )
 }

@@ -1,19 +1,20 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Chip } from '@mui/material'
-import AppLayout from '../../components/layout/AppLayout'
-import DataTable from '../../components/common/DataTable'
+import { Box, Typography, Chip, Card, CardActionArea, CardContent, Grid } from '@mui/material'
+import { Receipt } from '@mui/icons-material'
+import GuestLayout from '../../components/layout/GuestLayout'
 import ErrorAlert from '../../components/common/ErrorAlert'
+import LoadingSpinner from '../../components/common/LoadingSpinner'
+import EmptyState from '../../components/common/EmptyState'
 import { useGetInvoicesQuery } from '../../features/payments/paymentsApi'
 
-const STATUS_COLORS = { draft: 'default', sent: 'info', paid: 'success', overdue: 'error', cancelled: 'warning' }
-const columns = [
-  { field: 'invoice_number', headerName: 'Invoice #', width: 140 },
-  { field: 'booking', headerName: 'Booking', width: 100 },
-  { field: 'total_amount', headerName: 'Total (€)', width: 120, renderCell: (r) => `€${Number(r.total_amount || r.total || 0).toFixed(2)}` },
-  { field: 'status', headerName: 'Status', width: 120, renderCell: (r) => <Chip size="small" label={r.status} color={STATUS_COLORS[r.status] || 'default'} /> },
-  { field: 'created_at', headerName: 'Date', width: 120, renderCell: (r) => r.created_at ? new Date(r.created_at).toLocaleDateString() : '—' },
-]
+const STATUS_COLORS = {
+  draft: 'default',
+  sent: 'info',
+  paid: 'success',
+  overdue: 'error',
+  cancelled: 'warning',
+}
 
 export default function InvoicesPage() {
   const navigate = useNavigate()
@@ -21,9 +22,59 @@ export default function InvoicesPage() {
   const rows = data?.results || data || []
 
   return (
-    <AppLayout>
+    <GuestLayout>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" sx={{ fontFamily: '"Fraunces", Georgia, serif' }}>
+          Invoices
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Clear statements for your stays — open any invoice for details and download
+        </Typography>
+      </Box>
+
       {error && <ErrorAlert error={error} />}
-      <DataTable columns={columns} rows={rows} loading={isLoading} onRowClick={(r) => navigate(`/guest/invoices/${r.id}`)} />
-    </AppLayout>
+      {isLoading ? (
+        <LoadingSpinner />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          title="No invoices yet"
+          description="Invoices appear here after a stay is billed."
+          icon={<Receipt fontSize="large" />}
+        />
+      ) : (
+        <Grid container spacing={2}>
+          {rows.map((inv) => (
+            <Grid item xs={12} sm={6} key={inv.id}>
+              <Card>
+                <CardActionArea onClick={() => navigate(`/guest/invoices/${inv.id}`)}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography fontWeight={700}>
+                        {inv.invoice_number || `Invoice #${inv.id}`}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={inv.status}
+                        color={STATUS_COLORS[inv.status] || 'default'}
+                        sx={{ textTransform: 'capitalize' }}
+                      />
+                    </Box>
+                    <Typography variant="h6">
+                      €{Number(inv.total_amount || inv.total || 0).toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {inv.created_at
+                        ? new Date(inv.created_at).toLocaleDateString('en-GB')
+                        : '—'}
+                      {inv.booking ? ` · Booking ${inv.booking}` : ''}
+                    </Typography>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+    </GuestLayout>
   )
 }

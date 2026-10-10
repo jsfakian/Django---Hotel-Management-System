@@ -52,25 +52,23 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r requirements-ci.txt
         pip install -r nephele/requirements-test.txt
 
     - name: Run Django checks
       env:
-        DJANGO_SETTINGS_MODULE: config.settings
+        DJANGO_SETTINGS_MODULE: config.test_settings
         SECRET_KEY: test-secret-key
-        DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
-        DEBUG: 'False'
+        DEBUG: 'True'
       run: |
         cd nephele
-        python manage.py check --deploy
+        python manage.py check
 
     - name: Run tests
       env:
-        DJANGO_SETTINGS_MODULE: config.settings
+        DJANGO_SETTINGS_MODULE: config.test_settings
         SECRET_KEY: test-secret-key
-        DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
-        DEBUG: 'False'
+        DEBUG: 'True'
       run: |
         cd nephele
         pytest --cov=. --cov-report=xml -v

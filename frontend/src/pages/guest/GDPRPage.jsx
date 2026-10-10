@@ -4,7 +4,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress, Chip,
 } from '@mui/material'
 import { Download, DeleteForever, Shield } from '@mui/icons-material'
-import AppLayout from '../../components/layout/AppLayout'
+import GuestLayout from '../../components/layout/GuestLayout'
 import { useRequestDataExportMutation, useRequestDataDeletionMutation, useCheckExportStatusQuery } from '../../features/gdpr/gdprApi'
 import axiosInstance from '../../services/axiosInstance'
 
@@ -68,10 +68,12 @@ export default function GDPRPage() {
   const exportReady = statusData?.status === 'completed' || (!taskId && exportMsg?.type === 'success')
 
   return (
-    <AppLayout>
+    <GuestLayout>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <Shield color="primary" />
-        <Typography variant="h5">Privacy & Data Rights</Typography>
+        <Typography variant="h4" sx={{ fontFamily: '"Fraunces", Georgia, serif' }}>
+          Privacy & data
+        </Typography>
       </Box>
 
       {/* Data Export — Article 15 / 20 */}
@@ -139,6 +141,6 @@ export default function GDPRPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </AppLayout>
+    </GuestLayout>
   )
 }
