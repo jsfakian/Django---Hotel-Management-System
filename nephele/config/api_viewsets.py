@@ -6,6 +6,7 @@ from datetime import timedelta
 from uuid import uuid4
 
 from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -193,27 +194,43 @@ class RoomViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='availability')
     def availability(self, request, pk=None):
+        from datetime import datetime as dt
+
+        from inventory.services import is_room_available
+
         room = self.get_object()
         check_in = request.query_params.get('check_in')
         check_out = request.query_params.get('check_out')
 
-        overlapping_bookings = Booking.objects.filter(
-            room=room,
-            status__in=['pending', 'confirmed', 'checked_in'],
-        )
-        if check_in and check_out:
-            overlapping_bookings = overlapping_bookings.filter(
-                check_in_date__lt=check_out,
-                check_out_date__gt=check_in,
+        if not check_in or not check_out:
+            return Response(
+                {'detail': 'check_in and check_out query parameters are required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            check_in_date = dt.strptime(check_in, '%Y-%m-%d').date()
+            check_out_date = dt.strptime(check_out, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'Dates must be YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        is_available = overlapping_bookings.count() == 0
+        allow_overbook = bool(
+            getattr(getattr(room, 'property', None), 'allow_overbooking', False)
+        )
+        available = is_room_available(
+            room,
+            check_in_date,
+            check_out_date,
+            allow_overbook=allow_overbook,
+        )
         return Response(
             {
                 'room_id': room.id,
                 'check_in': check_in,
                 'check_out': check_out,
-                'available': is_available,
+                'available': available,
                 'current_price': room.current_price,
             }
         )
@@ -268,7 +285,13 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         # Guests may create/list/retrieve; mutations of existing bookings are staff-only
-        if self.action in ('update', 'partial_update', 'destroy'):
+        if self.action in (
+            'update',
+            'partial_update',
+            'destroy',
+            'assign_room',
+            'link_group',
+        ):
             return [IsAuthenticated(), IsHotelStaff()]
         return [IsAuthenticated()]
 
@@ -307,6 +330,55 @@ class BookingViewSet(viewsets.ModelViewSet):
         if not guest:
             raise PermissionDenied('Guest profile required')
         serializer.save(guest=guest, status='pending')
+
+    @action(detail=True, methods=['post'], url_path='assign-room')
+    def assign_room(self, request, pk=None):
+        """Assign a physical room to a room-type booking (front desk)."""
+        if not is_hotel_staff(request.user):
+            raise PermissionDenied('Staff only')
+        booking = self.get_object()
+        room_id = request.data.get('room_id')
+        if not room_id:
+            return Response({'error': 'room_id required'}, status=status.HTTP_400_BAD_REQUEST)
+        room = get_object_or_404(Room, pk=room_id)
+        if booking.room_type_id and room.room_type_fk_id not in (None, booking.room_type_id):
+            return Response(
+                {'error': 'Room type mismatch'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from inventory.services import is_room_available
+
+        if not is_room_available(room, booking.check_in_date, booking.check_out_date):
+            return Response(
+                {'error': 'Room not available for stay dates'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        booking.room = room
+        booking.save(update_fields=['room', 'updated_at'])
+        return Response({'booking_id': booking.id, 'room_id': room.id})
+
+    @action(detail=True, methods=['post'], url_path='link-group')
+    def link_group(self, request, pk=None):
+        """Link this booking into a multi-room group under related_booking_id."""
+        if not is_hotel_staff(request.user):
+            raise PermissionDenied('Staff only')
+        booking = self.get_object()
+        related_id = request.data.get('related_booking_id')
+        if not related_id:
+            return Response(
+                {'error': 'related_booking_id required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        parent = get_object_or_404(Booking, pk=related_id)
+        booking.related_bookings = parent
+        booking.save(update_fields=['related_bookings', 'updated_at'])
+        return Response(
+            {
+                'booking_id': booking.id,
+                'related_booking_id': parent.id,
+                'group_size': parent.group_members.count() + 1,
+            }
+        )
 
 
 class ContractViewSet(viewsets.ModelViewSet):

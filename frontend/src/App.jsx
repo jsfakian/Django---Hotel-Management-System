@@ -92,8 +92,20 @@ const PricingAnalysisPage = lazy(() => import('./pages/admin/pricing/PricingAnal
 // Admin — channels (OTA)
 const ChannelsListPage = lazy(() => import('./pages/admin/channels/ChannelsListPage'))
 
+// Admin — catalog (room types / rate plans / availability)
+const RoomTypesPage = lazy(() => import('./pages/admin/catalog/RoomTypesPage'))
+const RatePlansPage = lazy(() => import('./pages/admin/catalog/RatePlansPage'))
+const AvailabilityCalendarPage = lazy(() => import('./pages/admin/catalog/AvailabilityCalendarPage'))
+
 // Admin — inventory
 const InventoryPage = lazy(() => import('./pages/admin/inventory/InventoryPage'))
+
+// Public booking engine
+const BookingSearchPage = lazy(() => import('./pages/public/booking/BookingSearchPage'))
+const BookingResultsPage = lazy(() => import('./pages/public/booking/BookingResultsPage'))
+const BookingGuestPage = lazy(() => import('./pages/public/booking/BookingGuestPage'))
+const BookingConfirmPage = lazy(() => import('./pages/public/booking/BookingConfirmPage'))
+const BookingEmbedPage = lazy(() => import('./pages/public/booking/BookingEmbedPage'))
 
 // Guest — GDPR
 const GDPRPage = lazy(() => import('./pages/guest/GDPRPage'))
@@ -117,6 +129,8 @@ const CheckInPage = lazy(() => import('./pages/receptionist/CheckInPage'))
 const ReceptionistGuestsPage = lazy(() => import('./pages/receptionist/GuestsPage'))
 const ReceptionistPaymentsPage = lazy(() => import('./pages/receptionist/PaymentsPage'))
 const ReceptionistRoomsPage = lazy(() => import('./pages/receptionist/RoomsPage'))
+const TapeChartPage = lazy(() => import('./pages/receptionist/TapeChartPage'))
+const HousekeepingPage = lazy(() => import('./pages/receptionist/HousekeepingPage'))
 
 // Staff
 const StaffDashboard = lazy(() => import('./pages/staff/StaffDashboard'))
@@ -253,6 +267,11 @@ function adminRoutes() {
         {/* OTA Channels */}
         <Route path="/admin/channels" element={<PR roles={['admin']}><ChannelsListPage /></PR>} />
 
+        {/* Catalog */}
+        <Route path="/admin/room-types" element={<PR roles={ADMIN_MANAGER}><RoomTypesPage /></PR>} />
+        <Route path="/admin/rate-plans" element={<PR roles={ADMIN_MANAGER}><RatePlansPage /></PR>} />
+        <Route path="/admin/availability-calendar" element={<PR roles={ADMIN_MANAGER}><AvailabilityCalendarPage /></PR>} />
+
         {/* Inventory */}
         <Route path="/admin/inventory" element={<PR roles={ADMIN_MANAGER}><InventoryPage /></PR>} />
     </>
@@ -268,6 +287,11 @@ export default function App() {
 
         {/* Public */}
         <Route path="/landing" element={<LandingPage />} />
+        <Route path="/book" element={<BookingSearchPage />} />
+        <Route path="/book/embed" element={<BookingEmbedPage />} />
+        <Route path="/book/results" element={<BookingResultsPage />} />
+        <Route path="/book/guest" element={<BookingGuestPage />} />
+        <Route path="/book/confirmation/:id" element={<BookingConfirmPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -303,6 +327,8 @@ export default function App() {
         <Route path="/receptionist/guests" element={<PR roles={RECEPTION_UP}><ReceptionistGuestsPage /></PR>} />
         <Route path="/receptionist/payments" element={<PR roles={RECEPTION_UP}><ReceptionistPaymentsPage /></PR>} />
         <Route path="/receptionist/rooms" element={<PR roles={RECEPTION_UP}><ReceptionistRoomsPage /></PR>} />
+        <Route path="/receptionist/tape-chart" element={<PR roles={RECEPTION_UP}><TapeChartPage /></PR>} />
+        <Route path="/receptionist/housekeeping" element={<PR roles={RECEPTION_UP}><HousekeepingPage /></PR>} />
 
         {/* ── STAFF ── */}
         <Route path="/staff/dashboard" element={<PR roles={['staff']}><StaffDashboard /></PR>} />

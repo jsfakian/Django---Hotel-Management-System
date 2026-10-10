@@ -11,31 +11,25 @@ Handles:
 import json
 import hashlib
 import hmac
-from datetime import datetime, timedelta
-from decimal import Decimal
-
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 from django.db import transaction
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import JSONParser
 
-from .models import Channel, ChannelBooking
+from .models import Channel, ChannelBooking, ChannelWebhookLog
 from .serializers import (
     ChannelSerializer, ChannelDetailSerializer, ChannelBookingSerializer,
     ChannelBookingReceiptSerializer, ChannelAvailabilityStatusSerializer,
     ChannelAvailabilitySyncSerializer
 )
+from .tasks import channel_health_snapshot
 from room.models import Room, Booking
 from accounts.models import Guest
-from inventory.models import RoomAvailability, AvailabilitySyncLog
-from properties.models import Property
+from inventory.models import AvailabilitySyncLog
 
 
 def _decode_body(body):
@@ -110,13 +104,17 @@ def _duplicate_booking_response(channel, validated_data):
 
 
 def _room_unavailable_response(channel, room, validated_data):
-    availability = RoomAvailability.objects.filter(
-        room=room,
-        date__gte=validated_data['check_in'],
-        date__lt=validated_data['check_out']
-    ).values_list('available_units', flat=True)
+    from inventory.services import is_room_available
 
-    if availability.exists() and any(units == 0 for units in availability):
+    allow_overbook = bool(
+        getattr(channel.property, 'allow_overbooking', False)
+    )
+    if not is_room_available(
+        room,
+        validated_data['check_in'],
+        validated_data['check_out'],
+        allow_overbook=allow_overbook,
+    ):
         return Response(
             {
                 "error": "Room not available",
@@ -128,20 +126,6 @@ def _room_unavailable_response(channel, room, validated_data):
             status=status.HTTP_400_BAD_REQUEST
         )
     return None
-
-
-def _decrement_room_availability(room, check_in, check_out):
-    num_nights = (check_out - check_in).days
-    for i in range(num_nights):
-        check_date = check_in + timedelta(days=i)
-        avail, _ = RoomAvailability.objects.get_or_create(
-            room=room,
-            date=check_date,
-            defaults={'total_units': 1, 'available_units': 1}
-        )
-        avail.booked_units += 1
-        avail.available_units = max(0, avail.total_units - avail.booked_units - avail.blocked_units - avail.overbooked_units)
-        avail.save()
 
 
 def _send_channel_booking_alert(booking, channel):
@@ -165,20 +149,28 @@ def _create_channel_booking(channel, room, validated_data):
             defaults={
                 'first_name': validated_data['guest_first_name'],
                 'last_name': validated_data['guest_last_name'],
-                'phone': validated_data.get('guest_phone', ''),
+                'phone_number': validated_data.get('guest_phone', ''),
             }
         )
 
-        # Create booking
+        source_choices = {c[0] for c in Booking.BOOKING_SOURCE_CHOICES}
+        booking_source = (
+            channel.channel_name
+            if channel.channel_name in source_choices
+            else 'other'
+        )
+
+        # Create booking (inventory.signals apply/recount on post_save)
         booking = Booking.objects.create(
             room=room,
             guest=guest,
             check_in_date=validated_data['check_in'],
             check_out_date=validated_data['check_out'],
             number_of_guests=validated_data['number_of_guests'],
+            adults=validated_data['number_of_guests'],
             base_price=validated_data['total_price'],
             actual_price=validated_data['total_price'],
-            booking_source=channel.channel_name[-3:].upper() if len(channel.channel_name) > 3 else channel.channel_name,
+            booking_source=booking_source,
             special_requests=validated_data.get('special_requests', ''),
             status='confirmed'
         )
@@ -190,11 +182,6 @@ def _create_channel_booking(channel, room, validated_data):
             nephele_booking=booking,
             sync_status='synced',
             channel_data=validated_data
-        )
-
-        # Update availability - decrement available units
-        _decrement_room_availability(
-            room, validated_data['check_in'], validated_data['check_out']
         )
 
         _send_channel_booking_alert(booking, channel)
@@ -221,6 +208,9 @@ class ChannelViewSet(viewsets.ModelViewSet):
         from rest_framework.permissions import AllowAny
 
         if self.action == 'receive_booking':
+            return [AllowAny()]
+        # Public iCal export (GET); configuring URL (PUT) stays staff-only
+        if self.action == 'ical_feed' and self.request.method == 'GET':
             return [AllowAny()]
         return [IsAuthenticated(), IsHotelStaff()]
     filterset_fields = ['property', 'channel_name', 'is_active']
@@ -254,8 +244,15 @@ class ChannelViewSet(viewsets.ModelViewSet):
         POST /channels/{channel_id}/bookings
         
         Handles bookings from Trivago, Booking.com, Airbnb, etc.
+        Anonymous OTAs must resolve the channel by pk (get_queryset is empty for anon).
         """
-        channel = self.get_object()
+        try:
+            channel = Channel.objects.get(pk=pk)
+        except Channel.DoesNotExist:
+            return Response(
+                {"error": "Channel not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         
         if not channel.accept_bookings:
             return Response(
@@ -289,7 +286,20 @@ class ChannelViewSet(viewsets.ModelViewSet):
 
         try:
             booking = _create_channel_booking(channel, room, validated_data)
+            ChannelWebhookLog.objects.create(
+                channel=channel,
+                event='booking',
+                payload=validated_data,
+                status='processed',
+            )
         except Exception as e:
+            ChannelWebhookLog.objects.create(
+                channel=channel,
+                event='booking',
+                payload=validated_data,
+                status='failed',
+                error_message=str(e),
+            )
             return Response(
                 {"error": "Failed to create booking", "details": str(e)},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
@@ -372,3 +382,112 @@ class ChannelViewSet(viewsets.ModelViewSet):
             "last_error": channel.last_error if channel.error_count > 0 else None,
             "error_count": channel.error_count
         })
+
+    @action(detail=True, methods=['get'], url_path='health')
+    def health(self, request, pk=None):
+        """GET /channels/{id}/health/ — sync health snapshot."""
+        channel = self.get_object()
+        return Response(channel_health_snapshot(channel))
+
+    @action(detail=True, methods=['get', 'post'], url_path='validate-mappings')
+    def validate_mappings(self, request, pk=None):
+        """
+        Validate room_type_mappings / rate_plan_mappings against local catalog.
+        POST may include proposed mapping_config to dry-run without saving.
+        """
+        from inventory.models import RatePlan, RoomType
+
+        channel = self.get_object()
+        cfg = request.data.get('mapping_config') if request.method == 'POST' else None
+        cfg = cfg or channel.mapping_config or {}
+        rt_map = cfg.get('room_type_mappings') or {}
+        rp_map = cfg.get('rate_plan_mappings') or cfg.get('rate_mappings') or {}
+
+        local_rt = set(
+            RoomType.objects.filter(property_id=channel.property_id).values_list(
+                'id', flat=True
+            )
+        )
+        local_rp = set(
+            RatePlan.objects.filter(property_id=channel.property_id).values_list(
+                'id', flat=True
+            )
+        )
+        rt_errors = []
+        for key, remote in rt_map.items():
+            try:
+                rid = int(key)
+            except (TypeError, ValueError):
+                rt_errors.append({'key': key, 'error': 'non-integer room type id'})
+                continue
+            if rid not in local_rt:
+                rt_errors.append({'key': key, 'error': 'unknown room type for property'})
+            if not remote:
+                rt_errors.append({'key': key, 'error': 'empty remote id'})
+        rp_errors = []
+        for key, remote in rp_map.items():
+            try:
+                rid = int(key)
+            except (TypeError, ValueError):
+                rp_errors.append({'key': key, 'error': 'non-integer rate plan id'})
+                continue
+            if rid not in local_rp:
+                rp_errors.append({'key': key, 'error': 'unknown rate plan for property'})
+            if not remote:
+                rp_errors.append({'key': key, 'error': 'empty remote id'})
+
+        ok = not rt_errors and not rp_errors and bool(rt_map)
+        return Response(
+            {
+                'valid': ok,
+                'room_type_mappings_count': len(rt_map),
+                'rate_plan_mappings_count': len(rp_map),
+                'room_type_errors': rt_errors,
+                'rate_plan_errors': rp_errors,
+                'unmapped_room_types': sorted(local_rt - {int(k) for k in rt_map if str(k).isdigit()}),
+                'unmapped_rate_plans': sorted(local_rp - {int(k) for k in rp_map if str(k).isdigit()}),
+            }
+        )
+
+    @action(detail=True, methods=['get', 'put'], url_path='ical')
+    def ical_feed(self, request, pk=None):
+        """
+        GET  /channels/{id}/ical/ — export VCALENDAR for the property
+             or return configured remote feed URL (?url_only=1).
+        PUT  /channels/{id}/ical/ — set mapping_config.ical_url
+             body: {"ical_url": "https://..."}; optional import=true to pull.
+        """
+        from django.http import HttpResponse
+        from .connectors.ical import ICalConnector
+
+        channel = self.get_object()
+        connector = ICalConnector()
+
+        if request.method == 'GET':
+            if request.query_params.get('url_only') in ('1', 'true', 'True'):
+                return Response({
+                    "channel_id": channel.id,
+                    "property_id": channel.property_id,
+                    "ical_url": connector.get_feed_url(channel),
+                })
+            feed = connector.export_feed(channel)
+            return HttpResponse(feed, content_type='text/calendar; charset=utf-8')
+
+        # PUT — configure remote feed URL
+        url = request.data.get('ical_url') or request.data.get('url') or ''
+        try:
+            result = connector.set_feed_url(channel, url)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.data.get('import') in (True, 'true', '1', 1):
+            pull = connector.pull_bookings(channel)
+            result['pull'] = pull
+            ChannelWebhookLog.objects.create(
+                channel=channel,
+                event='ical_import',
+                payload={'ical_url': url, 'pull': pull},
+                status='processed' if pull.get('status') == 'ok' else 'failed',
+                error_message=pull.get('message', ''),
+            )
+        return Response(result)

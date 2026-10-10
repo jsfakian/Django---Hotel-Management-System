@@ -1,0 +1,65 @@
+# Greek translations for Nephele booking engine / invoices.
+msgid ""
+msgstr ""
+"Language: el\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Confirmation"
+msgstr "Επιβεβαίωση"
+
+msgid "Check-in"
+msgstr "Άφιξη"
+
+msgid "Check-out"
+msgstr "Αναχώρηση"
+
+msgid "Booking confirmed"
+msgstr "Η κράτηση επιβεβαιώθηκε"
+
+msgid "Hold expired"
+msgstr "Η προσωρινή κράτηση έληξε"
+
+msgid "Room type"
+msgstr "Τύπος δωματίου"
+
+msgid "Rate plan"
+msgstr "Πακέτο τιμής"
+
+msgid "Climate resilience fee"
+msgstr "Τέλος κλιματικής ανθεκτικότητας"
+
+msgid "VAT"
+msgstr "ΦΠΑ"
+
+msgid "Total"
+msgstr "Σύνολο"
+
+msgid "Deposit"
+msgstr "Προκαταβολή"
+
+msgid "Pay at hotel"
+msgstr "Πληρωμή στο ξενοδοχείο"
+
+msgid "Pay in full"
+msgstr "Πληρωμή ολόκληρου ποσού"
+
+msgid "Search stays"
+msgstr "Αναζήτηση διαμονής"
+
+msgid "Guest details"
+msgstr "Στοιχεία επισκέπτη"
+
+msgid "Special requests"
+msgstr "Ειδικά αιτήματα"
+
+msgid "Smart rate"
+msgstr "Έξυπνη τιμή"
+
+msgid "Police guest sheet"
+msgstr "Δελτίο αστυνομίας / ΣΑΕ"
+
+msgid "Invoice"
+msgstr "Τιμολόγιο"

@@ -1,0 +1,191 @@
+import React, { useMemo, useState } from 'react'
+import {
+  Box, Button, FormControl, InputLabel, MenuItem, Select, TextField,
+  Typography, Table, TableHead, TableBody, TableRow, TableCell, Paper, Switch, Alert,
+} from '@mui/material'
+import AppLayout from '../../../components/layout/AppLayout'
+import ErrorAlert from '../../../components/common/ErrorAlert'
+import {
+  useGetRoomTypesQuery,
+  usePatchRoomTypeAvailabilityMutation,
+} from '../../../features/catalog/catalogApi'
+
+function dateRange(from, to) {
+  if (!from || !to || to <= from) return []
+  const days = []
+  const cur = new Date(`${from}T00:00:00`)
+  const end = new Date(`${to}T00:00:00`)
+  while (cur < end) {
+    days.push(cur.toISOString().slice(0, 10))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return days
+}
+
+function emptyDayState(dates) {
+  const state = {}
+  dates.forEach((d) => {
+    state[d] = { allotment: 1, min_stay: 1, stop_sell: false }
+  })
+  return state
+}
+
+function CalendarGrid({ dates, dayState, setDayState }) {
+  const update = (date, key, value) => {
+    setDayState((prev) => ({
+      ...prev,
+      [date]: { ...prev[date], [key]: value },
+    }))
+  }
+
+  return (
+    <Paper sx={{ overflow: 'auto' }}>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow>
+            <TableCell>Date</TableCell>
+            <TableCell>Allotment</TableCell>
+            <TableCell>Min stay</TableCell>
+            <TableCell>Stop sell</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {dates.map((d) => {
+            const row = dayState[d] || { allotment: 1, min_stay: 1, stop_sell: false }
+            return (
+              <TableRow key={d}>
+                <TableCell>{d}</TableCell>
+                <TableCell>
+                  <TextField
+                    size="small"
+                    type="number"
+                    value={row.allotment}
+                    onChange={(e) => update(d, 'allotment', Number(e.target.value))}
+                    sx={{ width: 90 }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    size="small"
+                    type="number"
+                    value={row.min_stay}
+                    onChange={(e) => update(d, 'min_stay', Number(e.target.value))}
+                    sx={{ width: 90 }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={Boolean(row.stop_sell)}
+                    onChange={(e) => update(d, 'stop_sell', e.target.checked)}
+                  />
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </Paper>
+  )
+}
+
+export default function AvailabilityCalendarPage() {
+  const today = new Date()
+  const defaultFrom = today.toISOString().slice(0, 10)
+  const defaultTo = new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10)
+
+  const [roomTypeId, setRoomTypeId] = useState('')
+  const [dateFrom, setDateFrom] = useState(defaultFrom)
+  const [dateTo, setDateTo] = useState(defaultTo)
+  const [dayState, setDayState] = useState({})
+  const [message, setMessage] = useState(null)
+  const [saveError, setSaveError] = useState(null)
+
+  const { data, error } = useGetRoomTypesQuery()
+  const [patchAvailability, { isLoading: saving }] = usePatchRoomTypeAvailabilityMutation()
+  const roomTypes = data?.results || data || []
+  const dates = useMemo(() => dateRange(dateFrom, dateTo), [dateFrom, dateTo])
+
+  const loadGrid = () => {
+    setMessage(null)
+    setSaveError(null)
+    setDayState(emptyDayState(dates))
+  }
+
+  const applyBulk = (field, value) => {
+    setDayState((prev) => {
+      const next = { ...prev }
+      dates.forEach((d) => {
+        next[d] = { ...(next[d] || {}), [field]: value }
+      })
+      return next
+    })
+  }
+
+  const handleSave = async () => {
+    setSaveError(null)
+    setMessage(null)
+    if (!roomTypeId) {
+      setSaveError({ data: { detail: 'Select a room type' } })
+      return
+    }
+    const days = dates.map((date) => ({
+      date,
+      allotment: Number(dayState[date]?.allotment ?? 0),
+      min_stay: Number(dayState[date]?.min_stay ?? 1),
+      stop_sell: Boolean(dayState[date]?.stop_sell),
+    }))
+    const result = await patchAvailability({
+      id: roomTypeId,
+      date_from: dateFrom,
+      date_to: dateTo,
+      days,
+    })
+    if (result.error) {
+      setSaveError(result.error)
+    } else {
+      setMessage('Availability saved')
+    }
+  }
+
+  return (
+    <AppLayout>
+      <Typography variant="h5" sx={{ mb: 2, fontFamily: '"Fraunces", Georgia, serif' }}>
+        Availability calendar
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Edit allotment, min stay, and stop-sell by room type for a date range.
+      </Typography>
+
+      {error && <ErrorAlert error={error} />}
+      {saveError && <ErrorAlert error={saveError} />}
+      {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2, alignItems: 'center' }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel>Room type</InputLabel>
+          <Select label="Room type" value={roomTypeId} onChange={(e) => setRoomTypeId(e.target.value)}>
+            {roomTypes.map((rt) => (
+              <MenuItem key={rt.id} value={rt.id}>{rt.code} — {rt.name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <Button variant="outlined" onClick={loadGrid}>Load grid</Button>
+        <Button variant="contained" onClick={handleSave} disabled={saving || !dates.length}>Save</Button>
+      </Box>
+
+      {dates.length > 0 && Object.keys(dayState).length > 0 && (
+        <>
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            <Button size="small" onClick={() => applyBulk('allotment', 0)}>Allotment 0</Button>
+            <Button size="small" onClick={() => applyBulk('allotment', 1)}>Allotment 1</Button>
+            <Button size="small" onClick={() => applyBulk('stop_sell', true)}>Stop sell all</Button>
+            <Button size="small" onClick={() => applyBulk('stop_sell', false)}>Open all</Button>
+          </Box>
+          <CalendarGrid dates={dates} dayState={dayState} setDayState={setDayState} />
+        </>
+      )}
+    </AppLayout>
+  )
+}

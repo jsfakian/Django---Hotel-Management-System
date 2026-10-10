@@ -74,7 +74,7 @@ INSTALLED_APPS = [
     'contracts',
     'analytics',  # Business Intelligence & Analytics
     'channels',  # Channel Integration (OTA platforms)
-    'inventory',  # Centralized Availability Management
+    'inventory.apps.InventoryConfig',  # Centralized Availability Management
 ]
 
 MIDDLEWARE = [
@@ -420,6 +420,14 @@ CELERY_BEAT_SCHEDULE = {
         'kwargs': {'days': 90},
         'options': {'queue': 'cleanup', 'priority': 1}
     },
+    'expire-booking-holds': {
+        'task': 'inventory.tasks.expire_booking_holds',
+        'schedule': timedelta(minutes=5),
+    },
+    'channel-pull-bookings': {
+        'task': 'channels.tasks.pull_bookings_from_active_channels',
+        'schedule': timedelta(minutes=30),
+    },
 }
 
 # ============ MyData (AADE) Integration ============
@@ -430,6 +438,9 @@ MYDATA_API_BASE = os.environ.get('MYDATA_API_BASE', 'https://www1.mydata.aade.gr
 MYDATA_USERNAME = os.environ.get('MYDATA_USERNAME', '')  # AADE username
 MYDATA_PASSWORD = os.environ.get('MYDATA_PASSWORD', '')  # AADE password
 MYDATA_API_KEY = os.environ.get('MYDATA_API_KEY', '')    # AADE API key
+MYDATA_SUBSCRIPTION_KEY = os.environ.get(
+    'MYDATA_SUBSCRIPTION_KEY', os.environ.get('MYDATA_API_KEY', '')
+)
 MYDATA_TIMEOUT = int(os.environ.get('MYDATA_TIMEOUT', '30'))  # API timeout in seconds
 
 # Hotel's tax ID (AFM - Α.Φ.Μ.) for MyData transmission
@@ -444,3 +455,32 @@ MYDATA_TRANSMISSION_RETRIES = int(os.environ.get('MYDATA_TRANSMISSION_RETRIES', 
 # ============ Stripe Payment Integration ============
 STRIPE_PUBLIC_KEY = os.environ.get('STRIPE_PUBLIC_KEY', '')
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+
+# ============ Viva Wallet (default Greek PSP) ============
+VIVA_MERCHANT_ID = os.environ.get('VIVA_MERCHANT_ID', '')
+VIVA_API_KEY = os.environ.get('VIVA_API_KEY', '')
+VIVA_SOURCE_CODE = os.environ.get('VIVA_SOURCE_CODE', '')
+VIVA_API_BASE = os.environ.get(
+    'VIVA_API_BASE', 'https://demo-api.vivapayments.com'
+)
+DEFAULT_PAYMENT_GATEWAY = os.environ.get('DEFAULT_PAYMENT_GATEWAY', 'viva')
+
+# Greek tax / climate fee defaults for booking engine
+DEFAULT_VAT_RATE = os.environ.get('DEFAULT_VAT_RATE', '0.13')
+CLIMATE_FEE_PER_NIGHT = os.environ.get('CLIMATE_FEE_PER_NIGHT', '1.50')
+
+# i18n
+LANGUAGES = [
+    ('en', 'English'),
+    ('el', 'Greek'),
+]
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
+# ============ Channel Integration ============
+# Fernet key (url-safe base64) or passphrase; empty → derive from SECRET_KEY
+CHANNEL_CREDENTIALS_KEY = os.environ.get('CHANNEL_CREDENTIALS_KEY', '')
+# When False, stub OTA connectors mark sync logs as not_implemented (never success)
+CHANNEL_SYNC_STUBS_OK = os.environ.get('CHANNEL_SYNC_STUBS_OK', 'False') == 'True'
+BOOKING_COM_API_KEY = os.environ.get('BOOKING_COM_API_KEY', '')
+BOOKING_COM_API_SECRET = os.environ.get('BOOKING_COM_API_SECRET', '')
+BOOKING_COM_LIVE = os.environ.get('BOOKING_COM_LIVE', 'False') == 'True'

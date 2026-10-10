@@ -18,11 +18,13 @@ from rest_framework.parsers import JSONParser
 
 from accounts.api_permissions import IsHotelStaff
 
-from .models import RoomAvailability, AvailabilitySyncLog
+from .models import AvailabilitySyncLog, RoomAvailability
 from .serializers import (
-    RoomAvailabilitySerializer, RoomAvailabilityBulkSerializer,
-    RoomAvailabilityUpdateSerializer, OverbookingSerializer,
-    AvailabilitySyncLogSerializer
+    AvailabilitySyncLogSerializer,
+    OverbookingSerializer,
+    RoomAvailabilityBulkSerializer,
+    RoomAvailabilitySerializer,
+    RoomAvailabilityUpdateSerializer,
 )
 from room.models import Room
 from properties.models import Property

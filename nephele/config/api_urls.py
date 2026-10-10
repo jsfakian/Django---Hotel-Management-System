@@ -27,6 +27,18 @@ from bookings.views import (
     pricing_history,
 )
 from channels.views import ChannelViewSet
+from inventory.catalog_views import (
+    AvailabilityQuoteView,
+    BookingEngineCancelView,
+    BookingEngineConfirmationView,
+    BookingEngineConfirmView,
+    BookingEngineHoldView,
+    RatePlanViewSet,
+    RoomTypeViewSet,
+    housekeeping_board,
+    tape_chart,
+)
+from inventory.compliance_views import police_sheet_export
 from config.api_viewsets import (
     BookingViewSet,
     ContractViewSet,
@@ -66,6 +78,8 @@ router.register(r'refund-requests', RefundRequestViewSet, basename='refund-reque
 router.register(r'notifications', NotificationViewSet, basename='notifications')
 # Channel integration (OTA platforms)
 router.register(r'channels', ChannelViewSet, basename='channels')
+router.register(r'room-types', RoomTypeViewSet, basename='room-types')
+router.register(r'rate-plans', RatePlanViewSet, basename='rate-plans')
 
 app_name = 'api'
 
@@ -128,6 +142,25 @@ urlpatterns = [
 
     # Inventory management (centralized availability)
     path('inventory/', include('inventory.urls')),
+
+    # Availability quote + public booking engine
+    path('availability/quote/', AvailabilityQuoteView.as_view(), name='availability-quote'),
+    path('booking-engine/quote/', AvailabilityQuoteView.as_view(), name='booking-engine-quote'),
+    path('booking-engine/hold/', BookingEngineHoldView.as_view(), name='booking-engine-hold'),
+    path('booking-engine/confirm/', BookingEngineConfirmView.as_view(), name='booking-engine-confirm'),
+    path('booking-engine/cancel/', BookingEngineCancelView.as_view(), name='booking-engine-cancel'),
+    path(
+        'booking-engine/confirmation/<int:booking_id>/',
+        BookingEngineConfirmationView.as_view(),
+        name='booking-engine-confirmation',
+    ),
+
+    # Front desk ops
+    path('front-desk/tape-chart/', tape_chart, name='front-desk-tape-chart'),
+    path('front-desk/housekeeping/', housekeeping_board, name='front-desk-housekeeping'),
+
+    # Greek compliance exports
+    path('compliance/police-sheet/', police_sheet_export, name='compliance-police-sheet'),
 
     # Routers (includes /bookings/ CRUD via BookingViewSet)
     path('', include(router.urls)),

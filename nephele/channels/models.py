@@ -14,6 +14,8 @@ import json
 import hashlib
 import hmac
 
+from .fields import EncryptedCharField
+
 
 class Channel(models.Model):
     """
@@ -28,6 +30,7 @@ class Channel(models.Model):
         ('expedia', 'Expedia'),
         ('agoda', 'Agoda'),
         ('vrbo', 'VRBO'),
+        ('ical', 'iCal'),
         ('booking_buddy', 'Booking Buddy'),
         ('hotwire', 'Hotwire'),
         ('travelocity', 'Travelocity'),
@@ -62,20 +65,20 @@ class Channel(models.Model):
         default='ota'
     )
     
-    # API Credentials (encrypted in production)
+    # API Credentials (Fernet-encrypted at rest)
     account_id = models.CharField(
         max_length=255,
         help_text="Channel account ID or username"
     )
-    api_key = models.CharField(
-        max_length=500,
-        help_text="API key for authentication"
+    api_key = EncryptedCharField(
+        max_length=1024,
+        help_text="API key for authentication (encrypted at rest)"
     )
-    api_secret = models.CharField(
-        max_length=500,
+    api_secret = EncryptedCharField(
+        max_length=1024,
         blank=True,
         null=True,
-        help_text="Optional API secret for webhook signing"
+        help_text="API secret / webhook signing key (encrypted at rest)"
     )
     
     # Synchronization Settings
@@ -241,3 +244,32 @@ class ChannelBooking(models.Model):
     
     def __str__(self):
         return f"{self.channel.get_channel_name_display()} - {self.channel_booking_id}"
+
+
+class ChannelWebhookLog(models.Model):
+    """Inbound webhook delivery log for sync health / debugging."""
+
+    STATUS_CHOICES = (
+        ('received', 'Received'),
+        ('processed', 'Processed'),
+        ('rejected', 'Rejected'),
+        ('failed', 'Failed'),
+    )
+
+    channel = models.ForeignKey(
+        Channel, on_delete=models.CASCADE, related_name='webhook_logs'
+    )
+    event = models.CharField(max_length=64, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='received')
+    error_message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['channel', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"Webhook {self.channel_id} {self.status} @ {self.created_at}"

@@ -48,6 +48,21 @@ class Property(models.Model):
     
     # Status
     is_active = models.BooleanField(default=True)
+    allow_overbooking = models.BooleanField(
+        default=False,
+        help_text="Allow selling beyond allotment when staff override inventory",
+    )
+    # Greek compliance / ΣΗΜΑ-oriented registry fields
+    mhte_number = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="ΜΗΤΕ / ΣΗΜΑ registry number",
+    )
+    tax_id = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Hotel AFM for MyData / police sheet",
+    )
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     

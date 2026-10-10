@@ -13,6 +13,10 @@ export const channelsApi = api.injectEndpoints({
       query: (id) => ({ url: `/channels/${id}/`, method: 'GET' }),
       providesTags: (result, error, id) => [{ type: 'Property', id: `channel-${id}` }],
     }),
+    getChannelHealth: builder.query({
+      query: (id) => ({ url: `/channels/${id}/health/`, method: 'GET' }),
+      providesTags: (result, error, id) => [{ type: 'Property', id: `channel-health-${id}` }],
+    }),
     createChannel: builder.mutation({
       query: (data) => ({ url: '/channels/', method: 'POST', data }),
       invalidatesTags: [{ type: 'Property', id: 'CHANNEL_LIST' }],
@@ -26,7 +30,11 @@ export const channelsApi = api.injectEndpoints({
       invalidatesTags: [{ type: 'Property', id: 'CHANNEL_LIST' }],
     }),
     syncChannelAvailability: builder.mutation({
-      query: (id) => ({ url: `/channels/${id}/availability/sync/`, method: 'POST' }),
+      query: (id) => ({
+        url: `/channels/${id}/availability/sync/`,
+        method: 'POST',
+        data: { sync_type: 'full_sync' },
+      }),
       invalidatesTags: (result, error, id) => [{ type: 'Property', id: `channel-${id}` }],
     }),
   }),
@@ -36,6 +44,7 @@ export const channelsApi = api.injectEndpoints({
 export const {
   useGetChannelsQuery,
   useGetChannelQuery,
+  useGetChannelHealthQuery,
   useCreateChannelMutation,
   useUpdateChannelMutation,
   useDeleteChannelMutation,

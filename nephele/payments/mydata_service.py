@@ -35,11 +35,32 @@ class MyDataService:
         """Initialize MyData service with configuration"""
         self.username = getattr(settings, 'MYDATA_USERNAME', None)
         self.password = getattr(settings, 'MYDATA_PASSWORD', None)
-        self.api_key = getattr(settings, 'MYDATA_API_KEY', None)
+        self.api_key = getattr(settings, 'MYDATA_API_KEY', None) or getattr(
+            settings, 'MYDATA_SUBSCRIPTION_KEY', None
+        )
+        self.subscription_key = getattr(settings, 'MYDATA_SUBSCRIPTION_KEY', None) or self.api_key
         self.tax_id = getattr(settings, 'HOTEL_TAX_ID', None)
-        
+        self.sandbox_mode = getattr(settings, 'MYDATA_SANDBOX_MODE', True)
+        self.api_base = getattr(
+            settings, 'MYDATA_API_BASE', 'https://www1.mydata.aade.gr/api'
+        ).rstrip('/')
+        self.timeout = getattr(settings, 'MYDATA_TIMEOUT', 30)
+
         if not self.tax_id:
             raise ImproperlyConfigured('HOTEL_TAX_ID must be configured in settings for MyData integration')
+
+    def _auth_headers(self) -> Dict[str, str]:
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        }
+        if self.username:
+            headers['aade-user-id'] = self.username
+        if self.subscription_key:
+            headers['Ocp-Apim-Subscription-Key'] = self.subscription_key
+        elif self.api_key:
+            headers['Authorization'] = f'Bearer {self.api_key}'
+        return headers
     
     def export_invoice(self, invoice: Invoice) -> Dict:
         """
@@ -127,37 +148,105 @@ class MyDataService:
     
     def transmit_invoice(self, invoice: Invoice) -> Tuple[bool, str]:
         """
-        Transmit invoice to MyData system.
-        This is a mock implementation. Real implementation would use SOAP API.
-        
-        Args:
-            invoice: Invoice instance to transmit
-            
-        Returns:
-            Tuple of (success: bool, transmission_id or error message: str)
+        Transmit invoice to MyData.
+
+        When MYDATA_SANDBOX_MODE is True, keep the local mock MARK.
+        When False, POST to MYDATA_API_BASE with username / subscription key.
         """
         try:
-            # Validate invoice
             if not invoice.amount or invoice.amount <= 0:
                 return False, f'Invalid invoice amount: {invoice.amount}'
-            
-            if not invoice.guest.user.email:
-                return False, f'Guest email is required for MyData transmission'
-            
-            # Generate transmission ID (in real implementation, this comes from MyData)
-            transmission_id = self._generate_transmission_id(invoice)
-            
-            # Generate QR code
+
+            guest_email = ''
+            if invoice.guest_id:
+                if getattr(invoice.guest, 'user_id', None) and invoice.guest.user:
+                    guest_email = invoice.guest.user.email or ''
+                guest_email = guest_email or getattr(invoice.guest, 'email', '') or ''
+            if not guest_email:
+                return False, 'Guest email is required for MyData transmission'
+
+            export_data = self.export_invoice(invoice)
             qr_code = self.generate_qr_code_data(invoice)
-            
-            # Mark invoice as transmitted
+
+            if self.sandbox_mode:
+                transmission_id = self._generate_transmission_id(invoice)
+                invoice.mark_as_mydata_transmitted(transmission_id, qr_code)
+                return True, transmission_id
+
+            if not self.username or not self.subscription_key:
+                return (
+                    False,
+                    'MYDATA_USERNAME and MYDATA_SUBSCRIPTION_KEY (or MYDATA_API_KEY) '
+                    'required when MYDATA_SANDBOX_MODE=False',
+                )
+
+            url = f'{self.api_base}/SendInvoices'
+            response = requests.post(
+                url,
+                json=export_data,
+                headers=self._auth_headers(),
+                timeout=self.timeout,
+            )
+            try:
+                body = response.json()
+            except ValueError:
+                body = {'raw': response.text}
+
+            if response.status_code >= 400:
+                return False, f'MyData HTTP {response.status_code}: {body}'
+
+            transmission_id = (
+                str(body.get('transmission_id') or body.get('mark') or body.get('uid') or '')
+                or self._generate_transmission_id(invoice)
+            )
             invoice.mark_as_mydata_transmitted(transmission_id, qr_code)
-            
             return True, transmission_id
-            
+
+        except requests.RequestException as e:
+            return False, f'MyData network error: {e}'
         except Exception as e:
             return False, str(e)
-    
+
+    def poll_status(self, transmission_id: str) -> Dict:
+        """
+        Poll MyData for the status of a previously submitted invoice MARK/UID.
+
+        Sandbox mode returns a synthetic accepted status.
+        """
+        if self.sandbox_mode:
+            return {
+                'transmission_id': transmission_id,
+                'status': 'accepted',
+                'sandbox': True,
+            }
+
+        if not self.username or not self.subscription_key:
+            raise MyDataServiceException(
+                'MYDATA credentials required to poll status outside sandbox'
+            )
+
+        url = f'{self.api_base}/RequestDocs'
+        response = requests.get(
+            url,
+            params={'mark': transmission_id},
+            headers=self._auth_headers(),
+            timeout=self.timeout,
+        )
+        try:
+            body = response.json()
+        except ValueError:
+            body = {'raw': response.text}
+        if response.status_code >= 400:
+            raise MyDataServiceException(
+                f'MyData status poll failed ({response.status_code}): {body}'
+            )
+        return {
+            'transmission_id': transmission_id,
+            'status': body.get('status') or body.get('response') or 'unknown',
+            'sandbox': False,
+            'raw': body,
+        }
+
     def _generate_transmission_id(self, invoice: Invoice) -> str:
         """
         Generate a transmission ID for MyData.

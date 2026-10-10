@@ -57,18 +57,23 @@ function HeroActions({ isLoggedIn, navigate }) {
       }}
     >
       {isLoggedIn ? (
-        <Button size="large" variant="contained" color="secondary" onClick={() => navigate('/')}>
-          Open dashboard
-        </Button>
+        <>
+          <Button size="large" variant="contained" color="secondary" onClick={() => navigate('/')}>
+            Open dashboard
+          </Button>
+          <Button size="large" variant="outlined" onClick={() => navigate('/book')} sx={OUTLINE_SX}>
+            Book a stay
+          </Button>
+        </>
       ) : (
         <>
-          <Button size="large" variant="contained" color="secondary" onClick={() => navigate('/login')}>
-            Sign in
+          <Button size="large" variant="contained" color="secondary" onClick={() => navigate('/book')}>
+            Book a stay
           </Button>
           <Button
             size="large"
             variant="outlined"
-            onClick={() => navigate('/register')}
+            onClick={() => navigate('/login')}
             sx={{
               color: 'common.white',
               borderColor: 'rgba(255,255,255,0.7)',
@@ -78,7 +83,7 @@ function HeroActions({ isLoggedIn, navigate }) {
               },
             }}
           >
-            Create guest account
+            Sign in
           </Button>
         </>
       )}

@@ -45,6 +45,11 @@ import {
   CloudSync,
   GridView,
   Shield,
+  Category,
+  LocalOffer,
+  CalendarMonth,
+  ViewTimeline,
+  CleaningServices,
 } from '@mui/icons-material'
 import { clearCredentials, selectCurrentUser, selectUserRole } from '../../features/auth/authSlice'
 import { SIDEBAR_ITEMS, groupSidebarItems } from './sidebarConfig'
@@ -79,6 +84,11 @@ const ICON_MAP = {
   CloudSync,
   GridView,
   Shield,
+  Category,
+  LocalOffer,
+  CalendarMonth,
+  ViewTimeline,
+  CleaningServices,
 }
 
 const ROLE_LABELS = {

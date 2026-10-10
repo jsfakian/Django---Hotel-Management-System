@@ -166,28 +166,50 @@ def send_booking_confirmation(booking_id):
     try:
         from room.models import Booking
         
-        booking = Booking.objects.get(id=booking_id)
-        
-        subject = f"Booking Confirmation - {booking.room.property.name}"
+        booking = Booking.objects.select_related(
+            'room', 'room__property', 'room_type', 'room_type__property', 'guest'
+        ).get(id=booking_id)
+
+        property_name = 'Nephele'
+        if booking.room_id and booking.room.property_id:
+            property_name = booking.room.property.name
+        elif booking.room_type_id and booking.room_type.property_id:
+            property_name = booking.room_type.property.name
+
+        guest_name = booking.guest.first_name if booking.guest_id else 'Guest'
+        guest_email = booking.guest.email if booking.guest_id else None
+        if not guest_email:
+            logger.warning('No guest email for booking %s; skip confirmation', booking_id)
+            return
+
+        total = booking.actual_price or booking.base_price
+        vat = booking.vat_amount or 0
+        climate = booking.climate_resilience_fee or 0
+        conf = f"NEPH-{booking.id}"
+
+        subject = f"Booking Confirmation / Επιβεβαίωση κράτησης - {property_name}"
         html_message = f"""
 <html>
-<body>
-<p>Dear {booking.guest.first_name},</p>
-<p>Thank you for your booking!</p>
-<p>Your booking reference: {booking.id}</p>
-<p>Check-in: {booking.check_in_date}</p>
-<p>Check-out: {booking.check_out_date}</p>
-<p>Total: ${booking.actual_price or booking.base_price}</p>
-<p>We look forward to welcoming you!</p>
+<body style="font-family: Georgia, serif; color: #1a1a1a; line-height: 1.5;">
+<p>Dear {guest_name}, / Αγαπητέ/ή {guest_name},</p>
+<p>Thank you for your booking! / Ευχαριστούμε για την κράτησή σας!</p>
+<p><strong>Confirmation / Επιβεβαίωση:</strong> {conf}</p>
+<p><strong>Check-in / Άφιξη:</strong> {booking.check_in_date}</p>
+<p><strong>Check-out / Αναχώρηση:</strong> {booking.check_out_date}</p>
+<p><strong>VAT / ΦΠΑ:</strong> €{vat}</p>
+<p><strong>Climate resilience fee / Τέλος κλιματικής ανθεκτικότητας:</strong> €{climate}</p>
+<p><strong>Total / Σύνολο:</strong> €{total}</p>
+<p>We look forward to welcoming you! / Σας περιμένουμε!</p>
+<p>{property_name}</p>
 </body>
 </html>
 """
-        
+
         send_mail(
             subject=subject,
             message=strip_tags(html_message),
             from_email='bookings@nephele.io',
-            recipient_list=[booking.guest.email],
+            recipient_list=[guest_email],
             html_message=html_message,
             fail_silently=True
         )

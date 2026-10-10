@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Channel, ChannelBooking
+from .models import Channel, ChannelBooking, ChannelWebhookLog
 
 
 @admin.register(Channel)
@@ -75,3 +75,12 @@ class ChannelBookingAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(ChannelWebhookLog)
+class ChannelWebhookLogAdmin(admin.ModelAdmin):
+    list_display = ('channel', 'event', 'status', 'created_at')
+    list_filter = ('status', 'channel__channel_name', 'created_at')
+    search_fields = ('event', 'error_message')
+    readonly_fields = ('created_at', 'payload')
+    date_hierarchy = 'created_at'
