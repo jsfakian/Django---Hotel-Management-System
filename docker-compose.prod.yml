@@ -116,7 +116,7 @@ services:
       SESSION_COOKIE_SECURE: "True"
       CSRF_COOKIE_SECURE: "True"
     ports:
-      - "8000:8000"
+      - "${DJANGO_HOST_PORT:-18000}:8000"
     volumes:
       - static_volume_prod:/app/nephele/staticfiles
       - media_volume_prod:/app/nephele/media
