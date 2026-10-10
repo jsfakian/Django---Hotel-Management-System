@@ -222,9 +222,15 @@ jobs:
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") DEPLOY_BRANCH=$(printf %q "$DEPLOY_BRANCH") bash -s" << 'EOF'
         set -euo pipefail
         cd "$DEPLOY_PATH"
-        git fetch origin
+        git fetch --all --prune
         git checkout "$DEPLOY_BRANCH"
-        git pull origin "$DEPLOY_BRANCH"
+        if git show-ref --verify --quiet "refs/remotes/jsfakian/$DEPLOY_BRANCH"; then
+          git reset --hard "jsfakian/$DEPLOY_BRANCH"
+        elif git rev-parse --verify --quiet "@{u}" >/dev/null; then
+          git reset --hard "@{u}"
+        else
+          git pull --ff-only origin "$DEPLOY_BRANCH"
+        fi
         docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele pull
         docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele up -d
         docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele exec -T django python manage.py migrate

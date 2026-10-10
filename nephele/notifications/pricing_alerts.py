@@ -247,7 +247,6 @@ def create_low_confidence_alert(sender, instance, created, **kwargs):
             
             alert = PricingAlert.objects.create(
                 alert_type='low_confidence',
-                severity='warning',
                 title=f"Low Confidence: {instance.room.room_type}",
                 message=(
                     f"Pricing prediction for {instance.room.room_type} on {instance.date} "
@@ -258,7 +257,9 @@ def create_low_confidence_alert(sender, instance, created, **kwargs):
                 room=instance.room,
                 pricing_history=instance,
                 recipient=manager,
-                severity='warning' if float(instance.confidence_score) >= 0.70 else 'critical'
+                severity=(
+                    'warning' if float(instance.confidence_score) >= 0.70 else 'critical'
+                ),
             )
             
             # Send email if enabled
