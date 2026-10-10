@@ -29,6 +29,8 @@ export default function PropertyFormPage() {
     description: '',
     amenities: '',
     policies: '',
+    mhte_number: '',
+    tax_id: '',
   })
 
   useEffect(() => {
@@ -44,6 +46,8 @@ export default function PropertyFormPage() {
         description: property.description || '',
         amenities: Array.isArray(property.amenities) ? property.amenities.join(', ') : (property.amenities || ''),
         policies: property.policies || '',
+        mhte_number: property.mhte_number || '',
+        tax_id: property.tax_id || '',
       })
     }
   }, [property])
@@ -87,6 +91,26 @@ export default function PropertyFormPage() {
             <Grid item xs={12} sm={6}><TextField fullWidth label="Country" name="country" value={form.country} onChange={handleChange} /></Grid>
             <Grid item xs={12} sm={6}><TextField fullWidth label="Phone" name="phone" value={form.phone} onChange={handleChange} /></Grid>
             <Grid item xs={12} sm={6}><TextField fullWidth label="Email" name="email" type="email" value={form.email} onChange={handleChange} /></Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="ΜΗΤΕ / ΣΗΜΑ number"
+                name="mhte_number"
+                value={form.mhte_number}
+                onChange={handleChange}
+                helperText="Greek registry (MHTE) number"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Tax ID (ΑΦΜ)"
+                name="tax_id"
+                value={form.tax_id}
+                onChange={handleChange}
+                helperText="Hotel AFM for MyData / police sheet"
+              />
+            </Grid>
             <Grid item xs={12}><TextField fullWidth multiline rows={4} label="Description" name="description" value={form.description} onChange={handleChange} /></Grid>
             <Grid item xs={12}><TextField fullWidth label="Amenities (comma separated)" name="amenities" value={form.amenities} onChange={handleChange} /></Grid>
             <Grid item xs={12}><TextField fullWidth multiline rows={4} label="Policies" name="policies" value={form.policies} onChange={handleChange} /></Grid>

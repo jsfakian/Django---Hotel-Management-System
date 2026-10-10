@@ -4,6 +4,8 @@ from inventory.models import RatePlan, RatePlanPrice, RoomType, RoomTypeAvailabi
 
 
 class RoomTypeSerializer(serializers.ModelSerializer):
+    physical_room_count = serializers.SerializerMethodField()
+
     class Meta:
         model = RoomType
         fields = [
@@ -18,10 +20,16 @@ class RoomTypeSerializer(serializers.ModelSerializer):
             "amenities",
             "base_price",
             "is_active",
+            "physical_room_count",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "physical_room_count", "created_at", "updated_at"]
+
+    def get_physical_room_count(self, obj) -> int:
+        from inventory.services import physical_room_count
+
+        return physical_room_count(obj)
 
 
 class RatePlanSerializer(serializers.ModelSerializer):
@@ -98,9 +106,34 @@ class AvailabilityQuoteSerializer(serializers.Serializer):
         return data
 
 
+class DayAvailabilitySerializer(serializers.Serializer):
+    """Per-night patch used by the availability calendar UI."""
+
+    date = serializers.DateField()
+    allotment = serializers.IntegerField(required=False, min_value=0)
+    stop_sell = serializers.BooleanField(required=False)
+    closed = serializers.BooleanField(required=False)
+    min_stay = serializers.IntegerField(required=False, min_value=1)
+    max_stay = serializers.IntegerField(required=False, min_value=0)
+    cta = serializers.BooleanField(required=False)
+    ctd = serializers.BooleanField(required=False)
+    staff_override = serializers.BooleanField(required=False)
+
+
 class BulkAvailabilitySerializer(serializers.Serializer):
-    date_from = serializers.DateField()
-    date_to = serializers.DateField()
+    """
+    Bulk availability upsert body.
+
+    Accepts either:
+    - Flat range: ``date_from`` / ``date_to`` plus shared fields applied to each night
+    - Per-day list: ``days`` as ``[{date, allotment?, min_stay?, stop_sell?, ...}, ...]``
+
+    ``date_from`` / ``date_to`` may accompany ``days`` (calendar UI sends both).
+    """
+
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    days = DayAvailabilitySerializer(many=True, required=False)
     allotment = serializers.IntegerField(required=False, min_value=0)
     stop_sell = serializers.BooleanField(required=False)
     closed = serializers.BooleanField(required=False)
@@ -111,7 +144,16 @@ class BulkAvailabilitySerializer(serializers.Serializer):
     staff_override = serializers.BooleanField(required=False, default=True)
 
     def validate(self, data):
-        if data["date_to"] <= data["date_from"]:
+        days = data.get("days") or []
+        date_from = data.get("date_from")
+        date_to = data.get("date_to")
+        if days:
+            return data
+        if not date_from or not date_to:
+            raise serializers.ValidationError(
+                "Provide date_from and date_to, or a non-empty days list."
+            )
+        if date_to <= date_from:
             raise serializers.ValidationError("date_to must be after date_from")
         return data
 
@@ -158,6 +200,31 @@ class ConfirmHoldSerializer(serializers.Serializer):
 
 class CancelHoldSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
+
+
+class ModifyHoldSerializer(serializers.Serializer):
+    PAYMENT_MODE_CHOICES = (
+        ("deposit", "Deposit"),
+        ("pay_at_hotel", "Pay at hotel"),
+        ("full", "Pay in full"),
+    )
+
+    check_in = serializers.DateField(required=False)
+    check_out = serializers.DateField(required=False)
+    adults = serializers.IntegerField(required=False, min_value=1)
+    children = serializers.IntegerField(required=False, min_value=0)
+    room_type_id = serializers.IntegerField(required=False)
+    rate_plan_id = serializers.IntegerField(required=False)
+    payment_mode = serializers.ChoiceField(
+        choices=PAYMENT_MODE_CHOICES, required=False
+    )
+
+    def validate(self, data):
+        check_in = data.get("check_in")
+        check_out = data.get("check_out")
+        if check_in and check_out and check_out <= check_in:
+            raise serializers.ValidationError("check_out must be after check_in")
+        return data
 
 
 class BulkRateCsvSerializer(serializers.Serializer):

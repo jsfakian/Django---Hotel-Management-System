@@ -291,6 +291,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             'destroy',
             'assign_room',
             'link_group',
+            'check_in',
+            'check_out',
         ):
             return [IsAuthenticated(), IsHotelStaff()]
         return [IsAuthenticated()]
@@ -379,6 +381,42 @@ class BookingViewSet(viewsets.ModelViewSet):
                 'group_size': parent.group_members.count() + 1,
             }
         )
+
+    @action(detail=True, methods=['post'], url_path='check_in')
+    def check_in(self, request, pk=None):
+        """Front-desk check-in: status → checked_in; room → occupied if assigned."""
+        booking = self.get_object()
+        if booking.status not in ('confirmed', 'pending'):
+            return Response(
+                {'error': f'Cannot check in from status {booking.status}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        booking.status = 'checked_in'
+        booking.save(update_fields=['status', 'updated_at'])
+        if booking.room_id:
+            Room.objects.filter(pk=booking.room_id).exclude(status='occupied').update(
+                status='occupied'
+            )
+        return Response(BookingSerializer(booking, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='check_out')
+    def check_out(self, request, pk=None):
+        """
+        Front-desk check-out: status → checked_out.
+
+        Saving checked_out fires inventory.signals.booking_checkout_sets_housekeeping
+        (physical room → cleaning).
+        """
+        booking = self.get_object()
+        if booking.status != 'checked_in':
+            return Response(
+                {'error': f'Cannot check out from status {booking.status}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        booking.status = 'checked_out'
+        booking.save(update_fields=['status', 'updated_at'])
+        booking.refresh_from_db()
+        return Response(BookingSerializer(booking, context={'request': request}).data)
 
 
 class ContractViewSet(viewsets.ModelViewSet):
@@ -557,6 +595,29 @@ def _complete_pending_payment(invoice, existing_pending):
     )
 
 
+def _invoice_guest_email(invoice):
+    guest = invoice.guest
+    if guest and getattr(guest, "user_id", None) and guest.user:
+        return guest.user.email or getattr(guest, "email", "") or ""
+    return getattr(guest, "email", "") or ""
+
+
+def _start_invoice_gateway_checkout(invoice):
+    """Guest online pay: Viva/Stripe checkout fields (or empty on failure)."""
+    from payments.gateway import PaymentGatewayError, start_booking_checkout
+
+    try:
+        return start_booking_checkout(
+            amount=invoice.total_amount,
+            booking_id=invoice.booking_id,
+            customer_email=_invoice_guest_email(invoice),
+            description=f"Invoice {invoice.invoice_number}",
+            metadata={"invoice_id": invoice.id},
+        )
+    except PaymentGatewayError:
+        return {}
+
+
 def _create_invoice_payment(request, invoice, can_complete):
     payment_method_name = request.data.get('payment_method', 'card')
     payment_method, _ = PaymentMethod.objects.get_or_create(
@@ -564,7 +625,13 @@ def _create_invoice_payment(request, invoice, can_complete):
         defaults={'payment_type': 'card'},
     )
 
+    checkout = {}
+    if not can_complete:
+        checkout = _start_invoice_gateway_checkout(invoice)
+
     payment_status = 'completed' if can_complete else 'pending'
+    txn = checkout.get('payment_ref') or f"txn-{uuid4().hex}"
+    ref = checkout.get('payment_ref') or f"ref-{uuid4().hex[:12]}"
     payment = Payment.objects.create(
         guest=invoice.guest,
         booking=invoice.booking,
@@ -572,8 +639,8 @@ def _create_invoice_payment(request, invoice, can_complete):
         amount=invoice.total_amount,
         currency='EUR',
         status=payment_status,
-        transaction_id=f"txn-{uuid4().hex}",
-        reference_code=f"ref-{uuid4().hex[:12]}",
+        transaction_id=txn[:100],
+        reference_code=ref[:50],
         processed_at=timezone.now() if can_complete else None,
         is_verified=bool(can_complete),
         description=f'Payment for invoice {invoice.invoice_number}',
@@ -582,26 +649,45 @@ def _create_invoice_payment(request, invoice, can_complete):
     invoice.payment = payment
     if can_complete:
         invoice.mark_as_paid()
-    else:
-        invoice.save(update_fields=['payment'])
-        from payments.views import send_verification_email
+        return Response(
+            {
+                'message': 'Payment processed',
+                'invoice_id': invoice.id,
+                'payment_id': payment.id,
+                'status': invoice.status,
+                'payment_status': payment.status,
+            }
+        )
 
-        code = payment.generate_verification_code()
-        sent = send_verification_email(payment, code)
-        if not sent:
-            return Response(
-                {
-                    'message': 'Payment created but verification email failed',
-                    'invoice_id': invoice.id,
-                    'payment_id': payment.id,
-                    'payment_status': payment.status,
-                },
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+    invoice.save(update_fields=['payment'])
+    if checkout.get('checkout_url') or checkout.get('client_secret'):
+        body = {
+            'message': 'Checkout started',
+            'invoice_id': invoice.id,
+            'payment_id': payment.id,
+            'status': invoice.status,
+            'payment_status': payment.status,
+        }
+        body.update(checkout)
+        return Response(body)
 
+    from payments.views import send_verification_email
+
+    code = payment.generate_verification_code()
+    sent = send_verification_email(payment, code)
+    if not sent:
+        return Response(
+            {
+                'message': 'Payment created but verification email failed',
+                'invoice_id': invoice.id,
+                'payment_id': payment.id,
+                'payment_status': payment.status,
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
     return Response(
         {
-            'message': 'Payment processed' if can_complete else 'Payment pending verification',
+            'message': 'Payment pending verification',
             'invoice_id': invoice.id,
             'payment_id': payment.id,
             'status': invoice.status,
@@ -629,8 +715,9 @@ class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
         """
         Record a payment against an invoice.
 
-        Staff with process_payments may mark paid (demo path; gateway later).
-        Guests may only create a pending payment on their own invoice.
+        Staff with process_payments may mark paid immediately.
+        Guests get a gateway checkout (checkout_url / client_secret / payment_ref)
+        when available; otherwise email verification.
         Amount is always taken from the invoice — never from the client.
         """
         invoice = self.get_object()

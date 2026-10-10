@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Box, Button, CircularProgress, Typography, Grid } from '@mui/material'
 import BookingShell from './BookingShell'
+import { useBookingT } from './bookingLang'
 import { clearBookingDraft, getConfirmation, loadBookingDraft } from '../../../features/public/publicBookingApi'
 
 function Detail({ label, value }) {
@@ -18,27 +19,28 @@ function pick(primary, fallback, key, defaultValue) {
 }
 
 function ConfirmationBody({ id, data, draft, error }) {
+  const { t } = useBookingT()
   const confNo = pick(data, null, 'confirmation_number') || pick(data, null, 'id', id)
   const total = pick(data, draft, 'total')
   const fields = [
-    ['Status', pick(data, null, 'status', 'confirmed')],
-    ['Email', pick(data, draft, 'guest_email')],
-    ['Check-in', pick(data, draft, 'check_in')],
-    ['Check-out', pick(data, draft, 'check_out')],
-    ['Room', pick(data, draft, 'room_type_name')],
-    ['Total', total != null ? `€${Number(total).toFixed(2)}` : null],
+    [t('status'), pick(data, null, 'status', 'confirmed')],
+    [t('email'), pick(data, draft, 'guest_email')],
+    [t('checkIn'), pick(data, draft, 'check_in')],
+    [t('checkOut'), pick(data, draft, 'check_out')],
+    [t('room'), pick(data, draft, 'room_type_name')],
+    [t('total'), total != null ? `€${Number(total).toFixed(2)}` : null],
   ]
   return (
     <>
       <Typography variant="h5" sx={{ mb: 1, fontFamily: '"Fraunces", Georgia, serif' }}>
-        Booking confirmed
+        {t('confirmTitle')}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Confirmation #{confNo}
+        {t('confirmationHash')} #{confNo}
       </Typography>
       {error && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Showing local summary — {error}
+          {t('confirmLocalSummary')} — {error}
         </Alert>
       )}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -62,10 +64,36 @@ function fallbackFromDraft(id, fallback) {
   }
 }
 
+function ConfirmActions({ id, clientSecret }) {
+  const navigate = useNavigate()
+  const { t } = useBookingT()
+  return (
+    <>
+      {clientSecret && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {t('stripeCompleteHint')}
+        </Alert>
+      )}
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        <Button variant="contained" onClick={() => navigate('/landing')}>
+          {t('backToNephele')}
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={() => navigate(`/book/manage?id=${encodeURIComponent(id)}`)}
+        >
+          {t('manageHold')}
+        </Button>
+      </Box>
+    </>
+  )
+}
+
 export default function BookingConfirmPage() {
   const { id } = useParams()
-  const navigate = useNavigate()
+  const location = useLocation()
   const draft = loadBookingDraft()
+  const clientSecret = location.state?.client_secret
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -95,12 +123,12 @@ export default function BookingConfirmPage() {
   }, [id])
 
   return (
-    <BookingShell subtitle="Your reservation is held with care.">
+    <BookingShell subtitleKey="confirmSubtitle">
       {loading && <Box sx={{ py: 4, textAlign: 'center' }}><CircularProgress /></Box>}
       {!loading && (
         <>
           <ConfirmationBody id={id} data={data} draft={draft} error={error} />
-          <Button variant="contained" onClick={() => navigate('/landing')}>Back to Nephele</Button>
+          <ConfirmActions id={id} clientSecret={clientSecret} />
         </>
       )}
     </BookingShell>

@@ -7,11 +7,13 @@ from typing import Dict, Optional, Type
 
 from .base import ChannelConnector
 from .booking_com import BookingComConnector
+from .expedia import ExpediaConnector
 from .ical import ICalConnector
 
 _REGISTRY: Dict[str, Type[ChannelConnector]] = {
     "ical": ICalConnector,
     "booking_com": BookingComConnector,
+    "expedia": ExpediaConnector,
 }
 
 
@@ -31,6 +33,7 @@ __all__ = [
     "ChannelConnector",
     "ICalConnector",
     "BookingComConnector",
+    "ExpediaConnector",
     "get_connector",
     "register_connector",
 ]

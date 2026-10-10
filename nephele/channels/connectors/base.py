@@ -35,17 +35,20 @@ class ChannelConnector(ABC):
 
     def map_room_type(self, channel, nephele_room_type_id) -> Optional[str]:
         """Map Nephele room type id → remote room type id via mapping_config."""
-        mappings = (channel.mapping_config or {}).get("room_type_mappings") or {}
-        if not mappings:
-            # Fall back to legacy room_mappings keyed by physical room id
-            mappings = (channel.mapping_config or {}).get("room_mappings") or {}
+        from channels.mapping_utils import normalize_mapping_config
+
+        mappings = normalize_mapping_config(channel.mapping_config)[
+            "room_type_mappings"
+        ]
         return mappings.get(str(nephele_room_type_id))
 
     def map_rate_plan(self, channel, nephele_rate_plan_id) -> Optional[str]:
         """Map Nephele rate plan id → remote rate code via mapping_config."""
-        mappings = (channel.mapping_config or {}).get("rate_plan_mappings") or {}
-        if not mappings:
-            mappings = (channel.mapping_config or {}).get("rate_mappings") or {}
+        from channels.mapping_utils import normalize_mapping_config
+
+        mappings = normalize_mapping_config(channel.mapping_config)[
+            "rate_plan_mappings"
+        ]
         return mappings.get(str(nephele_rate_plan_id))
 
     def not_implemented(self, operation: str) -> Dict[str, Any]:

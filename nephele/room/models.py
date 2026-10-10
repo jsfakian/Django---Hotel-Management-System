@@ -192,6 +192,9 @@ class Booking(models.Model):
     guest_nationality = models.CharField(max_length=64, blank=True)
     guest_birth_date = models.DateField(null=True, blank=True)
     police_sheet_exported_at = models.DateTimeField(null=True, blank=True)
+    # ΣΗΜΑ stay linkage (ministry registry)
+    shima_stay_purpose = models.CharField(max_length=64, blank=True)
+    mhte_registry_number = models.CharField(max_length=64, blank=True)
 
     travel_agency = models.ForeignKey(
         "properties.TravelAgency",

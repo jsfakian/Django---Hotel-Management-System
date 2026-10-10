@@ -33,6 +33,7 @@ from inventory.catalog_views import (
     BookingEngineConfirmationView,
     BookingEngineConfirmView,
     BookingEngineHoldView,
+    BookingEngineModifyHoldView,
     RatePlanViewSet,
     RoomTypeViewSet,
     housekeeping_board,
@@ -149,6 +150,11 @@ urlpatterns = [
     path('booking-engine/hold/', BookingEngineHoldView.as_view(), name='booking-engine-hold'),
     path('booking-engine/confirm/', BookingEngineConfirmView.as_view(), name='booking-engine-confirm'),
     path('booking-engine/cancel/', BookingEngineCancelView.as_view(), name='booking-engine-cancel'),
+    path(
+        'booking-engine/holds/<int:booking_id>/modify/',
+        BookingEngineModifyHoldView.as_view(),
+        name='booking-engine-modify-hold',
+    ),
     path(
         'booking-engine/confirmation/<int:booking_id>/',
         BookingEngineConfirmationView.as_view(),

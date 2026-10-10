@@ -105,6 +105,7 @@ const BookingSearchPage = lazy(() => import('./pages/public/booking/BookingSearc
 const BookingResultsPage = lazy(() => import('./pages/public/booking/BookingResultsPage'))
 const BookingGuestPage = lazy(() => import('./pages/public/booking/BookingGuestPage'))
 const BookingConfirmPage = lazy(() => import('./pages/public/booking/BookingConfirmPage'))
+const ManageBookingPage = lazy(() => import('./pages/public/booking/ManageBookingPage'))
 const BookingEmbedPage = lazy(() => import('./pages/public/booking/BookingEmbedPage'))
 
 // Guest — GDPR
@@ -292,6 +293,7 @@ export default function App() {
         <Route path="/book/results" element={<BookingResultsPage />} />
         <Route path="/book/guest" element={<BookingGuestPage />} />
         <Route path="/book/confirmation/:id" element={<BookingConfirmPage />} />
+        <Route path="/book/manage" element={<ManageBookingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

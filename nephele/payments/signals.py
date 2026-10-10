@@ -125,27 +125,58 @@ def auto_create_invoice_on_payment_completion(sender, instance, update_fields, *
         if payment.status != 'completed':
             return
         
-        # Calculate VAT (24% for Greece)
-        vat_percentage = Decimal('0.24')
-        vat_amount = payment.amount * vat_percentage
-        total_with_vat = payment.amount + vat_amount
-        
-        # Create invoice
-        invoice = Invoice.objects.create(
+        # Prefer booking tax fields; fall back to 24% VAT on payment amount
+        from payments.invoice_lines import ensure_invoice_lines
+
+        vat_amount = instance.vat_amount
+        if vat_amount is None:
+            vat_amount = payment.amount * Decimal("0.24")
+        total_with_vat = (
+            instance.actual_price
+            if instance.actual_price is not None
+            else payment.amount + vat_amount
+        )
+
+        invoice = Invoice(
             guest=instance.guest,
             payment=payment,
             booking=instance,
             amount=payment.amount,
             tax_amount=vat_amount,
             total_amount=total_with_vat,
-            status='issued',
-            description=f"Invoice for {instance.room.room_number} ({instance.check_in_date} to {instance.check_out_date})",
-            notes=f"Auto-created from completed payment on checkout"
+            status="issued",
+            description="",
+            notes="Auto-created from completed payment on checkout",
         )
-        
+        ensure_invoice_lines(invoice, instance, force=True)
+        invoice.save()
+
         print(f"[INVOICE] ✓ Created invoice {invoice.invoice_number} for booking {instance.id}")
         
     except Exception as e:
         print(f"[INVOICE ERROR] Failed to create invoice for booking {instance.id}: {str(e)}")
         import traceback
         traceback.print_exc()
+
+
+@receiver(post_save, sender=Invoice)
+def apply_lines_on_invoice_save(sender, instance, created, **kwargs):
+    """Cover manual InvoiceForm / admin / API creates that skip checkout signal."""
+    if not instance.booking_id:
+        return
+    if instance.line_items and not created:
+        return
+    try:
+        from payments.invoice_lines import ensure_invoice_lines
+
+        before = list(instance.line_items or [])
+        ensure_invoice_lines(instance, force=created and not before)
+        after = list(instance.line_items or [])
+        if after != before:
+            Invoice.objects.filter(pk=instance.pk).update(
+                description=instance.description,
+                notes=instance.notes,
+                line_items=instance.line_items,
+            )
+    except Exception:
+        pass

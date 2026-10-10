@@ -33,6 +33,7 @@ class GuestSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_email', 'user_full_name',
             'email', 'first_name', 'last_name', 'phone_number',
             'address', 'city', 'country', 'postal_code',
+            'document_type', 'document_number', 'nationality', 'birth_date',
             'preferences', 'number_of_bookings', 'total_nights_stayed',
             'created_at', 'updated_at'
         ]

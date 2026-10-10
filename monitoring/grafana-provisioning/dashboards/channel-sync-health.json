@@ -1,0 +1,43 @@
+{
+  "annotations": { "list": [] },
+  "title": "Nephele Channel Sync Health",
+  "uid": "nephele-channel-sync",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Channel sync attempts",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (channel_name, status) (rate(nephele_channel_sync_total[5m]))",
+          "legendFormat": "{{channel_name}} / {{status}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Webhook deliveries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (channel_name, status) (rate(nephele_channel_webhook_total[5m]))",
+          "legendFormat": "{{channel_name}} / {{status}}"
+        }
+      ]
+    },
+    {
+      "type": "heatmap",
+      "title": "Sync latency",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (le, channel_name) (rate(nephele_channel_sync_latency_seconds_bucket[5m]))",
+          "legendFormat": "{{channel_name}}"
+        }
+      ]
+    }
+  ]
+}

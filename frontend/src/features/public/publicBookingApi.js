@@ -43,6 +43,20 @@ export function getConfirmation(id) {
   return publicRequest(`/booking-engine/confirmation/${id}/`, { method: 'GET' })
 }
 
+export function cancelHold(bookingId) {
+  return publicRequest('/booking-engine/cancel/', {
+    method: 'POST',
+    body: { booking_id: Number(bookingId) },
+  })
+}
+
+export function modifyHold(bookingId, payload) {
+  return publicRequest(`/booking-engine/holds/${bookingId}/modify/`, {
+    method: 'POST',
+    body: payload,
+  })
+}
+
 const BOOKING_DRAFT_KEY = 'nephele_booking_draft'
 
 export function saveBookingDraft(draft) {

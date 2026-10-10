@@ -66,7 +66,13 @@ class Guest(models.Model):
     city = models.CharField(max_length=100, blank=True)
     country = models.CharField(max_length=100, blank=True)
     postal_code = models.CharField(max_length=20, blank=True)
-    
+
+    # Identity / police sheet (ΣΑΕ) — synced into booking export when booking fields empty
+    document_type = models.CharField(max_length=32, blank=True)
+    document_number = models.CharField(max_length=64, blank=True)
+    nationality = models.CharField(max_length=64, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+
     # Guest preferences for personalization
     preferences = models.JSONField(
         default=dict,

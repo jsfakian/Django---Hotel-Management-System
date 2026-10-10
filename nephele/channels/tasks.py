@@ -110,6 +110,34 @@ def _finish_not_implemented_result(channel, sync_log, result, rooms_affected):
     return result
 
 
+def _maybe_push_rates(channel, connector, date_from, date_to, avail_result):
+    """After availability sync, push rates when connector supports it / LIVE."""
+    push_rates = getattr(connector, "push_rates", None)
+    if not callable(push_rates):
+        return avail_result
+    from django.conf import settings
+
+    # Booking.com: only when LIVE; other connectors may always attempt
+    if channel.channel_name == "booking_com" and not getattr(
+        settings, "BOOKING_COM_LIVE", False
+    ):
+        return avail_result
+    try:
+        rates = push_rates(channel, date_from=date_from, date_to=date_to)
+    except Exception as exc:
+        logger.warning("push_rates failed for channel %s: %s", channel.id, exc)
+        return avail_result
+    if not isinstance(avail_result, dict):
+        return avail_result
+    merged = dict(avail_result)
+    merged["rates"] = rates
+    if rates.get("status") == "ok":
+        merged["rates_affected"] = rates.get("rates_affected") or len(
+            rates.get("prepared_rates") or []
+        )
+    return merged
+
+
 def _push_via_connector(channel, connector, date_from, date_to, sync_log):
     result = connector.push_availability(
         channel, date_from=date_from, date_to=date_to
@@ -121,6 +149,7 @@ def _push_via_connector(channel, connector, date_from, date_to, sync_log):
         ), None
     if result.get("status") == "error":
         raise RuntimeError(result.get("message") or "connector error")
+    result = _maybe_push_rates(channel, connector, date_from, date_to, result)
     return result, rooms_affected
 
 

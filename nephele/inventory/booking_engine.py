@@ -8,6 +8,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from inventory.services import (
     daterange,
@@ -45,8 +46,47 @@ def compute_taxes(subtotal: Decimal, nights: int) -> dict:
     }
 
 
-def _smart_rate_hint(room_type_id: int, check_in) -> dict | None:
-    """Optional ML recommended nightly from pricing history (non-blocking)."""
+def _hint_payload(price, source: str) -> dict:
+    return {
+        "smart_rate": str(price),
+        "smart_rate_label": str(_("Smart rate")),
+        "source": source,
+    }
+
+
+def _predict_smart_rate(room_type_id: int, check_in):
+    """Try dynamic pricing model; return price or None (never raises)."""
+    try:
+        from bookings.models import PricingHistory
+        from bookings.price_predictor import predict_price
+        from room.models import Room
+
+        room = Room.objects.filter(room_type_fk_id=room_type_id).first()
+        row = None
+        if room:
+            row = (
+                PricingHistory.objects.filter(room=room, date__lte=check_in)
+                .order_by("-date")
+                .first()
+            )
+        features = {
+            "occupancy_rate": float(getattr(row, "occupancy_rate", None) or 0.5),
+            "competitor_price": float(
+                getattr(row, "competitor_price", None)
+                or getattr(row, "dynamic_price", None)
+                or 100
+            ),
+            "demand_index": float(getattr(row, "demand_index", None) or 1.0),
+            "day_of_week": check_in.weekday() if hasattr(check_in, "weekday") else 0,
+            "season": (check_in.month % 12) // 3 if hasattr(check_in, "month") else 0,
+        }
+        return predict_price(features)
+    except Exception:
+        return None
+
+
+def _pricing_history_hint(room_type_id: int, check_in) -> dict | None:
+    """Fallback smart rate from latest PricingHistory row."""
     try:
         from bookings.models import PricingHistory
         from room.models import Room
@@ -66,13 +106,17 @@ def _smart_rate_hint(room_type_id: int, check_in) -> dict | None:
         )
         if price is None:
             return None
-        return {
-            "smart_rate": str(price),
-            "smart_rate_label": "Smart rate",
-            "source": "ml_pricing",
-        }
+        return _hint_payload(price, "ml_pricing")
     except Exception:
         return None
+
+
+def _smart_rate_hint(room_type_id: int, check_in) -> dict | None:
+    """ML predictor when model available; else PricingHistory (non-blocking)."""
+    predicted = _predict_smart_rate(room_type_id, check_in)
+    if predicted is not None:
+        return _hint_payload(predicted, "price_predictor")
+    return _pricing_history_hint(room_type_id, check_in)
 
 
 def quote(property_id, check_in, check_out, adults=1, children=0, children_ages=None):
@@ -126,7 +170,9 @@ def _match_quote_product(products, room_type_id, rate_plan_id):
         None,
     )
     if not match:
-        raise NoAllotmentError("Selected room type / rate plan not available for dates")
+        raise NoAllotmentError(
+            str(_("Selected room type / rate plan not available for dates"))
+        )
     return match
 
 
@@ -145,7 +191,9 @@ def _reserve_room_type_nights(room_type, check_in, check_out):
             )
             avail = RoomTypeAvailability.objects.select_for_update().get(pk=avail.pk)
         if avail.stop_sell or avail.closed or avail.available_units <= 0:
-            raise NoAllotmentError(f"No allotment for {night}")
+            raise NoAllotmentError(
+                str(_("No allotment for %(date)s")) % {"date": night}
+            )
         avail.booked += 1
         avail.save(update_fields=["booked", "updated_at"])
 
@@ -200,9 +248,9 @@ def create_hold(
     from room.models import Booking
 
     if not guest_email:
-        raise BookingEngineError("guest_email is required")
+        raise BookingEngineError(str(_("guest_email is required")))
     if check_out <= check_in:
-        raise BookingEngineError("check_out must be after check_in")
+        raise BookingEngineError(str(_("check_out must be after check_in")))
 
     guest_first_name, guest_last_name = _split_guest_name(
         guest_name, guest_first_name, guest_last_name
@@ -294,7 +342,7 @@ def _expire_stale_hold(booking):
     _release_room_type_allotment(booking)
     booking.status = "cancelled"
     booking.save(update_fields=["status", "updated_at"])
-    raise HoldExpiredError("Hold expired")
+    raise HoldExpiredError(str(_("Hold expired")))
 
 
 @transaction.atomic
@@ -308,10 +356,12 @@ def confirm_hold(
     try:
         booking = Booking.objects.select_for_update().get(pk=booking_id)
     except Booking.DoesNotExist as exc:
-        raise HoldNotFoundError("Hold not found") from exc
+        raise HoldNotFoundError(str(_("Hold not found"))) from exc
 
     if booking.status != "held":
-        raise HoldNotFoundError(f"Booking {booking_id} is not held")
+        raise HoldNotFoundError(
+            str(_("Booking %(id)s is not held")) % {"id": booking_id}
+        )
     _expire_stale_hold(booking)
 
     booking.status = "confirmed"
@@ -330,10 +380,13 @@ def cancel_hold(booking_id: int):
     try:
         booking = Booking.objects.select_for_update().get(pk=booking_id)
     except Booking.DoesNotExist as exc:
-        raise HoldNotFoundError("Hold not found") from exc
+        raise HoldNotFoundError(str(_("Hold not found"))) from exc
 
     if booking.status != "held":
-        raise BookingEngineError(f"Only held bookings can be cancelled via BE (status={booking.status})")
+        raise BookingEngineError(
+            str(_("Only held bookings can be cancelled via BE (status=%(status)s)"))
+            % {"status": booking.status}
+        )
 
     _release_room_type_allotment(booking)
     booking.status = "cancelled"
@@ -371,3 +424,224 @@ def _release_room_type_allotment(booking):
         if avail and avail.booked > 0:
             avail.booked -= 1
             avail.save(update_fields=["booked", "updated_at"])
+
+
+def _parse_payment_mode(notes: str | None) -> str:
+    if not notes:
+        return "deposit"
+    for part in notes.replace("\n", ";").split(";"):
+        part = part.strip()
+        if part.startswith("payment_mode="):
+            return part.split("=", 1)[1].strip() or "deposit"
+    return "deposit"
+
+
+def _parse_deposit_due(notes: str | None):
+    if not notes:
+        return None
+    for part in notes.replace("\n", ";").split(";"):
+        part = part.strip()
+        if part.startswith("deposit_due="):
+            try:
+                return Decimal(part.split("=", 1)[1].strip())
+            except Exception:
+                return None
+    return None
+
+
+def _needs_online_payment(payment_mode: str | None) -> bool:
+    return (payment_mode or "") in ("deposit", "full")
+
+
+def gateway_checkout_for_booking(booking, payment_mode=None) -> dict:
+    """
+    Start gateway checkout for deposit/full modes.
+
+    pay_at_hotel returns {}. Never raises — quote/confirm must stay resilient.
+    """
+    mode = payment_mode or getattr(booking, "payment_mode", None) or _parse_payment_mode(
+        booking.notes
+    )
+    if not _needs_online_payment(mode):
+        return {}
+    amount = getattr(booking, "deposit_due", None)
+    if amount is None:
+        amount = _parse_deposit_due(booking.notes)
+    if amount is None:
+        amount = booking.actual_price
+    if amount is None or Decimal(str(amount)) <= 0:
+        return {}
+    try:
+        from payments.gateway import start_booking_checkout
+
+        guest = getattr(booking, "guest", None)
+        email = getattr(guest, "email", "") or ""
+        return start_booking_checkout(
+            amount=Decimal(str(amount)),
+            booking_id=booking.id,
+            customer_email=email,
+            description=f"Booking {booking.id} ({mode})",
+        )
+    except Exception:
+        return {}
+
+
+def hold_booking_dict(booking) -> dict:
+    """Canonical hold payload for create/modify API responses."""
+    payment_mode = getattr(booking, "payment_mode", None) or _parse_payment_mode(
+        booking.notes
+    )
+    deposit_due = getattr(booking, "deposit_due", None)
+    if deposit_due is None:
+        deposit_due = _parse_deposit_due(booking.notes)
+    if deposit_due is None:
+        deposit_due = booking.actual_price
+    payload = {
+        "booking_id": booking.id,
+        "status": booking.status,
+        "hold_expires_at": booking.hold_expires_at,
+        "check_in": booking.check_in_date,
+        "check_out": booking.check_out_date,
+        "adults": booking.adults,
+        "children": booking.children,
+        "room_type_id": booking.room_type_id,
+        "rate_plan_id": booking.rate_plan_id,
+        "total": str(booking.actual_price),
+        "vat_amount": str(booking.vat_amount or 0),
+        "climate_resilience_fee": str(booking.climate_resilience_fee or 0),
+        "payment_mode": payment_mode,
+        "deposit_due": str(deposit_due),
+        "notes": booking.notes,
+    }
+    checkout = gateway_checkout_for_booking(booking, payment_mode)
+    if checkout:
+        payload.update(checkout)
+    return payload
+
+
+def _modifiable_hold_or_raise(booking):
+    if booking.status not in ("held", "pending"):
+        raise BookingEngineError(
+            str(_("Only held/pending bookings can be modified (status=%(status)s)"))
+            % {"status": booking.status}
+        )
+    if booking.status == "held":
+        _expire_stale_hold(booking)
+
+
+def _kw_or_booking(kwargs, key, booking_value):
+    value = kwargs.get(key)
+    return booking_value if value is None else value
+
+
+def _resolve_modify_params(booking, **kwargs):
+    check_in = kwargs.get("check_in") or booking.check_in_date
+    check_out = kwargs.get("check_out") or booking.check_out_date
+    adults = _kw_or_booking(kwargs, "adults", booking.adults)
+    children = _kw_or_booking(kwargs, "children", booking.children)
+    room_type_id = kwargs.get("room_type_id") or booking.room_type_id
+    rate_plan_id = kwargs.get("rate_plan_id") or booking.rate_plan_id
+    payment_mode = kwargs.get("payment_mode") or _parse_payment_mode(booking.notes)
+    if check_out <= check_in:
+        raise BookingEngineError(str(_("check_out must be after check_in")))
+    if not room_type_id or not rate_plan_id:
+        raise BookingEngineError(
+            str(_("room_type_id and rate_plan_id are required"))
+        )
+    return check_in, check_out, adults, children, room_type_id, rate_plan_id, payment_mode
+
+
+def _apply_hold_repricing(
+    booking, room_type, rate_plan, check_in, check_out, adults, children, payment_mode
+):
+    nights = (check_out - check_in).days
+    products = quote(
+        room_type.property_id, check_in, check_out, adults=adults, children=children
+    )
+    match = _match_quote_product(products, room_type.id, rate_plan.id)
+    _reserve_room_type_nights(room_type, check_in, check_out)
+
+    subtotal = Decimal(str(match["total"]))
+    taxes = compute_taxes(subtotal, nights)
+    total = taxes["total_with_taxes"]
+    deposit_due = _deposit_due_amount(total, payment_mode, None)
+    payment_note = (
+        f"payment_mode={payment_mode}; deposit_due={deposit_due}; "
+        f"balance_due={total - deposit_due}"
+    )
+
+    booking.room_type = room_type
+    booking.rate_plan = rate_plan
+    booking.check_in_date = check_in
+    booking.check_out_date = check_out
+    booking.adults = adults
+    booking.children = children
+    booking.number_of_guests = adults + children
+    booking.base_price = subtotal
+    booking.actual_price = total
+    booking.vat_amount = taxes["vat_amount"]
+    booking.climate_resilience_fee = taxes["climate_resilience_fee"]
+    booking.notes = payment_note
+    booking.save()
+    booking.deposit_due = deposit_due
+    booking.payment_mode = payment_mode
+    return booking
+
+
+@transaction.atomic
+def modify_hold(
+    booking_id: int,
+    *,
+    check_in=None,
+    check_out=None,
+    adults=None,
+    children=None,
+    room_type_id=None,
+    rate_plan_id=None,
+    payment_mode=None,
+):
+    """Re-quote and re-hold an existing held/pending booking with new params."""
+    from inventory.models import RatePlan, RoomType
+    from room.models import Booking
+
+    try:
+        booking = Booking.objects.select_for_update().get(pk=booking_id)
+    except Booking.DoesNotExist as exc:
+        raise HoldNotFoundError(str(_("Hold not found"))) from exc
+
+    _modifiable_hold_or_raise(booking)
+    (
+        check_in,
+        check_out,
+        adults,
+        children,
+        room_type_id,
+        rate_plan_id,
+        payment_mode,
+    ) = _resolve_modify_params(
+        booking,
+        check_in=check_in,
+        check_out=check_out,
+        adults=adults,
+        children=children,
+        room_type_id=room_type_id,
+        rate_plan_id=rate_plan_id,
+        payment_mode=payment_mode,
+    )
+
+    _release_room_type_allotment(booking)
+
+    room_type = RoomType.objects.select_for_update().get(pk=room_type_id)
+    rate_plan = RatePlan.objects.get(pk=rate_plan_id, property_id=room_type.property_id)
+
+    booking = _apply_hold_repricing(
+        booking,
+        room_type,
+        rate_plan,
+        check_in,
+        check_out,
+        adults,
+        children,
+        payment_mode,
+    )
+    return hold_booking_dict(booking)

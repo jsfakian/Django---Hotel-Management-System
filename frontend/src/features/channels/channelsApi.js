@@ -37,6 +37,13 @@ export const channelsApi = api.injectEndpoints({
       }),
       invalidatesTags: (result, error, id) => [{ type: 'Property', id: `channel-${id}` }],
     }),
+    validateChannelMappings: builder.mutation({
+      query: ({ id, mapping_config }) => ({
+        url: `/channels/${id}/validate-mappings/`,
+        method: 'POST',
+        data: mapping_config ? { mapping_config } : {},
+      }),
+    }),
   }),
   overrideExisting: false,
 })
@@ -49,4 +56,5 @@ export const {
   useUpdateChannelMutation,
   useDeleteChannelMutation,
   useSyncChannelAvailabilityMutation,
+  useValidateChannelMappingsMutation,
 } = channelsApi

@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import {
-  Box, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Grid, Chip, FormControlLabel, Switch, MenuItem,
+  Alert, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  FormControl, InputLabel, Select, TextField, Grid, Chip, FormControlLabel,
+  Switch, MenuItem, Typography,
 } from '@mui/material'
 import { Add } from '@mui/icons-material'
 import AppLayout from '../../../components/layout/AppLayout'
@@ -12,6 +13,7 @@ import {
   useCreateRatePlanMutation,
   useUpdateRatePlanMutation,
   useDeleteRatePlanMutation,
+  useBulkRatePlanPricesMutation,
   useGetRoomTypesQuery,
 } from '../../../features/catalog/catalogApi'
 
@@ -96,6 +98,59 @@ function toPayload(form) {
   }
 }
 
+function BulkCsvUpload({ ratePlans }) {
+  const [planId, setPlanId] = useState('')
+  const [msg, setMsg] = useState(null)
+  const [err, setErr] = useState(null)
+  const [upload, { isLoading }] = useBulkRatePlanPricesMutation()
+
+  const onFile = async (e) => {
+    setMsg(null)
+    setErr(null)
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!planId) {
+      setErr({ data: { detail: 'Select a rate plan first' } })
+      return
+    }
+    const csv = await file.text()
+    const result = await upload({ id: planId, csv })
+    if (result.error) {
+      setErr(result.error)
+      return
+    }
+    const upserted = result.data?.upserted ?? 0
+    const errors = result.data?.errors || []
+    setMsg(`Uploaded ${upserted} row(s)${errors.length ? `; ${errors.length} line error(s)` : ''}`)
+  }
+
+  return (
+    <Box sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>Bulk CSV prices</Typography>
+      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+        Header: date,room_type_code,price_1,price_2,price_3,price_4
+      </Typography>
+      {err && <ErrorAlert error={err} />}
+      {msg && <Alert severity="success" sx={{ mb: 1 }}>{msg}</Alert>}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel>Rate plan</InputLabel>
+          <Select label="Rate plan" value={planId} onChange={(ev) => setPlanId(ev.target.value)}>
+            {ratePlans.map((rp) => (
+              <MenuItem key={rp.id} value={rp.id}>{rp.code} — {rp.name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button variant="outlined" component="label" disabled={isLoading || !planId}>
+          {isLoading ? 'Uploading…' : 'Choose CSV'}
+          <input type="file" accept=".csv,text/csv" hidden onChange={onFile} />
+        </Button>
+      </Box>
+    </Box>
+  )
+}
+
 export default function RatePlansPage() {
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
@@ -162,6 +217,7 @@ export default function RatePlansPage() {
         <Button variant="contained" startIcon={<Add />} onClick={() => { setForm(EMPTY); setOpen(true) }}>Add Rate Plan</Button>
       </Box>
       {error && <ErrorAlert error={error} />}
+      <BulkCsvUpload ratePlans={rows} />
       <DataTable columns={columns} rows={rows} loading={isLoading} />
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>

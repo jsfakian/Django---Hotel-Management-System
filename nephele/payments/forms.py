@@ -193,3 +193,13 @@ class InvoiceForm(forms.ModelForm):
                 'placeholder': 'Additional notes (optional)'
             }),
         }
+
+    def save(self, commit=True):
+        invoice = super().save(commit=False)
+        from payments.invoice_lines import ensure_invoice_lines
+
+        ensure_invoice_lines(invoice)
+        if commit:
+            invoice.save()
+            self.save_m2m()
+        return invoice

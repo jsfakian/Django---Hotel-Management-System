@@ -1,3 +1,4 @@
+# nephele/inventory/compliance_views.py
 """Greek compliance exports — ΣΑΕ / police guest registration sheet."""
 
 from __future__ import annotations
@@ -5,16 +6,48 @@ from __future__ import annotations
 import csv
 import io
 from datetime import datetime
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, renderer_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework import status
 
 from accounts.api_permissions import IsHotelStaff
 from room.models import Booking
+
+
+class _CSVRenderer(BaseRenderer):
+    """Allow ?format=csv without DRF Http404 during content negotiation."""
+
+    media_type = "text/csv"
+    format = "csv"
+    charset = "utf-8"
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        if data is None:
+            return b""
+        if isinstance(data, bytes):
+            return data
+        return str(data).encode(self.charset)
+
+
+class _XMLRenderer(BaseRenderer):
+    """Allow ?format=xml without DRF Http404 during content negotiation."""
+
+    media_type = "application/xml"
+    format = "xml"
+    charset = "utf-8"
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        if data is None:
+            return b""
+        if isinstance(data, bytes):
+            return data
+        return str(data).encode(self.charset)
 
 _POLICE_CSV_FIELDS = [
     "booking_id",
@@ -32,6 +65,8 @@ _POLICE_CSV_FIELDS = [
     "check_out",
     "room_number",
     "registration_id",
+    "shima_stay_purpose",
+    "mhte_registry_number",
 ]
 
 
@@ -59,27 +94,53 @@ def _property_for_booking(booking):
     return None
 
 
+def _guest_attr(guest, name, default=""):
+    if not guest:
+        return default
+    return getattr(guest, name, None) or default
+
+
+def _coalesce_identity(booking_value, guest_value):
+    """Prefer booking police fields; fall back to Guest profile."""
+    if booking_value not in (None, ""):
+        return booking_value
+    return guest_value if guest_value not in (None, "") else ""
+
+
 def _booking_to_police_row(booking):
     guest = booking.guest
     prop = _property_for_booking(booking)
+    nationality = _coalesce_identity(
+        booking.guest_nationality, _guest_attr(guest, "nationality")
+    )
+    document_type = _coalesce_identity(
+        booking.guest_document_type, _guest_attr(guest, "document_type")
+    )
+    document_number = _coalesce_identity(
+        booking.guest_document_number, _guest_attr(guest, "document_number")
+    )
+    birth = booking.guest_birth_date or _guest_attr(guest, "birth_date", None)
+    mhte = getattr(booking, "mhte_registry_number", "") or (
+        getattr(prop, "mhte_number", "") if prop else ""
+    )
     return {
         "booking_id": booking.id,
         "confirmation": f"NEPH-{booking.id}",
         "property": prop.name if prop else "",
         "mhte_number": getattr(prop, "mhte_number", "") if prop else "",
-        "guest_first_name": getattr(guest, "first_name", "") if guest else "",
-        "guest_last_name": getattr(guest, "last_name", "") if guest else "",
-        "guest_email": getattr(guest, "email", "") if guest else "",
-        "nationality": booking.guest_nationality,
-        "document_type": booking.guest_document_type,
-        "document_number": booking.guest_document_number,
-        "birth_date": (
-            booking.guest_birth_date.isoformat() if booking.guest_birth_date else ""
-        ),
+        "guest_first_name": _guest_attr(guest, "first_name"),
+        "guest_last_name": _guest_attr(guest, "last_name"),
+        "guest_email": _guest_attr(guest, "email"),
+        "nationality": nationality,
+        "document_type": document_type,
+        "document_number": document_number,
+        "birth_date": birth.isoformat() if birth else "",
         "check_in": booking.check_in_date.isoformat(),
         "check_out": booking.check_out_date.isoformat(),
         "room_number": booking.room.room_number if booking.room_id else "",
         "registration_id": booking.guest_registration_id,
+        "shima_stay_purpose": getattr(booking, "shima_stay_purpose", "") or "",
+        "mhte_registry_number": mhte,
     }
 
 
@@ -94,13 +155,32 @@ def _police_csv_response(rows, property_id):
     return resp
 
 
+def _police_xml_response(rows, property_id):
+    """Ministry-friendly simple XML: <PoliceSheet><Guest>...</Guest></PoliceSheet>."""
+    root = Element("PoliceSheet")
+    root.set("property_id", str(property_id))
+    root.set("exported_at", timezone.now().isoformat())
+    for row in rows:
+        guest_el = SubElement(root, "Guest")
+        for key in _POLICE_CSV_FIELDS:
+            child = SubElement(guest_el, key)
+            child.text = str(row.get(key, "") or "")
+    xml_bytes = tostring(root, encoding="utf-8", xml_declaration=True)
+    filename = f"police_sheet_{property_id}_{datetime.utcnow().strftime('%Y%m%d')}.xml"
+    resp = HttpResponse(xml_bytes, content_type="application/xml; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
 @api_view(["GET"])
+@renderer_classes([JSONRenderer, _CSVRenderer, _XMLRenderer])
 @permission_classes([IsAuthenticated, IsHotelStaff])
 def police_sheet_export(request):
     """
-    Export guest registration rows for a property/date window (ΣΑΕ-oriented CSV).
+    Export guest registration rows for a property/date window (ΣΑΕ-oriented).
 
-    Query: property_id, date_from, date_to (ISO). Defaults to arrivals today.
+    Query: property_id, date_from, date_to (ISO), format=csv|json|xml.
+    Defaults to arrivals today; format defaults to csv.
     """
     property_id = request.query_params.get("property_id")
     date_from = request.query_params.get("date_from")
@@ -117,6 +197,9 @@ def police_sheet_export(request):
         police_sheet_exported_at=timezone.now()
     )
 
-    if request.query_params.get("format", "csv") == "json":
+    fmt = (request.query_params.get("format") or "csv").lower()
+    if fmt == "json":
         return Response({"count": len(rows), "results": rows})
+    if fmt == "xml":
+        return _police_xml_response(rows, property_id)
     return _police_csv_response(rows, property_id)

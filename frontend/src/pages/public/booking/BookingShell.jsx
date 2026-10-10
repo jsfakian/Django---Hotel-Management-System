@@ -1,12 +1,16 @@
 import React from 'react'
 import { Box, Button, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import { BookingLangProvider } from './bookingI18n'
+import { useBookingT } from './bookingLang'
 
 const HERO_IMAGE =
   'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=2000&q=80'
 
-export default function BookingShell({ children, subtitle }) {
+function ShellInner({ children, subtitle, subtitleKey }) {
   const navigate = useNavigate()
+  const { t, toggleLang } = useBookingT()
+  const resolvedSubtitle = subtitleKey ? t(subtitleKey) : subtitle
 
   return (
     <Box
@@ -28,6 +32,8 @@ export default function BookingShell({ children, subtitle }) {
           px: { xs: 3, md: 6 },
           py: 3,
           color: 'common.white',
+          gap: 1,
+          flexWrap: 'wrap',
         }}
       >
         <Typography
@@ -37,18 +43,34 @@ export default function BookingShell({ children, subtitle }) {
         >
           Nephele
         </Typography>
-        <Button color="inherit" variant="outlined" onClick={() => navigate('/book')} sx={{ borderColor: 'rgba(255,255,255,0.55)', color: 'common.white' }}>
-          Book a stay
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            color="inherit"
+            variant="outlined"
+            size="small"
+            onClick={toggleLang}
+            sx={{ borderColor: 'rgba(255,255,255,0.55)', color: 'common.white', minWidth: 48 }}
+          >
+            {t('langToggle')}
+          </Button>
+          <Button
+            color="inherit"
+            variant="outlined"
+            onClick={() => navigate('/book')}
+            sx={{ borderColor: 'rgba(255,255,255,0.55)', color: 'common.white' }}
+          >
+            {t('bookCta')}
+          </Button>
+        </Box>
       </Box>
 
       <Box sx={{ px: { xs: 3, md: 6 }, pb: 2, color: 'common.white', maxWidth: 720 }}>
         <Typography variant="h3" sx={{ fontFamily: '"Fraunces", Georgia, serif', mb: 1 }}>
-          Book your stay
+          {t('bookStay')}
         </Typography>
-        {subtitle && (
+        {resolvedSubtitle && (
           <Typography variant="body1" sx={{ opacity: 0.9, mb: 2, fontFamily: '"Source Sans 3", sans-serif' }}>
-            {subtitle}
+            {resolvedSubtitle}
           </Typography>
         )}
       </Box>
@@ -67,5 +89,13 @@ export default function BookingShell({ children, subtitle }) {
         {children}
       </Box>
     </Box>
+  )
+}
+
+export default function BookingShell({ children, subtitle, subtitleKey }) {
+  return (
+    <BookingLangProvider>
+      <ShellInner subtitle={subtitle} subtitleKey={subtitleKey}>{children}</ShellInner>
+    </BookingLangProvider>
   )
 }

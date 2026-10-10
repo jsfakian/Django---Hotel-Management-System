@@ -10,6 +10,7 @@ from django.utils import timezone
 from inventory.booking_engine import (
     HoldExpiredError,
     NoAllotmentError,
+    _smart_rate_hint,
     compute_taxes,
     confirm_hold,
     create_hold,
@@ -215,3 +216,21 @@ def test_expire_holds_restores_allotment(catalog):
             room_type=catalog["room_type"], date=night
         )
         assert avail.booked == 0
+
+
+@pytest.mark.unit
+def test_smart_rate_hint_falls_back_when_model_missing():
+    """Quote hint must not raise when predictor/model is unavailable."""
+    hint = _smart_rate_hint(999999, date.today())
+    assert hint is None or "smart_rate" in hint
+
+
+@pytest.mark.unit
+def test_smart_rate_uses_predictor_when_available(monkeypatch):
+    monkeypatch.setattr(
+        "inventory.booking_engine._predict_smart_rate",
+        lambda room_type_id, check_in: 155.5,
+    )
+    hint = _smart_rate_hint(1, date.today())
+    assert hint["smart_rate"] == "155.5"
+    assert hint["source"] == "price_predictor"

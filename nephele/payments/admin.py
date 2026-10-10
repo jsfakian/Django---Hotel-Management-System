@@ -54,7 +54,7 @@ class InvoiceAdmin(admin.ModelAdmin):
             'fields': ('issued_date', 'due_date', 'paid_date')
         }),
         ('Description', {
-            'fields': ('description', 'notes')
+            'fields': ('description', 'notes', 'line_items')
         }),
         ('MyData (AADE) Integration', {
             'fields': ('mydata_transmitted', 'mydata_transmission_id', 'mydata_transmission_date', 'mydata_qr_code', 'mydata_cancel_mark', 'mydata_cancel_date'),

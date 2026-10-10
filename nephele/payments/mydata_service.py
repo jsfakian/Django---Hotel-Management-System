@@ -62,15 +62,224 @@ class MyDataService:
             headers['Authorization'] = f'Bearer {self.api_key}'
         return headers
     
+    def _counterpart_afm(self, invoice: Invoice) -> str:
+        """Guest AFM/VAT when available; empty for B2C retail invoices."""
+        guest = invoice.guest
+        if not guest:
+            return ""
+        prefs = getattr(guest, "preferences", None) or {}
+        for key in ("afm", "vat_number", "tax_id"):
+            val = prefs.get(key) if isinstance(prefs, dict) else None
+            if val:
+                return str(val)
+        return str(getattr(guest, "document_number", "") or "")
+
+    def _counterpart_for_invoice(self, invoice: Invoice) -> Dict:
+        guest = invoice.guest
+        name = ""
+        email = self._guest_email_for_invoice(invoice)
+        if guest:
+            if getattr(guest, "user_id", None) and guest.user:
+                name = f"{guest.user.first_name} {guest.user.last_name}".strip()
+            if not name:
+                name = f"{guest.first_name} {guest.last_name}".strip()
+        return {
+            "name": name,
+            "email": email,
+            "afm": self._counterpart_afm(invoice),
+            "vatNumber": self._counterpart_afm(invoice),
+        }
+
+    def _resolve_line_items_source(self, invoice: Invoice) -> List[Dict]:
+        lines_src = getattr(invoice, "line_items", None) or []
+        if lines_src or not invoice.booking_id:
+            return list(lines_src)
+        from payments.invoice_lines import booking_invoice_lines, lines_as_jsonable
+
+        return lines_as_jsonable(booking_invoice_lines(invoice.booking))
+
+    def _summary_mydata_line(
+        self, invoice: Invoice, net_amount: Decimal, vat_amount: Decimal
+    ) -> Dict:
+        return {
+            "lineNumber": 1,
+            "description": (invoice.description or "")[:255],
+            "quantity": 1,
+            "unitPrice": float(net_amount),
+            "discountPercentage": 0,
+            "discount": 0,
+            "netAmount": float(net_amount),
+            "netValue": float(net_amount),
+            "vatCategory": "1",
+            "vatAmount": float(vat_amount),
+            "grossAmount": float(invoice.total_amount),
+        }
+
+    @staticmethod
+    def _structured_mydata_line(idx: int, item: Dict) -> Dict:
+        amount = float(item.get("amount") or 0)
+        qty = int(item.get("quantity") or 1)
+        unit = float(item.get("unit_amount") or (amount / qty if qty else amount))
+        is_vat = item.get("code") == "VAT" or item.get("tax_category") == "vat"
+        net = 0.0 if is_vat else amount
+        vat = amount if is_vat else 0.0
+        return {
+            "lineNumber": idx,
+            "description": str(item.get("description") or "")[:255],
+            "quantity": qty,
+            "unitPrice": unit,
+            "discountPercentage": 0,
+            "discount": 0,
+            "netAmount": net,
+            "netValue": net,
+            "vatCategory": str(item.get("vat_category") or "1"),
+            "vatAmount": vat,
+            "grossAmount": amount,
+            "code": item.get("code"),
+        }
+
+    def _mydata_lines_for_invoice(
+        self, invoice: Invoice, net_amount: Decimal, vat_amount: Decimal
+    ) -> List[Dict]:
+        """Prefer structured booking lines; fall back to a single summary line."""
+        lines_src = self._resolve_line_items_source(invoice)
+        if not lines_src:
+            return [self._summary_mydata_line(invoice, net_amount, vat_amount)]
+        return [
+            self._structured_mydata_line(idx, item)
+            for idx, item in enumerate(lines_src, start=1)
+        ]
+
+    def _invoice_series_aa(self, invoice: Invoice) -> Tuple[str, str]:
+        """Split invoice_number into series + sequential aa for AADE header."""
+        number = invoice.invoice_number or "INV-0"
+        parts = number.rsplit("-", 1)
+        if len(parts) == 2 and parts[1]:
+            return parts[0], parts[1]
+        return "INV", number
+
+    def _aade_invoice_details(
+        self, lines: List[Dict], net_amount: Decimal, vat_amount: Decimal
+    ) -> List[Dict]:
+        """AADE invoiceDetails rows (netValue / vatCategory / vatAmount)."""
+        details = []
+        for line in lines:
+            net = float(line.get("netValue", line.get("netAmount", 0)) or 0)
+            vat = float(line.get("vatAmount", 0) or 0)
+            if line.get("code") == "VAT":
+                continue
+            details.append(
+                {
+                    "lineNumber": line.get("lineNumber"),
+                    "netValue": net,
+                    "vatCategory": str(line.get("vatCategory") or "1"),
+                    "vatAmount": vat,
+                    "quantity": line.get("quantity", 1),
+                    "description": line.get("description", ""),
+                }
+            )
+        if details:
+            # Attach invoice-level VAT on first non-VAT line when lines lack VAT.
+            if details[0]["vatAmount"] == 0 and float(vat_amount) > 0:
+                details[0]["vatAmount"] = float(vat_amount)
+            return details
+        return [
+            {
+                "lineNumber": 1,
+                "netValue": float(net_amount),
+                "vatCategory": "1",
+                "vatAmount": float(vat_amount),
+                "quantity": 1,
+                "description": "",
+            }
+        ]
+
+    def build_aade_invoice_doc(self, invoice: Invoice) -> Dict:
+        """
+        AADE myDATA-shaped document used for live SendInvoices POST.
+
+        Mirrors documented fields: issuer/counterpart AFM (vatNumber),
+        invoiceHeader, invoiceDetails (vatCategory, netValue, vatAmount),
+        invoiceSummary. Also includes a compact XML-ish string for debugging.
+        """
+        if not invoice.amount:
+            raise MyDataServiceException(
+                f"Invoice {invoice.invoice_number} has invalid amount"
+            )
+        vat_amount = invoice.tax_amount or Decimal("0")
+        net_amount = invoice.amount
+        lines = self._mydata_lines_for_invoice(invoice, net_amount, vat_amount)
+        series, aa = self._invoice_series_aa(invoice)
+        counterpart = self._counterpart_for_invoice(invoice)
+        counterpart_afm = counterpart.get("vatNumber") or counterpart.get("afm") or ""
+        details = self._aade_invoice_details(lines, net_amount, vat_amount)
+        header = {
+            "series": series,
+            "aa": aa,
+            "issueDate": invoice.issued_date.strftime("%Y-%m-%d"),
+            "invoiceType": "2.1",
+            "currency": "EUR",
+        }
+        issuer = {
+            "vatNumber": str(self.tax_id),
+            "afm": str(self.tax_id),
+            "country": "GR",
+            "branch": 0,
+        }
+        counterpart_block = {
+            "vatNumber": counterpart_afm,
+            "afm": counterpart_afm,
+            "name": counterpart.get("name") or "",
+            "country": "GR",
+            "branch": 0,
+        }
+        summary = {
+            "totalNetValue": float(net_amount),
+            "totalVatAmount": float(vat_amount),
+            "totalGrossValue": float(invoice.total_amount),
+        }
+        invoice_node = {
+            "issuer": issuer,
+            "counterpart": counterpart_block,
+            "invoiceHeader": header,
+            "paymentMethods": {
+                "paymentMethodDetails": [
+                    {"type": 1, "amount": float(invoice.total_amount)}
+                ]
+            },
+            "invoiceDetails": details,
+            "invoiceSummary": summary,
+        }
+        xmlish = (
+            f"<InvoicesDoc><invoice>"
+            f"<issuer><vatNumber>{issuer['vatNumber']}</vatNumber></issuer>"
+            f"<counterpart><vatNumber>{counterpart_afm}</vatNumber></counterpart>"
+            f"<invoiceHeader><series>{series}</series><aa>{aa}</aa>"
+            f"<issueDate>{header['issueDate']}</issueDate>"
+            f"<invoiceType>{header['invoiceType']}</invoiceType>"
+            f"<currency>EUR</currency></invoiceHeader>"
+            f"<invoiceDetails><lineNumber>1</lineNumber>"
+            f"<netValue>{summary['totalNetValue']}</netValue>"
+            f"<vatCategory>1</vatCategory>"
+            f"<vatAmount>{summary['totalVatAmount']}</vatAmount>"
+            f"</invoiceDetails>"
+            f"<invoiceSummary>"
+            f"<totalNetValue>{summary['totalNetValue']}</totalNetValue>"
+            f"<totalVatAmount>{summary['totalVatAmount']}</totalVatAmount>"
+            f"<totalGrossValue>{summary['totalGrossValue']}</totalGrossValue>"
+            f"</invoiceSummary></invoice></InvoicesDoc>"
+        )
+        return {
+            "InvoicesDoc": {"invoice": [invoice_node]},
+            "xml": xmlish,
+        }
+
     def export_invoice(self, invoice: Invoice) -> Dict:
         """
-        Export invoice in MyData-compatible XML/JSON format
-        
-        Args:
-            invoice: Invoice instance to export
-            
-        Returns:
-            Dictionary with MyData format data
+        Export invoice in MyData-compatible JSON format.
+
+        Sandbox / UI export keeps the legacy ``invoice`` envelope. Live
+        transmission uses :meth:`build_aade_invoice_doc` instead.
         """
         if not invoice.amount:
             raise MyDataServiceException(f'Invoice {invoice.invoice_number} has invalid amount')
@@ -78,7 +287,10 @@ class MyDataService:
         # Calculate VAT information
         vat_amount = invoice.tax_amount or Decimal('0')
         net_amount = invoice.amount
-        
+        lines = self._mydata_lines_for_invoice(invoice, net_amount, vat_amount)
+        counterpart = self._counterpart_for_invoice(invoice)
+        series, aa = self._invoice_series_aa(invoice)
+
         export_data = {
             'invoice': {
                 'mark': invoice.mydata_transmission_id or '',
@@ -88,31 +300,27 @@ class MyDataService:
                 'currency': 'EUR',
                 'issuer': {
                     'taxId': self.tax_id,
+                    'afm': self.tax_id,
+                    'vatNumber': self.tax_id,
                 },
-                'counterpart': {
-                    'name': f"{invoice.guest.user.first_name} {invoice.guest.user.last_name}",
-                    'email': invoice.guest.user.email,
+                'counterpart': counterpart,
+                'invoiceHeader': {
+                    'series': series,
+                    'aa': aa,
+                    'issueDate': invoice.issued_date.strftime('%Y-%m-%d'),
+                    'invoiceType': '2.1',
+                    'currency': 'EUR',
                 },
-                'lines': [
-                    {
-                        'lineNumber': 1,
-                        'description': invoice.description[:255],  # Limit to 255 chars
-                        'quantity': 1,
-                        'unitPrice': float(net_amount),
-                        'discountPercentage': 0,
-                        'discount': 0,
-                        'netAmount': float(net_amount),
-                        'vatCategory': '1',  # VAT 24% for services/accommodation
-                        'vatAmount': float(vat_amount),
-                        'grossAmount': float(invoice.total_amount),
-                    }
-                ],
+                'invoiceDetails': self._aade_invoice_details(
+                    lines, net_amount, vat_amount
+                ),
+                'lines': lines,
                 'totals': {
                     'netAmount': float(net_amount),
                     'vatAmount': float(vat_amount),
                     'grossAmount': float(invoice.total_amount),
-                    'itemsNumber': 1,
-                    'linesNumber': 1,
+                    'itemsNumber': len(lines),
+                    'linesNumber': len(lines),
                 },
                 'paymentMethods': [
                     {
@@ -167,9 +375,7 @@ class MyDataService:
         invoice.mark_as_mydata_transmitted(transmission_id, qr_code)
         return True, transmission_id
 
-    def _live_transmit(
-        self, invoice: Invoice, export_data: Dict, qr_code: str
-    ) -> Tuple[bool, str]:
+    def _live_transmit(self, invoice: Invoice, qr_code: str) -> Tuple[bool, str]:
         if not self.username or not self.subscription_key:
             return (
                 False,
@@ -177,10 +383,13 @@ class MyDataService:
                 'required when MYDATA_SANDBOX_MODE=False',
             )
 
+        aade_payload = self.build_aade_invoice_doc(invoice)
+        headers = self._auth_headers()
+        headers['Content-Type'] = 'application/json'
         response = requests.post(
             f'{self.api_base}/SendInvoices',
-            json=export_data,
-            headers=self._auth_headers(),
+            json=aade_payload,
+            headers=headers,
             timeout=self.timeout,
         )
         body = self._response_body(response)
@@ -199,7 +408,7 @@ class MyDataService:
         Transmit invoice to MyData.
 
         When MYDATA_SANDBOX_MODE is True, keep the local mock MARK.
-        When False, POST to MYDATA_API_BASE with username / subscription key.
+        When False, POST AADE-shaped InvoicesDoc to MYDATA_API_BASE.
         """
         try:
             if not invoice.amount or invoice.amount <= 0:
@@ -208,12 +417,13 @@ class MyDataService:
             if not self._guest_email_for_invoice(invoice):
                 return False, 'Guest email is required for MyData transmission'
 
-            export_data = self.export_invoice(invoice)
             qr_code = self.generate_qr_code_data(invoice)
 
             if self.sandbox_mode:
+                # Sandbox still validates export shape without remote HTTP.
+                self.export_invoice(invoice)
                 return self._sandbox_transmit(invoice, qr_code)
-            return self._live_transmit(invoice, export_data, qr_code)
+            return self._live_transmit(invoice, qr_code)
 
         except requests.RequestException as e:
             return False, f'MyData network error: {e}'

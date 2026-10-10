@@ -174,32 +174,84 @@ def _guest_contact(booking):
     return guest_name, guest_email
 
 
-def _booking_confirmation_html(booking, property_name, guest_name):
-    total = booking.actual_price or booking.base_price
-    vat = booking.vat_amount or 0
-    climate = booking.climate_resilience_fee or 0
-    conf = f"NEPH-{booking.id}"
-    return f"""
-<html>
-<body style="font-family: Georgia, serif; color: #1a1a1a; line-height: 1.5;">
-<p>Dear {guest_name}, / Αγαπητέ/ή {guest_name},</p>
-<p>Thank you for your booking! / Ευχαριστούμε για την κράτησή σας!</p>
-<p><strong>Confirmation / Επιβεβαίωση:</strong> {conf}</p>
-<p><strong>Check-in / Άφιξη:</strong> {booking.check_in_date}</p>
-<p><strong>Check-out / Αναχώρηση:</strong> {booking.check_out_date}</p>
-<p><strong>VAT / ΦΠΑ:</strong> €{vat}</p>
-<p><strong>Climate resilience fee / Τέλος κλιματικής ανθεκτικότητας:</strong> €{climate}</p>
-<p><strong>Total / Σύνολο:</strong> €{total}</p>
-<p>We look forward to welcoming you! / Σας περιμένουμε!</p>
-<p>{property_name}</p>
-</body>
-</html>
-"""
+def _normalize_locale(value):
+    if not value:
+        return None
+    raw = str(value).lower().split(',')[0].strip().split(';')[0].strip()
+    lang = raw.split('-')[0] if raw else ''
+    if lang == 'el':
+        return 'el'
+    if lang == 'en':
+        return 'en'
+    return None
+
+
+def _resolve_confirmation_locale(booking, locale=None, accept_language=None):
+    """guest language → Accept-Language → booking.locale → default en."""
+    if booking.guest_id:
+        prefs = getattr(booking.guest, 'preferences', None) or {}
+        if isinstance(prefs, dict):
+            normalized = _normalize_locale(prefs.get('language') or prefs.get('locale'))
+            if normalized:
+                return normalized
+    for candidate in (
+        accept_language,
+        locale,
+        getattr(booking, 'locale', None),
+    ):
+        normalized = _normalize_locale(candidate)
+        if normalized:
+            return normalized
+    return 'en'
+
+
+def _confirmation_email_context(booking, property_name, guest_name):
+    return {
+        'guest_name': guest_name,
+        'confirmation_number': f'NEPH-{booking.id}',
+        'check_in': booking.check_in_date,
+        'check_out': booking.check_out_date,
+        'vat': booking.vat_amount or 0,
+        'climate': booking.climate_resilience_fee or 0,
+        'total': booking.actual_price or booking.base_price,
+        'property_name': property_name,
+    }
+
+
+def _confirmation_subject(locale, property_name):
+    from django.utils import translation
+    from django.utils.translation import gettext as _
+
+    with translation.override(locale or 'en'):
+        return str(_("Booking Confirmation - %(property)s")) % {
+            "property": property_name
+        }
+
+
+def _booking_confirmation_html(booking, property_name, guest_name, locale='en'):
+    from django.template.exceptions import TemplateDoesNotExist
+
+    context = _confirmation_email_context(booking, property_name, guest_name)
+    template_name = f'notifications/email/booking_confirmation_{locale}.html'
+    try:
+        return render_to_string(template_name, context)
+    except TemplateDoesNotExist:
+        if locale != 'en':
+            return render_to_string(
+                'notifications/email/booking_confirmation_en.html', context
+            )
+        # Last-resort bilingual fallback if templates are missing
+        return (
+            f"<html><body><p>Dear {guest_name}, / Αγαπητέ/ή {guest_name},</p>"
+            f"<p>Confirmation / Επιβεβαίωση: {context['confirmation_number']}</p>"
+            f"<p>Total / Σύνολο: €{context['total']}</p>"
+            f"<p>{property_name}</p></body></html>"
+        )
 
 
 @shared_task
-def send_booking_confirmation(booking_id):
-    """Send booking confirmation email to guest"""
+def send_booking_confirmation(booking_id, locale=None, accept_language=None):
+    """Send booking confirmation email to guest (en/el templates)."""
     try:
         from room.models import Booking
 
@@ -213,10 +265,14 @@ def send_booking_confirmation(booking_id):
             logger.warning('No guest email for booking %s; skip confirmation', booking_id)
             return
 
-        subject = f"Booking Confirmation / Επιβεβαίωση κράτησης - {property_name}"
-        html_message = _booking_confirmation_html(booking, property_name, guest_name)
+        lang = _resolve_confirmation_locale(
+            booking, locale=locale, accept_language=accept_language
+        )
+        html_message = _booking_confirmation_html(
+            booking, property_name, guest_name, locale=lang
+        )
         send_mail(
-            subject=subject,
+            subject=_confirmation_subject(lang, property_name),
             message=strip_tags(html_message),
             from_email='bookings@nephele.io',
             recipient_list=[guest_email],

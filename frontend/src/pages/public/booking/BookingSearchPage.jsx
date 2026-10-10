@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Box, Button, Grid, TextField, Typography, Alert } from '@mui/material'
 import BookingShell from './BookingShell'
+import { BookingLangProvider } from './bookingI18n'
+import { useBookingT } from './bookingLang'
 import { saveBookingDraft } from '../../../features/public/publicBookingApi'
 
 function tomorrowIso() {
@@ -16,9 +18,10 @@ function plusDaysIso(base, days) {
   return d.toISOString().slice(0, 10)
 }
 
-export default function BookingSearchPage({ embedded = false }) {
+function SearchForm({ embedded = false }) {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const { t } = useBookingT()
   const [form, setForm] = useState({
     property_id: params.get('property_id') || '1',
     check_in: tomorrowIso(),
@@ -34,11 +37,11 @@ export default function BookingSearchPage({ embedded = false }) {
     e.preventDefault()
     setError('')
     if (!form.property_id || !form.check_in || !form.check_out) {
-      setError('Property and dates are required.')
+      setError(t('errDatesRequired'))
       return
     }
     if (form.check_out <= form.check_in) {
-      setError('Check-out must be after check-in.')
+      setError(t('errCheckoutAfter'))
       return
     }
     const draft = {
@@ -49,55 +52,61 @@ export default function BookingSearchPage({ embedded = false }) {
       children: Number(form.children) || 0,
     }
     saveBookingDraft(draft)
-    const params = new URLSearchParams({
+    const qs = new URLSearchParams({
       property_id: String(draft.property_id),
       check_in: draft.check_in,
       check_out: draft.check_out,
       adults: String(draft.adults),
       children: String(draft.children),
     })
-    navigate(`/book/results?${params.toString()}`)
+    navigate(`/book/results?${qs.toString()}`)
   }
 
-  const body = (
+  return (
     <>
       <Typography variant="h6" sx={{ mb: 2, fontFamily: '"Fraunces", Georgia, serif' }}>
-        Search availability
+        {t('searchTitle')}
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       <Box component="form" onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           <Grid item xs={12} sm={4}>
-            <TextField fullWidth required label="Property ID" type="number" value={form.property_id} onChange={set('property_id')} />
+            <TextField fullWidth required label={t('propertyId')} type="number" value={form.property_id} onChange={set('property_id')} />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <TextField fullWidth required type="date" label="Check-in" InputLabelProps={{ shrink: true }} value={form.check_in} onChange={set('check_in')} />
+            <TextField fullWidth required type="date" label={t('checkIn')} InputLabelProps={{ shrink: true }} value={form.check_in} onChange={set('check_in')} />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <TextField fullWidth required type="date" label="Check-out" InputLabelProps={{ shrink: true }} value={form.check_out} onChange={set('check_out')} />
+            <TextField fullWidth required type="date" label={t('checkOut')} InputLabelProps={{ shrink: true }} value={form.check_out} onChange={set('check_out')} />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <TextField fullWidth label="Adults" type="number" inputProps={{ min: 1 }} value={form.adults} onChange={set('adults')} />
+            <TextField fullWidth label={t('adults')} type="number" inputProps={{ min: 1 }} value={form.adults} onChange={set('adults')} />
           </Grid>
           <Grid item xs={6} sm={3}>
-            <TextField fullWidth label="Children" type="number" inputProps={{ min: 0 }} value={form.children} onChange={set('children')} />
+            <TextField fullWidth label={t('children')} type="number" inputProps={{ min: 0 }} value={form.children} onChange={set('children')} />
           </Grid>
           <Grid item xs={12}>
             <Button type="submit" variant="contained" color="primary" size="large" fullWidth={embedded}>
-              Search stays
+              {t('searchStays')}
             </Button>
           </Grid>
         </Grid>
       </Box>
     </>
   )
+}
 
+export default function BookingSearchPage({ embedded = false }) {
   if (embedded) {
-    return body
+    return (
+      <BookingLangProvider>
+        <SearchForm embedded />
+      </BookingLangProvider>
+    )
   }
   return (
-    <BookingShell subtitle="Choose dates and guests — we will show open room types and rates.">
-      {body}
+    <BookingShell subtitleKey="searchSubtitle">
+      <SearchForm />
     </BookingShell>
   )
 }

@@ -199,7 +199,12 @@ class Invoice(models.Model):
     
     # Notes
     notes = models.TextField(blank=True)
-    
+    line_items = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Structured invoice lines (room, VAT, climate fee, extras)",
+    )
+
     # MyData (AADE) Integration Fields
     mydata_transmitted = models.BooleanField(default=False, help_text='Whether invoice was transmitted to MyData')
     mydata_transmission_id = models.CharField(max_length=100, blank=True, help_text='MyData transmission ID/mark')

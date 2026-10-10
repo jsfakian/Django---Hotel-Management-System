@@ -82,6 +82,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -483,4 +484,7 @@ CHANNEL_CREDENTIALS_KEY = os.environ.get('CHANNEL_CREDENTIALS_KEY', '')
 CHANNEL_SYNC_STUBS_OK = os.environ.get('CHANNEL_SYNC_STUBS_OK', 'False') == 'True'
 BOOKING_COM_API_KEY = os.environ.get('BOOKING_COM_API_KEY', '')
 BOOKING_COM_API_SECRET = os.environ.get('BOOKING_COM_API_SECRET', '')
+BOOKING_COM_API_BASE = os.environ.get(
+    'BOOKING_COM_API_BASE', 'https://supply-xml.booking.com'
+)
 BOOKING_COM_LIVE = os.environ.get('BOOKING_COM_LIVE', 'False') == 'True'

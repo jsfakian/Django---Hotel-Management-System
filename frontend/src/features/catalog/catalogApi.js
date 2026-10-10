@@ -31,6 +31,17 @@ export const catalogApi = api.injectEndpoints({
       query: (id) => ({ url: `/room-types/${id}/`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Room', id: 'ROOM_TYPE_LIST' }],
     }),
+    getRoomTypeAvailability: builder.query({
+      query: ({ id, date_from, date_to }) => ({
+        url: `/room-types/${id}/availability/`,
+        method: 'GET',
+        params: { date_from, date_to },
+      }),
+      providesTags: (result, error, { id }) => [
+        { type: 'Room', id: `rt-${id}` },
+        { type: 'Room', id: 'AVAIL_CALENDAR' },
+      ],
+    }),
     patchRoomTypeAvailability: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `/room-types/${id}/availability/`,
@@ -71,6 +82,17 @@ export const catalogApi = api.injectEndpoints({
       query: (id) => ({ url: `/rate-plans/${id}/`, method: 'DELETE' }),
       invalidatesTags: [{ type: 'Room', id: 'RATE_PLAN_LIST' }],
     }),
+    bulkRatePlanPrices: builder.mutation({
+      query: ({ id, csv }) => ({
+        url: `/rate-plans/${id}/bulk-prices/`,
+        method: 'POST',
+        data: { csv },
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Room', id: `rp-${id}` },
+        { type: 'Room', id: 'RATE_PLAN_LIST' },
+      ],
+    }),
     quoteAvailability: builder.mutation({
       query: (data) => ({ url: '/availability/quote/', method: 'POST', data }),
     }),
@@ -84,11 +106,14 @@ export const {
   useCreateRoomTypeMutation,
   useUpdateRoomTypeMutation,
   useDeleteRoomTypeMutation,
+  useGetRoomTypeAvailabilityQuery,
+  useLazyGetRoomTypeAvailabilityQuery,
   usePatchRoomTypeAvailabilityMutation,
   useGetRatePlansQuery,
   useGetRatePlanQuery,
   useCreateRatePlanMutation,
   useUpdateRatePlanMutation,
   useDeleteRatePlanMutation,
+  useBulkRatePlanPricesMutation,
   useQuoteAvailabilityMutation,
 } = catalogApi

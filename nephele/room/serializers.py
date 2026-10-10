@@ -81,6 +81,8 @@ class BookingSerializer(serializers.ModelSerializer):
             'number_of_guests', 'status', 'base_price', 'actual_price',
             'total_price', 'nights_count',
             'travel_agency', 'travel_agency_name',
+            'guest_document_type', 'guest_document_number',
+            'guest_nationality', 'guest_birth_date', 'shima_stay_purpose',
             'notes', 'special_requests', 'dependees',
             'created_at', 'updated_at'
         ]

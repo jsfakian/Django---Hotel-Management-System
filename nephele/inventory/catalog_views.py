@@ -11,7 +11,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.api_permissions import IsHotelStaff
-from inventory.booking_engine import cancel_hold, confirm_hold, create_hold, quote
+from inventory.booking_engine import (
+    cancel_hold,
+    confirm_hold,
+    create_hold,
+    hold_booking_dict,
+    modify_hold,
+    quote,
+)
 from inventory.catalog_serializers import (
     AvailabilityQuoteSerializer,
     BulkAvailabilitySerializer,
@@ -19,13 +26,95 @@ from inventory.catalog_serializers import (
     CancelHoldSerializer,
     ConfirmHoldSerializer,
     HoldBookingSerializer,
+    ModifyHoldSerializer,
     RatePlanSerializer,
     RoomTypeAvailabilitySerializer,
     RoomTypeSerializer,
 )
-from inventory.models import RatePlan, RatePlanPrice, RoomType, RoomTypeAvailability
+from inventory.models import (
+    RatePlan,
+    RatePlanPrice,
+    RoomType,
+    RoomTypeAvailability,
+    RoomTypeAvailabilityAudit,
+)
 from inventory.services import daterange, ensure_room_type_availability
 from room.models import Booking, Room
+
+
+_AVAIL_PATCH_FIELDS = (
+    "allotment",
+    "stop_sell",
+    "closed",
+    "min_stay",
+    "max_stay",
+    "cta",
+    "ctd",
+    "staff_override",
+)
+
+
+def _record_availability_audit(avail, data, user, note=""):
+    """Write audit row when staff changes allotment or staff_override."""
+    new_allotment = data.get("allotment", avail.allotment)
+    new_override = data.get("staff_override", avail.staff_override)
+    if new_allotment == avail.allotment and new_override == avail.staff_override:
+        return
+    RoomTypeAvailabilityAudit.objects.create(
+        room_type=avail.room_type,
+        date=avail.date,
+        old_allotment=avail.allotment,
+        new_allotment=new_allotment,
+        old_staff_override=avail.staff_override,
+        new_staff_override=new_override,
+        changed_by=user if user and user.is_authenticated else None,
+        note=note or "",
+    )
+
+
+def _apply_availability_patch(avail, data, user):
+    _record_availability_audit(avail, data, user)
+    for field in _AVAIL_PATCH_FIELDS:
+        if field in data:
+            setattr(avail, field, data[field])
+    if user and user.is_authenticated:
+        avail.updated_by = user
+    avail.save()
+    return avail
+
+
+def _availability_update_rows(data):
+    """Yield (night_date, patch_dict) from flat range or days[] payload."""
+    days = data.get("days") or []
+    if days:
+        for day in days:
+            patch = {k: day[k] for k in _AVAIL_PATCH_FIELDS if k in day}
+            yield day["date"], patch
+        return
+    shared = {k: data[k] for k in _AVAIL_PATCH_FIELDS if k in data}
+    for night in daterange(data["date_from"], data["date_to"]):
+        yield night, shared
+
+
+def _list_room_type_availability(room_type, query_params):
+    """
+    Existing RoomTypeAvailability rows for calendar GET.
+
+    Query: date_from (inclusive ISO), date_to (exclusive ISO).
+    Response: list of {
+      id, room_type, date, allotment, booked, stop_sell, closed,
+      min_stay, max_stay, cta, ctd, staff_override, updated_by,
+      restrictions, available_units
+    }
+    """
+    qs = RoomTypeAvailability.objects.filter(room_type=room_type).order_by("date")
+    date_from = query_params.get("date_from")
+    date_to = query_params.get("date_to")
+    if date_from:
+        qs = qs.filter(date__gte=date_from)
+    if date_to:
+        qs = qs.filter(date__lt=date_to)
+    return RoomTypeAvailabilitySerializer(qs, many=True).data
 
 
 class RoomTypeViewSet(viewsets.ModelViewSet):
@@ -44,39 +133,35 @@ class RoomTypeViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get", "patch"], url_path="availability")
     def availability(self, request, pk=None):
+        """
+        GET calendar rows / PATCH bulk upsert for a room type.
+
+        GET query: ``date_from`` (inclusive), ``date_to`` (exclusive).
+        GET response: array of RoomTypeAvailabilitySerializer objects
+        (id, room_type, date, allotment, booked, stop_sell, closed, min_stay,
+        max_stay, cta, ctd, staff_override, updated_by, restrictions,
+        available_units).
+
+        PATCH body: flat ``date_from``/``date_to`` + shared fields, or
+        ``days: [{date, allotment?, min_stay?, stop_sell?, ...}]``.
+        """
         room_type = self.get_object()
         if request.method == "GET":
-            date_from = request.query_params.get("date_from")
-            date_to = request.query_params.get("date_to")
-            qs = RoomTypeAvailability.objects.filter(room_type=room_type)
-            if date_from:
-                qs = qs.filter(date__gte=date_from)
-            if date_to:
-                qs = qs.filter(date__lt=date_to)
-            return Response(RoomTypeAvailabilitySerializer(qs, many=True).data)
+            return Response(
+                _list_room_type_availability(room_type, request.query_params)
+            )
 
         ser = BulkAvailabilitySerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
-        updated = []
-        for night in daterange(data["date_from"], data["date_to"]):
-            avail = ensure_room_type_availability(room_type, night)
-            for field in (
-                "allotment",
-                "stop_sell",
-                "closed",
-                "min_stay",
-                "max_stay",
-                "cta",
-                "ctd",
-                "staff_override",
-            ):
-                if field in data:
-                    setattr(avail, field, data[field])
-            if request.user and request.user.is_authenticated:
-                avail.updated_by = request.user
-            avail.save()
-            updated.append(avail)
+        updated = [
+            _apply_availability_patch(
+                ensure_room_type_availability(room_type, night),
+                patch,
+                request.user,
+            )
+            for night, patch in _availability_update_rows(data)
+        ]
         return Response(RoomTypeAvailabilitySerializer(updated, many=True).data)
 
 
@@ -176,37 +261,54 @@ class BookingEngineHoldView(APIView):
             elif not isinstance(exc, (BookingEngineError, ValueError, TypeError)):
                 raise
             return Response({"error": str(exc)}, status=code)
-        return Response(
-            {
-                "booking_id": booking.id,
-                "status": booking.status,
-                "hold_expires_at": booking.hold_expires_at,
-                "total": str(booking.actual_price),
-                "vat_amount": str(booking.vat_amount),
-                "climate_resilience_fee": str(booking.climate_resilience_fee),
-                "payment_mode": getattr(booking, "payment_mode", "deposit"),
-                "deposit_due": str(
-                    getattr(booking, "deposit_due", booking.actual_price)
-                ),
-                "notes": booking.notes,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(hold_booking_dict(booking), status=status.HTTP_201_CREATED)
+
+
+def _checkout_before_confirm(booking_id, payment_mode, payment_ref):
+    """Start gateway checkout for deposit/full when no payment_ref yet."""
+    if payment_ref or payment_mode == "pay_at_hotel":
+        return {}, payment_ref
+    from inventory.booking_engine import gateway_checkout_for_booking
+
+    held = Booking.objects.filter(pk=booking_id).first()
+    if held is None:
+        return {}, payment_ref
+    checkout = gateway_checkout_for_booking(held, payment_mode)
+    return checkout, checkout.get("payment_ref") or payment_ref
+
+
+def _confirm_response(booking, payment_mode, checkout):
+    body = {
+        "booking_id": booking.id,
+        "status": booking.status,
+        "confirmation_number": f"NEPH-{booking.id}",
+        "check_in": booking.check_in_date,
+        "check_out": booking.check_out_date,
+        "total": str(booking.actual_price),
+        "payment_mode": payment_mode or getattr(booking, "payment_mode", None),
+    }
+    if checkout:
+        body.update(checkout)
+    return Response(body)
 
 
 class BookingEngineConfirmView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        from inventory.booking_engine import HoldExpiredError, HoldNotFoundError
+
         ser = ConfirmHoldSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
+        payment_mode = ser.validated_data.get("payment_mode")
+        payment_ref = ser.validated_data.get("payment_ref") or None
+        booking_id = ser.validated_data["booking_id"]
+        checkout, payment_ref = _checkout_before_confirm(
+            booking_id, payment_mode, payment_ref
+        )
         try:
-            from inventory.booking_engine import HoldExpiredError, HoldNotFoundError
-
             booking = confirm_hold(
-                ser.validated_data["booking_id"],
-                payment_ref=ser.validated_data.get("payment_ref") or None,
-                payment_mode=ser.validated_data.get("payment_mode"),
+                booking_id, payment_ref=payment_ref, payment_mode=payment_mode
             )
         except HoldNotFoundError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
@@ -216,16 +318,7 @@ class BookingEngineConfirmView(APIView):
             return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
         except ValueError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(
-            {
-                "booking_id": booking.id,
-                "status": booking.status,
-                "confirmation_number": f"NEPH-{booking.id}",
-                "check_in": booking.check_in_date,
-                "check_out": booking.check_out_date,
-                "total": str(booking.actual_price),
-            }
-        )
+        return _confirm_response(booking, payment_mode, checkout)
 
 
 class BookingEngineCancelView(APIView):
@@ -243,6 +336,32 @@ class BookingEngineCancelView(APIView):
         except BookingEngineError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"booking_id": booking.id, "status": booking.status})
+
+
+class BookingEngineModifyHoldView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, booking_id):
+        ser = ModifyHoldSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        try:
+            from inventory.booking_engine import (
+                BookingEngineError,
+                HoldExpiredError,
+                HoldNotFoundError,
+                NoAllotmentError,
+            )
+
+            payload = modify_hold(booking_id, **ser.validated_data)
+        except HoldNotFoundError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except HoldExpiredError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_410_GONE)
+        except NoAllotmentError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_409_CONFLICT)
+        except BookingEngineError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(payload)
 
 
 class BookingEngineConfirmationView(APIView):

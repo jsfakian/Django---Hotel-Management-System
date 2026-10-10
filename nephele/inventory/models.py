@@ -329,6 +329,55 @@ class RoomTypeAvailability(models.Model):
         return self.available_allotment
 
 
+class RoomTypeAvailabilityAudit(models.Model):
+    """Audit trail for staff allotment / override changes on room-type calendar.
+
+    Rows are append-only: updates and deletes are rejected.
+    """
+
+    room_type = models.ForeignKey(
+        RoomType,
+        on_delete=models.CASCADE,
+        related_name="availability_audits",
+    )
+    date = models.DateField()
+    old_allotment = models.PositiveIntegerField(null=True, blank=True)
+    new_allotment = models.PositiveIntegerField(null=True, blank=True)
+    old_staff_override = models.BooleanField(null=True, blank=True)
+    new_staff_override = models.BooleanField(null=True, blank=True)
+    changed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="room_type_availability_audits",
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(fields=["room_type", "date"]),
+            models.Index(fields=["changed_at"]),
+        ]
+
+    def __str__(self):
+        return f"Audit {self.room_type_id}@{self.date} by {self.changed_by_id}"
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise PermissionError(
+                "RoomTypeAvailabilityAudit rows are immutable; updates are not allowed"
+            )
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError(
+            "RoomTypeAvailabilityAudit rows are immutable; deletes are not allowed"
+        )
+
+
 class RatePlanPrice(models.Model):
     """Nightly price for a rate plan × room type × date."""
 

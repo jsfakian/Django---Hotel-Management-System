@@ -58,7 +58,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'booking', 'booking_ref', 'amount', 'tax_amount',
             'total_amount', 'status', 'description',
             'issued_date', 'due_date', 'paid_date',
-            'days_until_due', 'is_overdue', 'notes',
+            'days_until_due', 'is_overdue', 'notes', 'line_items',
             'created_at', 'updated_at'
         ]
         read_only_fields = [

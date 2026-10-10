@@ -572,6 +572,147 @@ def invoice_mydata_export(request, invoice_id):
         return JsonResponse({'error': str(e)}, status=400)
 
 
+def _invoice_pdf_lang(request):
+    """Resolve PDF language from ?lang= or Accept-Language (el/en)."""
+    from django.utils import translation
+
+    explicit = (request.GET.get("lang") or "").lower()[:2]
+    if explicit in ("el", "en"):
+        return explicit
+    header = (request.META.get("HTTP_ACCEPT_LANGUAGE") or "").lower()
+    return "el" if header.startswith("el") else translation.get_language()[:2] or "en"
+
+
+def _build_invoice_pdf_story(invoice, styles, colors, Paragraph, Spacer, Table, TableStyle, cm):
+    """Build Platypus story with gettext labels (caller activates locale)."""
+    from django.utils.translation import gettext as _
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+
+    heading_style = ParagraphStyle(
+        "Heading", parent=styles["Heading1"], fontSize=18, spaceAfter=6
+    )
+    subheading_style = ParagraphStyle(
+        "SubHeading",
+        parent=styles["Heading2"],
+        fontSize=13,
+        spaceBefore=12,
+        spaceAfter=4,
+    )
+    label_style = ParagraphStyle(
+        "Label", parent=styles["Normal"], fontName="Helvetica-Bold", fontSize=10
+    )
+    value_style = ParagraphStyle("Value", parent=styles["Normal"], fontSize=10)
+    footer_style = ParagraphStyle(
+        "Footer",
+        parent=styles["Normal"],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=TA_CENTER,
+    )
+
+    story = [
+        Paragraph("NEPHELE Hotel Management System", heading_style),
+        Paragraph(
+            _("Logo: stylised wave representing Nephele (text equivalent for accessibility)"),
+            ParagraphStyle(
+                "LogoAlt", parent=styles["Normal"], fontSize=7, textColor=colors.grey
+            ),
+        ),
+        Spacer(1, 0.4 * cm),
+        Paragraph(f"{_('Invoice')} {invoice.invoice_number}", subheading_style),
+        Spacer(1, 0.2 * cm),
+    ]
+
+    meta_data = [
+        [
+            Paragraph(f"{_('Status')}:", label_style),
+            Paragraph(invoice.get_status_display(), value_style),
+        ],
+        [
+            Paragraph(f"{_('Issued')}:", label_style),
+            Paragraph(invoice.issued_date.strftime("%d %B %Y"), value_style),
+        ],
+        [
+            Paragraph(f"{_('Due date')}:", label_style),
+            Paragraph(invoice.due_date.strftime("%d %B %Y"), value_style),
+        ],
+        [
+            Paragraph(f"{_('Guest')}:", label_style),
+            Paragraph(
+                invoice.guest.user.get_full_name() or invoice.guest.user.username,
+                value_style,
+            ),
+        ],
+    ]
+    if invoice.booking:
+        meta_data.append(
+            [
+                Paragraph(f"{_('Booking')}:", label_style),
+                Paragraph(f"#{invoice.booking.id}", value_style),
+            ]
+        )
+
+    meta_table = Table(meta_data, colWidths=[4 * cm, 12 * cm])
+    meta_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
+    story.append(meta_table)
+    story.append(Spacer(1, 0.4 * cm))
+
+    if invoice.description:
+        story.append(Paragraph(_("Description"), subheading_style))
+        story.append(Paragraph(invoice.description, value_style))
+        story.append(Spacer(1, 0.3 * cm))
+
+    story.append(Paragraph(_("Charges"), subheading_style))
+    fin_data = [
+        [Paragraph(_("Item"), label_style), Paragraph(_("Amount (EUR)"), label_style)],
+        [Paragraph(_("Subtotal"), value_style), Paragraph(str(invoice.amount), value_style)],
+        [Paragraph(_("Tax"), value_style), Paragraph(str(invoice.tax_amount), value_style)],
+        [
+            Paragraph(_("Total"), label_style),
+            Paragraph(str(invoice.total_amount), label_style),
+        ],
+    ]
+    fin_table = Table(fin_data, colWidths=[12 * cm, 4 * cm])
+    fin_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#343a40")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("LINEBELOW", (0, -1), (-1, -1), 1, colors.black),
+                ("LINEABOVE", (0, -1), (-1, -1), 1, colors.black),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+            ]
+        )
+    )
+    story.append(fin_table)
+
+    if invoice.notes:
+        story.append(Spacer(1, 0.4 * cm))
+        story.append(Paragraph(_("Notes"), subheading_style))
+        story.append(Paragraph(invoice.notes, value_style))
+
+    story.append(Spacer(1, 1 * cm))
+    story.append(
+        Paragraph(
+            _("This document was generated by Nephele and is accessible to assistive technologies."),
+            footer_style,
+        )
+    )
+    return story
+
+
 @login_required(login_url='login')
 @require_http_methods(["GET"])
 def invoice_pdf(request, invoice_id):
@@ -582,14 +723,14 @@ def invoice_pdf(request, invoice_id):
     structured PDF with document metadata (title, author, language) so that
     assistive technologies (screen readers) can read the document correctly.
     Alt-text equivalents are provided for any graphical/logo elements.
+    Locale: ?lang=el|en or Accept-Language.
     """
     try:
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import cm
         from reportlab.lib import colors
-        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     except ImportError:
         messages.error(request, 'PDF generation is not available. Please contact support.')
         return redirect('invoice-detail', invoice_id=invoice_id)
@@ -606,134 +747,34 @@ def invoice_pdf(request, invoice_id):
         invoice = get_object_or_404(Invoice, id=invoice_id, guest=guest)
 
     from django.http import HttpResponse
+    from django.utils import translation
+    from django.utils.translation import gettext as _
     import io
 
+    lang = _invoice_pdf_lang(request)
     buffer = io.BytesIO()
+    guest_name = invoice.guest.user.get_full_name() or invoice.guest.user.username
 
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=2 * cm,
-        leftMargin=2 * cm,
-        topMargin=2 * cm,
-        bottomMargin=2 * cm,
-        title=f"Invoice {invoice.invoice_number}",
-        author="NEPHELE Hotel Management System",
-        subject=f"Invoice for {invoice.guest.user.get_full_name() or invoice.guest.user.username}",
-        creator="Nephele",
-        producer="Nephele — ReportLab",
-        lang="en",
-    )
-
-    styles = getSampleStyleSheet()
-    heading_style = ParagraphStyle(
-        'Heading',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=6,
-    )
-    subheading_style = ParagraphStyle(
-        'SubHeading',
-        parent=styles['Heading2'],
-        fontSize=13,
-        spaceBefore=12,
-        spaceAfter=4,
-    )
-    label_style = ParagraphStyle(
-        'Label',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=10,
-    )
-    value_style = ParagraphStyle(
-        'Value',
-        parent=styles['Normal'],
-        fontSize=10,
-    )
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.grey,
-        alignment=TA_CENTER,
-    )
-
-    story = []
-
-    # Header — hotel logo alt-text equivalent as text block
-    story.append(Paragraph("NEPHELE Hotel Management System", heading_style))
-    story.append(Paragraph(
-        "Logo: stylised wave representing Nephele (text equivalent for accessibility)",
-        ParagraphStyle('LogoAlt', parent=styles['Normal'], fontSize=7, textColor=colors.grey)
-    ))
-    story.append(Spacer(1, 0.4 * cm))
-
-    story.append(Paragraph(f"Invoice {invoice.invoice_number}", subheading_style))
-    story.append(Spacer(1, 0.2 * cm))
-
-    # Invoice metadata table
-    meta_data = [
-        [Paragraph("Status:", label_style), Paragraph(invoice.get_status_display(), value_style)],
-        [Paragraph("Issued:", label_style), Paragraph(str(invoice.issued_date.strftime('%d %B %Y')), value_style)],
-        [Paragraph("Due date:", label_style), Paragraph(str(invoice.due_date.strftime('%d %B %Y')), value_style)],
-        [Paragraph("Guest:", label_style), Paragraph(
-            invoice.guest.user.get_full_name() or invoice.guest.user.username, value_style
-        )],
-    ]
-    if invoice.booking:
-        meta_data.append([
-            Paragraph("Booking:", label_style),
-            Paragraph(f"#{invoice.booking.id}", value_style),
-        ])
-
-    meta_table = Table(meta_data, colWidths=[4 * cm, 12 * cm])
-    meta_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-    ]))
-    story.append(meta_table)
-    story.append(Spacer(1, 0.4 * cm))
-
-    # Description
-    if invoice.description:
-        story.append(Paragraph("Description", subheading_style))
-        story.append(Paragraph(invoice.description, value_style))
-        story.append(Spacer(1, 0.3 * cm))
-
-    # Financials table
-    story.append(Paragraph("Charges", subheading_style))
-    fin_data = [
-        [Paragraph("Item", label_style), Paragraph("Amount (EUR)", label_style)],
-        [Paragraph("Subtotal", value_style), Paragraph(str(invoice.amount), value_style)],
-        [Paragraph("Tax", value_style), Paragraph(str(invoice.tax_amount), value_style)],
-        [Paragraph("Total", label_style), Paragraph(str(invoice.total_amount), label_style)],
-    ]
-    fin_table = Table(fin_data, colWidths=[12 * cm, 4 * cm])
-    fin_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#343a40')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('LINEBELOW', (0, -1), (-1, -1), 1, colors.black),
-        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 4),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-    ]))
-    story.append(fin_table)
-
-    if invoice.notes:
-        story.append(Spacer(1, 0.4 * cm))
-        story.append(Paragraph("Notes", subheading_style))
-        story.append(Paragraph(invoice.notes, value_style))
-
-    story.append(Spacer(1, 1 * cm))
-    story.append(Paragraph(
-        "This document was generated by Nephele and is accessible to assistive technologies.",
-        footer_style,
-    ))
-
-    doc.build(story)
+    with translation.override(lang):
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=2 * cm,
+            leftMargin=2 * cm,
+            topMargin=2 * cm,
+            bottomMargin=2 * cm,
+            title=f"{_('Invoice')} {invoice.invoice_number}",
+            author="NEPHELE Hotel Management System",
+            subject=f"{_('Invoice')} — {guest_name}",
+            creator="Nephele",
+            producer="Nephele — ReportLab",
+            lang=lang,
+        )
+        styles = getSampleStyleSheet()
+        story = _build_invoice_pdf_story(
+            invoice, styles, colors, Paragraph, Spacer, Table, TableStyle, cm
+        )
+        doc.build(story)
 
     pdf_bytes = buffer.getvalue()
     buffer.close()

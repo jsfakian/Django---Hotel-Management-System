@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Box,
   Typography,
@@ -11,13 +11,20 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  MenuItem,
 } from '@mui/material'
 import { Search, Login as CheckInIcon, Logout as CheckOutIcon } from '@mui/icons-material'
-import { useGetBookingQuery, useCheckInMutation, useCheckOutMutation } from '../../features/bookings/bookingsApi'
+import {
+  useGetBookingQuery,
+  useCheckInMutation,
+  useCheckOutMutation,
+  useUpdateBookingMutation,
+} from '../../features/bookings/bookingsApi'
 import ErrorAlert from '../../components/common/ErrorAlert'
 import PageHeader from '../../components/common/PageHeader'
 import EmptyState from '../../components/common/EmptyState'
 import AppLayout from '../../components/layout/AppLayout'
+import PoliceSheetExport from './PoliceSheetExport'
 
 const STATUS_COLORS = {
   confirmed: 'success',
@@ -26,6 +33,13 @@ const STATUS_COLORS = {
   checked_out: 'default',
   cancelled: 'error',
 }
+
+const STAY_PURPOSES = [
+  { value: '', label: '—' },
+  { value: 'tourism', label: 'Tourism' },
+  { value: 'business', label: 'Business' },
+  { value: 'other', label: 'Other' },
+]
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '—'
@@ -49,6 +63,66 @@ function Field({ label, children }) {
 
 const guestLabel = (b) => b.guest_name || b.guest?.full_name || b.guest?.username || DASH
 const roomLabel = (b) => b.room_number || b.room?.number || b.room || DASH
+
+function complianceFromBooking(booking) {
+  return {
+    guest_document_type: booking.guest_document_type || '',
+    guest_document_number: booking.guest_document_number || '',
+    guest_nationality: booking.guest_nationality || '',
+    guest_birth_date: booking.guest_birth_date || '',
+    shima_stay_purpose: booking.shima_stay_purpose || '',
+  }
+}
+
+function ComplianceForm({ form, setForm, onSave, saving }) {
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>Guest compliance (ΣΑΕ / ΣΗΜΑ)</Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField fullWidth size="small" label="Document type" value={form.guest_document_type} onChange={set('guest_document_type')} />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField fullWidth size="small" label="Document number" value={form.guest_document_number} onChange={set('guest_document_number')} />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField fullWidth size="small" label="Nationality" value={form.guest_nationality} onChange={set('guest_nationality')} />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            size="small"
+            type="date"
+            label="Birth date"
+            InputLabelProps={{ shrink: true }}
+            value={form.guest_birth_date || ''}
+            onChange={set('guest_birth_date')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Stay purpose (ΣΗΜΑ)"
+            value={form.shima_stay_purpose}
+            onChange={set('shima_stay_purpose')}
+          >
+            {STAY_PURPOSES.map((p) => (
+              <MenuItem key={p.value || 'empty'} value={p.value}>{p.label}</MenuItem>
+            ))}
+          </TextField>
+        </Grid>
+        <Grid item xs={12}>
+          <Button variant="outlined" size="small" onClick={onSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save compliance'}
+          </Button>
+        </Grid>
+      </Grid>
+    </Box>
+  )
+}
 
 function BookingDetails({ booking }) {
   return (
@@ -91,7 +165,7 @@ function BookingActions({ booking, checkingIn, checkingOut, onCheckIn, onCheckOu
   )
 }
 
-function BookingCard({ booking, ...actions }) {
+function BookingCard({ booking, compliance, setCompliance, onSaveCompliance, savingCompliance, ...actions }) {
   return (
     <Card>
       <CardContent>
@@ -105,6 +179,12 @@ function BookingCard({ booking, ...actions }) {
         </Box>
         <Divider sx={{ mb: 2 }} />
         <BookingDetails booking={booking} />
+        <ComplianceForm
+          form={compliance}
+          setForm={setCompliance}
+          onSave={onSaveCompliance}
+          saving={savingCompliance}
+        />
         <BookingActions booking={booking} {...actions} />
       </CardContent>
     </Card>
@@ -138,6 +218,7 @@ export default function CheckInPage() {
   const [bookingId, setBookingId] = useState('')
   const [searchId, setSearchId] = useState(null)
   const [successMsg, setSuccessMsg] = useState('')
+  const [compliance, setCompliance] = useState(complianceFromBooking({}))
 
   const {
     data: booking,
@@ -147,6 +228,11 @@ export default function CheckInPage() {
 
   const [checkIn, { isLoading: checkingIn, error: checkInError }] = useCheckInMutation()
   const [checkOut, { isLoading: checkingOut, error: checkOutError }] = useCheckOutMutation()
+  const [updateBooking, { isLoading: savingCompliance, error: complianceError }] = useUpdateBookingMutation()
+
+  useEffect(() => {
+    if (booking) setCompliance(complianceFromBooking(booking))
+  }, [booking])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -173,12 +259,27 @@ export default function CheckInPage() {
     }
   }
 
+  const handleSaveCompliance = async () => {
+    setSuccessMsg('')
+    const result = await updateBooking({
+      id: booking.id,
+      guest_document_type: compliance.guest_document_type,
+      guest_document_number: compliance.guest_document_number,
+      guest_nationality: compliance.guest_nationality,
+      guest_birth_date: compliance.guest_birth_date || null,
+      shima_stay_purpose: compliance.shima_stay_purpose,
+    })
+    if (!result.error) setSuccessMsg('Compliance fields saved.')
+  }
+
   return (
     <AppLayout>
       <PageHeader
         title="Check-In / Check-Out"
         subtitle="Look up a booking by ID to arrive or depart a guest"
       />
+
+      <PoliceSheetExport />
 
       <LookupForm value={bookingId} onChange={setBookingId} onSubmit={handleSearch} />
 
@@ -199,6 +300,7 @@ export default function CheckInPage() {
       {bookingError && <ErrorAlert error={bookingError} title="Booking not found" />}
       {checkInError && <ErrorAlert error={checkInError} title="Check-in failed" />}
       {checkOutError && <ErrorAlert error={checkOutError} title="Check-out failed" />}
+      {complianceError && <ErrorAlert error={complianceError} title="Compliance save failed" />}
       {successMsg && (
         <Alert severity="success" sx={{ mb: 2 }}>
           {successMsg}
@@ -207,6 +309,10 @@ export default function CheckInPage() {
       {booking && (
         <BookingCard
           booking={booking}
+          compliance={compliance}
+          setCompliance={setCompliance}
+          onSaveCompliance={handleSaveCompliance}
+          savingCompliance={savingCompliance}
           checkingIn={checkingIn}
           checkingOut={checkingOut}
           onCheckIn={handleCheckIn}

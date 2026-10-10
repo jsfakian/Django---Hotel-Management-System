@@ -73,6 +73,81 @@ def _parse_booking_payload(body_str):
     return serializer.validated_data, None
 
 
+def _resolve_room_from_remote(channel, remote_room_type_id):
+    """Map remote room type id → a physical Room on the channel property."""
+    from channels.mapping_utils import reverse_room_type_map
+
+    local_rt = reverse_room_type_map(channel.mapping_config).get(
+        str(remote_room_type_id or "")
+    )
+    qs = Room.objects.filter(property=channel.property)
+    if local_rt:
+        room = qs.filter(room_type_fk_id=local_rt).first()
+        if room:
+            return room
+    return qs.order_by("id").first()
+
+
+def _receipt_from_normalized(channel, normalized):
+    """Convert connector-normalized booking → ChannelBookingReceipt fields."""
+    import time
+    from decimal import Decimal
+
+    room = _resolve_room_from_remote(
+        channel, normalized.get("room_type_remote_id")
+    )
+    if room is None:
+        return None, Response(
+            {"error": "No room available for mapped room type"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    total = normalized.get("total_amount") or 0
+    try:
+        total = Decimal(str(total))
+    except Exception:
+        total = Decimal("0")
+    check_in = normalized.get("check_in")
+    check_out = normalized.get("check_out")
+    data = {
+        "channel_booking_id": str(normalized.get("external_id") or ""),
+        "timestamp": int(time.time()),
+        "event": "booking_created",
+        "guest_first_name": normalized.get("guest_first_name") or "Guest",
+        "guest_last_name": normalized.get("guest_last_name") or "",
+        "guest_email": normalized.get("guest_email")
+        or f"ota+{normalized.get('external_id')}@example.com",
+        "room_id": room.id,
+        "check_in": check_in,
+        "check_out": check_out,
+        "number_of_guests": 1,
+        "total_price": total,
+        "currency": normalized.get("currency") or "EUR",
+    }
+    serializer = ChannelBookingReceiptSerializer(data=data)
+    if not serializer.is_valid():
+        return None, Response(
+            {"error": "Validation error", "details": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return serializer.validated_data, None
+
+
+def _try_connector_webhook(channel, payload):
+    """Run connector.receive_webhook; return normalized booking dict or None."""
+    from .connectors import get_connector
+
+    connector = get_connector(channel.channel_name)
+    if connector is None:
+        return None
+    try:
+        result = connector.receive_webhook(channel, payload or {})
+    except Exception:
+        return None
+    if result.get("status") == "ok" and result.get("booking"):
+        return result["booking"]
+    return None
+
+
 def _get_channel_room(channel, validated_data):
     """Return (room, None) or (None, error_response) for the channel's property."""
     try:
@@ -84,6 +159,36 @@ def _get_channel_room(channel, validated_data):
         )
 
 
+def _update_existing_channel_booking(existing, validated_data):
+    """Update linked Booking from a repeated webhook (create/update path)."""
+    booking = existing.nephele_booking
+    booking.check_in_date = validated_data["check_in"]
+    booking.check_out_date = validated_data["check_out"]
+    booking.number_of_guests = validated_data["number_of_guests"]
+    booking.adults = validated_data["number_of_guests"]
+    booking.base_price = validated_data["total_price"]
+    booking.actual_price = validated_data["total_price"]
+    if validated_data.get("special_requests") is not None:
+        booking.special_requests = validated_data.get("special_requests") or ""
+    status_hint = str(validated_data.get("event") or "").lower()
+    if "cancel" in status_hint:
+        booking.status = "cancelled"
+    elif booking.status == "cancelled":
+        booking.status = "confirmed"
+    booking.save()
+    safe = _json_safe_payload(validated_data)
+    existing.channel_data = safe
+    existing.sync_status = "synced"
+    existing.save(update_fields=["channel_data", "sync_status", "updated_at"])
+    ChannelWebhookLog.objects.create(
+        channel=existing.channel,
+        event="booking_updated",
+        payload=safe,
+        status="processed",
+    )
+    return booking
+
+
 def _duplicate_booking_response(channel, validated_data):
     try:
         existing = ChannelBooking.objects.get(
@@ -92,14 +197,16 @@ def _duplicate_booking_response(channel, validated_data):
         )
     except ChannelBooking.DoesNotExist:
         return None
+    # Upsert: repeated OTA webhooks update the local booking instead of 409.
+    booking = _update_existing_channel_booking(existing, validated_data)
     return Response(
         {
-            "error": "Duplicate booking",
-            "message": f"Booking {validated_data['channel_booking_id']} already exists",
-            "booking_id": existing.nephele_booking.id,
-            "confirmation_number": existing.nephele_booking.id
+            "status": "updated",
+            "message": f"Booking {validated_data['channel_booking_id']} updated",
+            "booking_id": booking.id,
+            "confirmation_number": booking.id,
         },
-        status=status.HTTP_409_CONFLICT
+        status=status.HTTP_200_OK,
     )
 
 
@@ -138,6 +245,24 @@ def _send_channel_booking_alert(booking, channel):
         )
     except Exception:
         pass  # Continue even if notification fails
+
+
+def _json_safe_payload(data):
+    """Convert validated webhook data into JSON-serializable dict for logs."""
+    from decimal import Decimal
+    from datetime import date, datetime
+
+    if not isinstance(data, dict):
+        return data
+    out = {}
+    for key, value in data.items():
+        if isinstance(value, Decimal):
+            out[key] = str(value)
+        elif isinstance(value, (date, datetime)):
+            out[key] = value.isoformat()
+        else:
+            out[key] = value
+    return out
 
 
 def _create_channel_booking(channel, room, validated_data):
@@ -181,11 +306,50 @@ def _create_channel_booking(channel, room, validated_data):
             channel_booking_id=validated_data['channel_booking_id'],
             nephele_booking=booking,
             sync_status='synced',
-            channel_data=validated_data
+            channel_data=_json_safe_payload(validated_data),
         )
 
         _send_channel_booking_alert(booking, channel)
     return booking
+
+
+def _resolve_ingest_payload(channel, body_str):
+    """Prefer connector.receive_webhook normalization; fall back to receipt schema."""
+    try:
+        raw_payload = json.loads(body_str) if body_str else {}
+    except json.JSONDecodeError:
+        raw_payload = None
+    if isinstance(raw_payload, dict):
+        normalized = _try_connector_webhook(channel, raw_payload)
+        if normalized:
+            return _receipt_from_normalized(channel, normalized)
+    return _parse_booking_payload(body_str)
+
+
+def _create_booking_with_log(channel, room, validated_data):
+    """Create booking + webhook log; return (booking, None) or (None, error Response)."""
+    safe = _json_safe_payload(validated_data)
+    try:
+        booking = _create_channel_booking(channel, room, validated_data)
+        ChannelWebhookLog.objects.create(
+            channel=channel,
+            event='booking',
+            payload=safe,
+            status='processed',
+        )
+        return booking, None
+    except Exception as e:
+        ChannelWebhookLog.objects.create(
+            channel=channel,
+            event='booking',
+            payload=safe,
+            status='failed',
+            error_message=str(e),
+        )
+        return None, Response(
+            {"error": "Failed to create booking", "details": str(e)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
 
 def _ingest_channel_booking(channel, request):
@@ -196,7 +360,7 @@ def _ingest_channel_booking(channel, request):
     if auth_error is not None:
         return auth_error
 
-    validated_data, error_response = _parse_booking_payload(body_str)
+    validated_data, error_response = _resolve_ingest_payload(channel, body_str)
     if error_response is not None:
         return error_response
 
@@ -212,35 +376,18 @@ def _ingest_channel_booking(channel, request):
     if unavailable is not None:
         return unavailable
 
-    try:
-        booking = _create_channel_booking(channel, room, validated_data)
-        ChannelWebhookLog.objects.create(
-            channel=channel,
-            event='booking',
-            payload=validated_data,
-            status='processed',
-        )
-    except Exception as e:
-        ChannelWebhookLog.objects.create(
-            channel=channel,
-            event='booking',
-            payload=validated_data,
-            status='failed',
-            error_message=str(e),
-        )
-        return Response(
-            {"error": "Failed to create booking", "details": str(e)},
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
-        )
+    booking, create_error = _create_booking_with_log(channel, room, validated_data)
+    if create_error is not None:
+        return create_error
 
     return Response(
         {
             "booking_id": booking.id,
             "status": "confirmed",
             "confirmation_number": f"BKNG-{booking.id}",
-            "booking_created_at": booking.created_at.isoformat()
+            "booking_created_at": booking.created_at.isoformat(),
         },
-        status=status.HTTP_201_CREATED
+        status=status.HTTP_201_CREATED,
     )
 
 
@@ -420,13 +567,15 @@ class ChannelViewSet(viewsets.ModelViewSet):
         Validate room_type_mappings / rate_plan_mappings against local catalog.
         POST may include proposed mapping_config to dry-run without saving.
         """
+        from channels.mapping_utils import normalize_mapping_config
         from inventory.models import RatePlan, RoomType
 
         channel = self.get_object()
         cfg = request.data.get('mapping_config') if request.method == 'POST' else None
         cfg = cfg or channel.mapping_config or {}
-        rt_map = cfg.get('room_type_mappings') or {}
-        rp_map = cfg.get('rate_plan_mappings') or cfg.get('rate_mappings') or {}
+        normalized = normalize_mapping_config(cfg)
+        rt_map = normalized['room_type_mappings']
+        rp_map = normalized['rate_plan_mappings']
 
         local_rt = set(
             RoomType.objects.filter(property_id=channel.property_id).values_list(

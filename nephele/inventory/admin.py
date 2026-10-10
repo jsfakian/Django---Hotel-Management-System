@@ -7,6 +7,7 @@ from .models import (
     RoomAvailability,
     RoomType,
     RoomTypeAvailability,
+    RoomTypeAvailabilityAudit,
 )
 
 
@@ -80,3 +81,42 @@ class RatePlanPriceAdmin(admin.ModelAdmin):
     list_display = ("rate_plan", "room_type", "date", "price_1", "price_2")
     list_filter = ("rate_plan__property",)
     date_hierarchy = "date"
+
+
+@admin.register(RoomTypeAvailabilityAudit)
+class RoomTypeAvailabilityAuditAdmin(admin.ModelAdmin):
+    """Immutable audit log — view-only in Django admin."""
+
+    list_display = (
+        "room_type",
+        "date",
+        "old_allotment",
+        "new_allotment",
+        "old_staff_override",
+        "new_staff_override",
+        "changed_by",
+        "changed_at",
+    )
+    list_filter = ("room_type__property", "changed_at")
+    search_fields = ("note", "room_type__code")
+    readonly_fields = (
+        "room_type",
+        "date",
+        "old_allotment",
+        "new_allotment",
+        "old_staff_override",
+        "new_staff_override",
+        "changed_by",
+        "changed_at",
+        "note",
+    )
+    date_hierarchy = "changed_at"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

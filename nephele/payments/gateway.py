@@ -237,3 +237,42 @@ def get_payment_gateway(name: Optional[str] = None) -> PaymentGateway:
     if chosen == "stripe":
         return StripeGateway()
     return VivaWalletGateway()
+
+
+def checkout_response_fields(gw_result: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize create_payment result for booking / invoice API clients."""
+    return {
+        "checkout_url": gw_result.get("redirect_url")
+        or gw_result.get("checkout_url")
+        or "",
+        "client_secret": gw_result.get("client_secret") or "",
+        "payment_ref": str(gw_result.get("payment_id") or ""),
+        "gateway": gw_result.get("gateway") or "",
+        "payment_status": gw_result.get("status") or "pending",
+    }
+
+
+def start_booking_checkout(
+    *,
+    amount: Decimal,
+    booking_id: Optional[int] = None,
+    customer_email: str = "",
+    description: str = "",
+    return_url: str = "",
+    metadata: Optional[Dict[str, Any]] = None,
+    gateway_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Create a gateway checkout and return checkout_url / client_secret / payment_ref."""
+    meta = dict(metadata or {})
+    if booking_id is not None:
+        meta.setdefault("booking_id", booking_id)
+    gw = get_payment_gateway(gateway_name)
+    result = gw.create_payment(
+        amount=amount,
+        currency="EUR",
+        description=description or f"Booking {booking_id}",
+        customer_email=customer_email,
+        metadata=meta,
+        return_url=return_url,
+    )
+    return checkout_response_fields(result)

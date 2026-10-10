@@ -22,6 +22,7 @@ class PropertySerializer(serializers.ModelSerializer):
             'city', 'postal_code', 'country', 'phone_number', 'email',
             'website', 'total_rooms', 'star_rating', 'manager',
             'manager_name', 'rooms_count', 'available_rooms',
+            'mhte_number', 'tax_id',
             'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'rooms_count', 'available_rooms']

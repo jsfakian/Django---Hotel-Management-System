@@ -1,12 +1,31 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, CircularProgress, Typography, Stack, Divider,
+  Alert, Box, Button, CircularProgress, Typography, Stack, Divider, Chip,
 } from '@mui/material'
 import BookingShell from './BookingShell'
+import { useBookingT } from './bookingLang'
 import { quoteAvailability, saveBookingDraft, loadBookingDraft } from '../../../features/public/publicBookingApi'
 
-function ResultRow({ item, onSelect }) {
+function SmartRateBadge({ item }) {
+  if (!item?.smart_rate && !item?.smart_rate_label) return null
+  const label = item.smart_rate_label || 'Smart rate'
+  const hint = item.smart_rate_hint || item.smart_rate_reason || ''
+  return (
+    <Chip
+      size="small"
+      color="secondary"
+      variant="outlined"
+      label={label}
+      title={hint || undefined}
+      sx={{ mt: 0.5, fontWeight: 600 }}
+    />
+  )
+}
+
+function ResultRow({ item, onSelect, t }) {
+  const allotment = item.available_allotment != null ? `${item.available_allotment} ${t('left')}` : ''
+  const nights = item.nights ? `${item.nights} ${t('nights')}` : ''
   return (
     <Box
       sx={{
@@ -27,11 +46,11 @@ function ResultRow({ item, onSelect }) {
         <Typography variant="body2" color="text.secondary">
           {item.rate_plan_name || item.rate_plan?.name || 'Rate'}
           {item.meal_plan ? ` · ${item.meal_plan}` : ''}
-          {item.is_refundable === false ? ' · Non-refundable' : ''}
+          {item.is_refundable === false ? ` · ${t('nonRefundable')}` : ''}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {item.available_allotment != null ? `${item.available_allotment} left` : ''}
-          {item.nights ? ` · ${item.nights} nights` : ''}
+        <SmartRateBadge item={item} />
+        <Typography variant="caption" color="text.secondary" display="block">
+          {[allotment, nights].filter(Boolean).join(' · ')}
         </Typography>
       </Box>
       <Stack direction="row" spacing={2} alignItems="center">
@@ -39,16 +58,17 @@ function ResultRow({ item, onSelect }) {
           €{Number(item.total || 0).toFixed(2)}
         </Typography>
         <Button variant="contained" color="secondary" onClick={() => onSelect(item)}>
-          Select
+          {t('select')}
         </Button>
       </Stack>
     </Box>
   )
 }
 
-export default function BookingResultsPage() {
+function ResultsBody() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const { t } = useBookingT()
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,7 +87,7 @@ export default function BookingResultsPage() {
       setError('')
       try {
         if (!propertyId || !checkIn || !checkOut) {
-          throw new Error('Missing search parameters. Start from the search page.')
+          throw new Error(t('missingSearch'))
         }
         const data = await quoteAvailability({
           property_id: propertyId,
@@ -79,14 +99,14 @@ export default function BookingResultsPage() {
         const list = Array.isArray(data) ? data : (data?.results || data?.products || [])
         if (!cancelled) setResults(list)
       } catch (err) {
-        if (!cancelled) setError(err.message || 'Could not load availability')
+        if (!cancelled) setError(err.message || t('loadAvailabilityFail'))
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     run()
     return () => { cancelled = true }
-  }, [propertyId, checkIn, checkOut, adults, children])
+  }, [propertyId, checkIn, checkOut, adults, children, t])
 
   const handleSelect = (item) => {
     const prev = loadBookingDraft() || {}
@@ -105,20 +125,32 @@ export default function BookingResultsPage() {
   }
 
   return (
-    <BookingShell subtitle={`${search.check_in || '—'} → ${search.check_out || '—'} · ${search.adults} adults`}>
+    <>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6" sx={{ fontFamily: '"Fraunces", Georgia, serif' }}>Available rates</Typography>
-        <Button onClick={() => navigate('/book')}>Edit search</Button>
+        <Typography variant="h6" sx={{ fontFamily: '"Fraunces", Georgia, serif' }}>{t('availableRates')}</Typography>
+        <Button onClick={() => navigate('/book')}>{t('editSearch')}</Button>
       </Box>
       <Divider sx={{ mb: 1 }} />
       {loading && <Box sx={{ py: 4, textAlign: 'center' }}><CircularProgress /></Box>}
       {error && <Alert severity="error">{error}</Alert>}
       {!loading && !error && results.length === 0 && (
-        <Alert severity="info">No availability for these dates. Try different nights or a nearby property.</Alert>
+        <Alert severity="info">{t('noAvailability')}</Alert>
       )}
       {results.map((item, idx) => (
-        <ResultRow key={`${item.room_type_id}-${item.rate_plan_id}-${idx}`} item={item} onSelect={handleSelect} />
+        <ResultRow key={`${item.room_type_id}-${item.rate_plan_id}-${idx}`} item={item} onSelect={handleSelect} t={t} />
       ))}
+    </>
+  )
+}
+
+export default function BookingResultsPage() {
+  const [params] = useSearchParams()
+  const checkIn = params.get('check_in') || '—'
+  const checkOut = params.get('check_out') || '—'
+  const adults = params.get('adults') || '1'
+  return (
+    <BookingShell subtitle={`${checkIn} → ${checkOut} · ${adults}`}>
+      <ResultsBody />
     </BookingShell>
   )
 }
