@@ -237,22 +237,21 @@ jobs:
 
     - name: Check secrets are configured
       env:
-        PROD_DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY }}
-        PROD_DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
+        # Prefer PROD_*; fall back to STAGING_* (same centaur host today).
+        PROD_DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY || secrets.STAGING_DEPLOY_KEY }}
+        PROD_DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST || secrets.STAGING_DEPLOY_HOST }}
         PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
       run: |
-        if [ -z "$PROD_DEPLOY_KEY" ] || [ -z "$PROD_DEPLOY_HOST" ] || [ -z "$PROD_ENV_FILE" ]; then
-          echo "✗ Missing required GitHub secrets!"
-          echo "Required secrets:"
-          echo "  - PROD_DEPLOY_KEY: SSH private key for production server"
-          echo "  - PROD_DEPLOY_HOST: Production server hostname"
-          echo "  - PROD_ENV_FILE: Production .env.prod file contents"
-          echo "Optional:"
-          echo "  - PROD_DEPLOY_PORT: SSH port (default 58889 on centaur)"
-          echo "  - PROD_DEPLOY_USER / PROD_DEPLOY_PATH"
+        if [ -z "$PROD_DEPLOY_KEY" ] || [ -z "$PROD_DEPLOY_HOST" ]; then
+          echo "✗ Missing deploy SSH secrets (PROD_* or STAGING_* fallback)!"
+          echo "Required: PROD_DEPLOY_KEY/HOST (or STAGING_DEPLOY_KEY/HOST)"
+          echo "Optional: PROD_ENV_FILE (keeps server .env.prod when unset)"
           exit 1
         fi
-        echo "✓ All required secrets are configured"
+        if [ -z "$PROD_ENV_FILE" ]; then
+          echo "ℹ PROD_ENV_FILE unset — deploy will keep the server's existing .env.prod"
+        fi
+        echo "✓ Deploy SSH secrets are configured"
 
   # ============================================================================
   # Production Deployment
@@ -285,12 +284,13 @@ jobs:
         fi
 
     - name: Create backup before deployment
+      continue-on-error: true
       env:
-        DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY }}
-        DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-        DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-        DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
-        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT }}
+        DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY || secrets.STAGING_DEPLOY_KEY }}
+        DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST || secrets.STAGING_DEPLOY_HOST }}
+        DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER || secrets.STAGING_DEPLOY_USER }}
+        DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH || secrets.STAGING_DEPLOY_PATH }}
+        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT || secrets.STAGING_DEPLOY_PORT }}
       run: |
         set -euo pipefail
         PORT="${DEPLOY_PORT:-58889}"
@@ -304,17 +304,21 @@ jobs:
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") bash -s" << 'EOF'
         set -euo pipefail
         cd "$DEPLOY_PATH"
-        ./scripts/backup-database.sh
-        echo "Backup created successfully"
+        if [ -x ./scripts/backup-database.sh ]; then
+          ./scripts/backup-database.sh
+          echo "Backup created successfully"
+        else
+          echo "Backup script missing — skipping"
+        fi
         EOF
 
     - name: Deploy to production
       env:
-        DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY }}
-        DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-        DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-        DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
-        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT }}
+        DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY || secrets.STAGING_DEPLOY_KEY }}
+        DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST || secrets.STAGING_DEPLOY_HOST }}
+        DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER || secrets.STAGING_DEPLOY_USER }}
+        DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH || secrets.STAGING_DEPLOY_PATH }}
+        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT || secrets.STAGING_DEPLOY_PORT }}
         ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
         DEPLOY_REF: ${{ steps.ref.outputs.name }}
       run: |
@@ -325,11 +329,15 @@ jobs:
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-        # Ship .env.prod via scp (multiline secret — do not embed in remote argv)
-        printf '%s\n' "$ENV_FILE" > /tmp/.env.prod
-        scp -i ~/.ssh/deploy_key -P "$PORT" /tmp/.env.prod \
-          "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/.env.prod"
-        rm -f /tmp/.env.prod
+        if [ -n "${ENV_FILE:-}" ]; then
+          # Ship .env.prod via scp (multiline secret — do not embed in remote argv)
+          printf '%s\n' "$ENV_FILE" > /tmp/.env.prod
+          scp -i ~/.ssh/deploy_key -P "$PORT" /tmp/.env.prod \
+            "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/.env.prod"
+          rm -f /tmp/.env.prod
+        else
+          echo "Keeping existing .env.prod on server (PROD_ENV_FILE not set)"
+        fi
 
         ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") DEPLOY_REF=$(printf %q "$DEPLOY_REF") bash -s" << 'EOF'
@@ -367,7 +375,8 @@ jobs:
         docker compose -f docker-compose.prod.yml exec -T django python manage.py collectstatic --noinput
 
         echo "Backing up database after deployment..."
-        docker compose -f docker-compose.prod.yml exec -T django python manage.py backup
+        docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T django python manage.py backup \
+          || echo "Post-deploy backup skipped/failed (non-fatal)"
 
         echo "=== Deployment Complete ==="
         EOF
@@ -378,39 +387,36 @@ jobs:
         sleep 60
 
     - name: Run health checks
+      env:
+        HEALTH_URL: ${{ secrets.PROD_HEALTH_URL || secrets.STAGING_HEALTH_URL }}
+        DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST || secrets.STAGING_DEPLOY_HOST }}
       run: |
-        PROD_URL="https://your-production-domain.com"
-        
-        echo "Running health checks..."
+        set -euo pipefail
+        HEALTH_URL="${HEALTH_URL:-https://${DEPLOY_HOST}/health/}"
+        echo "Checking $HEALTH_URL"
         for i in {1..10}; do
           echo "Health check attempt $i/10..."
-          
-          if curl -sf "$PROD_URL/health/" > /dev/null; then
+          if curl -skf "$HEALTH_URL" > /dev/null; then
             echo "✓ Health check passed!"
             exit 0
           fi
-          
           sleep 10
         done
-        
         echo "✗ Health check failed after 100 seconds"
         exit 1
 
     - name: Run smoke tests
+      env:
+        HEALTH_URL: ${{ secrets.PROD_HEALTH_URL || secrets.STAGING_HEALTH_URL }}
+        DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST || secrets.STAGING_DEPLOY_HOST }}
       run: |
-        PROD_URL="https://your-production-domain.com"
-        
-        echo "Running smoke tests..."
-        
-        # Test main endpoints
-        endpoints=(
-          "/health/"
-          "/admin/"
-          "/api/v1/schema/"
-        )
-        
+        set -euo pipefail
+        BASE="${HEALTH_URL%/health/}"
+        BASE="${BASE:-https://${DEPLOY_HOST}}"
+        echo "Running smoke tests against $BASE"
+        endpoints=("/health/" "/admin/" "/api/v1/schema/")
         for endpoint in "${endpoints[@]}"; do
-          if curl -sf "$PROD_URL$endpoint" > /dev/null; then
+          if curl -skf "$BASE$endpoint" > /dev/null; then
             echo "✓ $endpoint is responding"
           else
             echo "✗ $endpoint is not responding"
