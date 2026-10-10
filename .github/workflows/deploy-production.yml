@@ -357,25 +357,24 @@ jobs:
           git pull --ff-only origin "$DEPLOY_REF" || git pull --ff-only
         fi
 
+        COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele"
+
         echo "Building Docker images from checkout..."
-        docker compose -f docker-compose.prod.yml --env-file .env.prod build django
+        $COMPOSE build django
 
-        echo "Stopping services..."
-        docker compose -f docker-compose.prod.yml --env-file .env.prod down
-
-        echo "Starting services..."
-        docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+        echo "Recreating services (project nephele — same stack as staging)..."
+        $COMPOSE up -d --remove-orphans
 
         sleep 30
 
         echo "Running database migrations..."
-        docker compose -f docker-compose.prod.yml exec -T django python manage.py migrate
+        $COMPOSE exec -T django python manage.py migrate
 
         echo "Collecting static files..."
-        docker compose -f docker-compose.prod.yml exec -T django python manage.py collectstatic --noinput
+        $COMPOSE exec -T django python manage.py collectstatic --noinput
 
         echo "Backing up database after deployment..."
-        docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T django python manage.py backup \
+        $COMPOSE exec -T django python manage.py backup \
           || echo "Post-deploy backup skipped/failed (non-fatal)"
 
         echo "=== Deployment Complete ==="
