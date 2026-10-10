@@ -101,6 +101,16 @@ class BookingSerializer(serializers.ModelSerializer):
         delta = obj.check_out_date - obj.check_in_date
         return delta.days
 
+    def create(self, validated_data):
+        room = validated_data['room']
+        check_in = validated_data['check_in_date']
+        check_out = validated_data['check_out_date']
+        nights = max((check_out - check_in).days, 1)
+        price = room.current_price or room.base_price or Decimal('0')
+        validated_data.setdefault('base_price', price * nights)
+        validated_data.setdefault('actual_price', validated_data['base_price'])
+        return super().create(validated_data)
+
 
 class RefundSerializer(serializers.ModelSerializer):
     """Serializer for Refund model"""

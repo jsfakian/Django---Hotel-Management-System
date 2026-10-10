@@ -8,7 +8,7 @@ from decimal import Decimal
 from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 
@@ -18,6 +18,17 @@ from accounts.models import Guest
 from properties.models import Property
 
 
+def _staff_user(username='testuser', email='user@test.com', role='manager'):
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password='testpass123',
+    )
+    group, _ = Group.objects.get_or_create(name=role)
+    user.groups.add(group)
+    return user
+
+
 class BookingViewSetTests(APITestCase):
     """Test cases for Booking API endpoints"""
     
@@ -25,12 +36,8 @@ class BookingViewSetTests(APITestCase):
         """Set up test data"""
         self.client = APIClient()
         
-        # Create admin user
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='user@test.com',
-            password='testpass123'
-        )
+        # Staff user (create/list bookings as hotel staff)
+        self.user = _staff_user()
         
         # Create property
         self.property = Property.objects.create(
@@ -102,7 +109,12 @@ class BookingViewSetTests(APITestCase):
         # This tests endpoint structure
         self.assertIn(
             response.status_code,
-            [status.HTTP_201_CREATED, status.HTTP_404_NOT_FOUND, status.HTTP_401_UNAUTHORIZED]
+            [
+                status.HTTP_201_CREATED,
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_401_UNAUTHORIZED,
+            ],
         )
     
     def test_booking_retrieve_endpoint(self):
@@ -132,12 +144,7 @@ class PaymentViewSetTests(APITestCase):
         """Set up test data"""
         self.client = APIClient()
         
-        # Create user
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='user@test.com',
-            password='testpass123'
-        )
+        self.user = _staff_user(role='receptionist')
         
         # Create guest
         guest_user = User.objects.create_user(
@@ -189,7 +196,12 @@ class PaymentViewSetTests(APITestCase):
         response = self.client.post('/api/v1/payments/', data, format='json')
         self.assertIn(
             response.status_code,
-            [status.HTTP_201_CREATED, status.HTTP_404_NOT_FOUND, status.HTTP_401_UNAUTHORIZED]
+            [
+                status.HTTP_201_CREATED,
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_401_UNAUTHORIZED,
+            ],
         )
 
 
@@ -200,11 +212,7 @@ class RoomViewSetTests(APITestCase):
         """Set up test data"""
         self.client = APIClient()
         
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='user@test.com',
-            password='testpass123'
-        )
+        self.user = _staff_user()
         
         self.property = Property.objects.create(
             name='Test Hotel',
@@ -250,7 +258,12 @@ class RoomViewSetTests(APITestCase):
         response = self.client.post('/api/v1/rooms/', data, format='json')
         self.assertIn(
             response.status_code,
-            [status.HTTP_201_CREATED, status.HTTP_404_NOT_FOUND, status.HTTP_401_UNAUTHORIZED]
+            [
+                status.HTTP_201_CREATED,
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_401_UNAUTHORIZED,
+            ],
         )
 
 

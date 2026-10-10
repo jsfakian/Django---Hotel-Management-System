@@ -372,7 +372,13 @@ class TestGDPRExportIntegration:
         )
         
         # Create guest
-        Guest.objects.create(user=user, phone='+301234567890')
+        Guest.objects.create(
+            user=user,
+            email='pytest@example.com',
+            first_name='Pytest',
+            last_name='User',
+            phone_number='+301234567890',
+        )
         
         # Export
         service = GDPRExportService(user)

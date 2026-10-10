@@ -97,7 +97,8 @@ def get_user_role(user):
 
     try:
         group = user.groups.first()
-        return group.name if group else 'guest'
+        # Normalize so DB groups like "Manager" match ROLE_PERMISSIONS keys.
+        return group.name.lower() if group else 'guest'
     except Exception:
         return 'guest'
 
