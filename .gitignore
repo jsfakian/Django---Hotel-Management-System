@@ -20,6 +20,8 @@ build/
 .ruff_cache/
 .coverage
 .coverage.*
+coverage.xml
+test-results.xml
 htmlcov/
 .tox/
 .nox/
