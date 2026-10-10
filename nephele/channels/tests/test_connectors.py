@@ -19,7 +19,7 @@ from channels.connectors.booking_com import (
 )
 from channels.connectors.expedia import ExpediaConnector
 from channels.connectors.ical import ICalConnector, parse_vevents
-from channels.models import Channel, ChannelBooking
+from channels.models import Channel, ChannelBooking, ChannelWebhookLog
 from channels.tasks import channel_health_snapshot
 from properties.models import Property
 from room.models import Booking, Room
@@ -137,7 +137,8 @@ def test_ical_export_feed_contains_booking(ical_channel, property_obj):
     )
     feed = ICalConnector().export_feed(ical_channel)
     assert "BEGIN:VEVENT" in feed
-    assert "Ical Guest" in feed or "Booking" in feed
+    assert "Ical Guest" not in feed
+    assert "SUMMARY:Reserved" in feed or "SUMMARY:" in feed
 
 
 @pytest.mark.unit
@@ -336,7 +337,13 @@ def test_booking_com_webhook_receive_creates_and_updates_booking(
     booking = ChannelBooking.objects.get(
         channel=booking_com_channel, channel_booking_id="BCOM-LIVE-1"
     ).nephele_booking
-    assert booking.guest.email == "nikos.bcom@example.com"
+    assert (
+        booking.guest.email == "nikos.bcom@example.com"
+        or (booking.guest.preferences or {}).get("contact_email")
+        == "nikos.bcom@example.com"
+    )
+    assert booking.guest.user_id
+    assert not booking.guest.user.has_usable_password()
 
     # Update path: change checkout and total
     payload["reservation"]["checkout"] = (date.today() + timedelta(days=33)).isoformat()
@@ -417,3 +424,81 @@ def test_booking_com_prepared_payloads_include_ari(booking_com_channel):
     assert rates[0]["prices"]
     assert rates[0]["prices"][0]["price"] == "120.00"
     assert conn.map_room_type(booking_com_channel, rt.id) == "bcom-rt-x"
+
+
+@pytest.mark.unit
+@pytest.mark.django_db
+def test_webhook_does_not_hijack_existing_guest_by_email(
+    booking_com_channel, property_obj, settings
+):
+    settings.BOOKING_COM_LIVE = True
+    booking_com_channel.accept_bookings = True
+    booking_com_channel.save(update_fields=["accept_bookings"])
+    Room.objects.create(
+        room_number="601",
+        floor=6,
+        room_type="deluxe",
+        capacity=2,
+        number_of_beds=1,
+        base_price=Decimal("100"),
+        current_price=Decimal("100"),
+        property=property_obj,
+    )
+    existing = Guest.objects.create(
+        email="shared@example.com",
+        first_name="Existing",
+        last_name="Guest",
+    )
+    check_in = (date.today() + timedelta(days=40)).isoformat()
+    check_out = (date.today() + timedelta(days=42)).isoformat()
+    payload = {
+        "reservation": {
+            "id": "BCOM-NOHIJACK",
+            "checkin": check_in,
+            "checkout": check_out,
+            "total": "100.00",
+            "guest": {
+                "first_name": "New",
+                "last_name": "Arrival",
+                "email": "shared@example.com",
+            },
+            "rooms": [{"room_id": "bcom-rt-1"}],
+        }
+    }
+    body = json.dumps(payload)
+    client = APIClient()
+    resp = client.post(
+        f"/api/v1/channels/{booking_com_channel.id}/bookings/",
+        data=body,
+        content_type="application/json",
+        HTTP_X_WEBHOOK_SIGNATURE=_sign(body, booking_com_channel.api_secret),
+    )
+    assert resp.status_code == 201, resp.content
+    cb = ChannelBooking.objects.get(
+        channel=booking_com_channel, channel_booking_id="BCOM-NOHIJACK"
+    )
+    assert cb.nephele_booking.guest_id != existing.id
+    log = ChannelWebhookLog.objects.filter(
+        channel=booking_com_channel, event="booking"
+    ).latest("id")
+    assert log.payload.get("guest_email") == "[REDACTED]"
+    assert log.payload.get("guest_first_name") == "[REDACTED]"
+
+
+@pytest.mark.unit
+def test_redact_webhook_pii_helper():
+    from channels.views import _redact_webhook_pii
+
+    redacted = _redact_webhook_pii(
+        {
+            "guest_email": "a@b.com",
+            "guest_first_name": "Ada",
+            "channel_booking_id": "X1",
+            "nested": {"email": "x@y.com", "room_id": 1},
+        }
+    )
+    assert redacted["guest_email"] == "[REDACTED]"
+    assert redacted["guest_first_name"] == "[REDACTED]"
+    assert redacted["channel_booking_id"] == "X1"
+    assert redacted["nested"]["email"] == "[REDACTED]"
+    assert redacted["nested"]["room_id"] == 1

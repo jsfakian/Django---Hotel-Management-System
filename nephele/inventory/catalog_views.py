@@ -1,5 +1,6 @@
 """Room types, rate plans, quote, booking-engine, front-desk APIs."""
 
+import secrets
 from datetime import timedelta
 
 from django.shortcuts import get_object_or_404
@@ -10,11 +11,12 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.api_permissions import IsHotelStaff
+from accounts.api_permissions import IsHotelStaff, is_hotel_staff
 from inventory.booking_engine import (
     cancel_hold,
     confirm_hold,
     create_hold,
+    guest_contact_email,
     hold_booking_dict,
     modify_hold,
     quote,
@@ -264,6 +266,20 @@ class BookingEngineHoldView(APIView):
         return Response(hold_booking_dict(booking), status=status.HTTP_201_CREATED)
 
 
+def _staff_bypass(request) -> bool:
+    return is_hotel_staff(request.user)
+
+
+def _hold_token_from_request(request, data=None) -> str:
+    data = data or {}
+    return (
+        data.get("hold_token")
+        or request.query_params.get("hold_token")
+        or request.headers.get("X-Hold-Token")
+        or ""
+    )
+
+
 def _checkout_before_confirm(booking_id, payment_mode, payment_ref):
     """Start gateway checkout for deposit/full when no payment_ref yet."""
     if payment_ref or payment_mode == "pay_at_hotel":
@@ -280,6 +296,7 @@ def _checkout_before_confirm(booking_id, payment_mode, payment_ref):
 def _confirm_response(booking, payment_mode, checkout):
     body = {
         "booking_id": booking.id,
+        "hold_token": booking.hold_token or "",
         "status": booking.status,
         "confirmation_number": f"NEPH-{booking.id}",
         "check_in": booking.check_in_date,
@@ -292,24 +309,44 @@ def _confirm_response(booking, payment_mode, checkout):
     return Response(body)
 
 
+def _payment_required_response(exc):
+    body = {"error": str(exc), "payment_required": True}
+    body.update(getattr(exc, "checkout", None) or {})
+    return Response(body, status=status.HTTP_402_PAYMENT_REQUIRED)
+
+
 class BookingEngineConfirmView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        from inventory.booking_engine import HoldExpiredError, HoldNotFoundError
+        from inventory.booking_engine import (
+            HoldExpiredError,
+            HoldNotFoundError,
+            HoldTokenError,
+            PaymentRequiredError,
+        )
 
         ser = ConfirmHoldSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         payment_mode = ser.validated_data.get("payment_mode")
         payment_ref = ser.validated_data.get("payment_ref") or None
         booking_id = ser.validated_data["booking_id"]
+        hold_token = _hold_token_from_request(request, ser.validated_data)
         checkout, payment_ref = _checkout_before_confirm(
             booking_id, payment_mode, payment_ref
         )
         try:
             booking = confirm_hold(
-                booking_id, payment_ref=payment_ref, payment_mode=payment_mode
+                booking_id,
+                payment_ref=payment_ref,
+                payment_mode=payment_mode,
+                hold_token=hold_token,
+                staff_bypass=_staff_bypass(request),
             )
+        except HoldTokenError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except PaymentRequiredError as exc:
+            return _payment_required_response(exc)
         except HoldNotFoundError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
         except HoldExpiredError as exc:
@@ -328,9 +365,19 @@ class BookingEngineCancelView(APIView):
         ser = CancelHoldSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         try:
-            from inventory.booking_engine import BookingEngineError, HoldNotFoundError
+            from inventory.booking_engine import (
+                BookingEngineError,
+                HoldNotFoundError,
+                HoldTokenError,
+            )
 
-            booking = cancel_hold(ser.validated_data["booking_id"])
+            booking = cancel_hold(
+                ser.validated_data["booking_id"],
+                hold_token=_hold_token_from_request(request, ser.validated_data),
+                staff_bypass=_staff_bypass(request),
+            )
+        except HoldTokenError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
         except HoldNotFoundError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
         except BookingEngineError as exc:
@@ -349,10 +396,21 @@ class BookingEngineModifyHoldView(APIView):
                 BookingEngineError,
                 HoldExpiredError,
                 HoldNotFoundError,
+                HoldTokenError,
                 NoAllotmentError,
             )
 
-            payload = modify_hold(booking_id, **ser.validated_data)
+            data = dict(ser.validated_data)
+            token = _hold_token_from_request(request, data)
+            data.pop("hold_token", None)
+            payload = modify_hold(
+                booking_id,
+                hold_token=token,
+                staff_bypass=_staff_bypass(request),
+                **data,
+            )
+        except HoldTokenError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_403_FORBIDDEN)
         except HoldNotFoundError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
         except HoldExpiredError as exc:
@@ -364,28 +422,57 @@ class BookingEngineModifyHoldView(APIView):
         return Response(payload)
 
 
+def _booking_hold_token_ok(request, booking) -> bool:
+    token = _hold_token_from_request(request)
+    expected = booking.hold_token or ""
+    return _staff_bypass(request) or (
+        bool(expected)
+        and bool(token)
+        and secrets.compare_digest(str(token), str(expected))
+    )
+
+
+def _booking_confirmation_body(booking):
+    return {
+        "booking_id": booking.id,
+        "status": booking.status,
+        "confirmation_number": f"NEPH-{booking.id}",
+        "check_in": booking.check_in_date,
+        "check_out": booking.check_out_date,
+        "room_type": booking.room_type_id,
+        "rate_plan": booking.rate_plan_id,
+        "total": str(booking.actual_price),
+        "vat_amount": str(booking.vat_amount or 0),
+        "climate_resilience_fee": str(booking.climate_resilience_fee or 0),
+        "guest_email": guest_contact_email(booking.guest) or None,
+        "hold_token": booking.hold_token or "",
+    }
+
+
+def _confirmation_get_response(request, booking):
+    if booking.status == "held" and booking.booking_source != "booking_engine":
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    token_ok = _booking_hold_token_ok(request, booking)
+    # Engine holds require token/staff; other sources stay opaque without token.
+    if booking.booking_source == "booking_engine" and not token_ok:
+        return Response(
+            {"booking_id": booking.id, "status": booking.status},
+            status=status.HTTP_200_OK,
+        )
+    if not token_ok and booking.booking_source != "booking_engine":
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+    return Response(_booking_confirmation_body(booking))
+
+
 class BookingEngineConfirmationView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, booking_id):
-        booking = get_object_or_404(Booking, pk=booking_id)
-        if booking.status == "held" and booking.booking_source != "booking_engine":
-            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-        return Response(
-            {
-                "booking_id": booking.id,
-                "status": booking.status,
-                "confirmation_number": f"NEPH-{booking.id}",
-                "guest_email": getattr(booking.guest, "email", None),
-                "check_in": booking.check_in_date,
-                "check_out": booking.check_out_date,
-                "room_type": booking.room_type_id,
-                "rate_plan": booking.rate_plan_id,
-                "total": str(booking.actual_price),
-                "vat_amount": str(booking.vat_amount or 0),
-                "climate_resilience_fee": str(booking.climate_resilience_fee or 0),
-            }
+        booking = get_object_or_404(
+            Booking.objects.select_related("guest"), pk=booking_id
         )
+        return _confirmation_get_response(request, booking)
 
 
 def _guest_display_name(booking):

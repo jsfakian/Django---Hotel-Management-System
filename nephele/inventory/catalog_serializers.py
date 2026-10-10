@@ -190,16 +190,19 @@ class HoldBookingSerializer(serializers.Serializer):
 
 class ConfirmHoldSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
+    hold_token = serializers.CharField(required=False, allow_blank=True, default="")
     payment_ref = serializers.CharField(required=False, allow_blank=True)
     payment_mode = serializers.ChoiceField(
         choices=("deposit", "pay_at_hotel", "full"),
         required=False,
-        default="deposit",
+        allow_null=True,
+        default=None,
     )
 
 
 class CancelHoldSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
+    hold_token = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ModifyHoldSerializer(serializers.Serializer):
@@ -209,6 +212,7 @@ class ModifyHoldSerializer(serializers.Serializer):
         ("full", "Pay in full"),
     )
 
+    hold_token = serializers.CharField(required=False, allow_blank=True, default="")
     check_in = serializers.DateField(required=False)
     check_out = serializers.DateField(required=False)
     adults = serializers.IntegerField(required=False, min_value=1)

@@ -17,6 +17,7 @@ from payments.gateway import (
 
 @pytest.mark.unit
 def test_viva_demo_without_credentials(settings):
+    settings.DEBUG = True
     settings.VIVA_MERCHANT_ID = ""
     settings.VIVA_API_KEY = ""
     gw = VivaWalletGateway()
@@ -28,7 +29,19 @@ def test_viva_demo_without_credentials(settings):
 
 
 @pytest.mark.unit
+def test_viva_create_fails_closed_outside_demo(settings):
+    settings.DEBUG = False
+    settings.PAYMENT_DEMO = False
+    settings.VIVA_MERCHANT_ID = ""
+    settings.VIVA_API_KEY = ""
+    gw = VivaWalletGateway()
+    with pytest.raises(PaymentGatewayError):
+        gw.create_payment(amount=Decimal("25.00"), description="Test")
+
+
+@pytest.mark.unit
 def test_stripe_stub_without_secret(settings):
+    settings.DEBUG = True
     settings.STRIPE_SECRET_KEY = ""
     gw = StripeGateway()
     result = gw.create_payment(amount=Decimal("10.00"))
@@ -81,12 +94,28 @@ def test_viva_http_error_raises(settings):
 
 @pytest.mark.unit
 def test_viva_verify_demo_payment(settings):
+    settings.DEBUG = True
+    settings.PAYMENT_DEMO = False
     settings.VIVA_MERCHANT_ID = ""
     settings.VIVA_API_KEY = ""
     gw = VivaWalletGateway()
     created = gw.create_payment(amount=Decimal("5.00"))
     verified = gw.verify_payment(created["payment_id"])
     assert verified["paid"] is True
+
+
+@pytest.mark.unit
+def test_viva_verify_demo_unpaid_outside_demo(settings):
+    settings.DEBUG = False
+    settings.PAYMENT_DEMO = False
+    settings.VIVA_MERCHANT_ID = ""
+    settings.VIVA_API_KEY = ""
+    gw = VivaWalletGateway()
+    with pytest.raises(PaymentGatewayError):
+        gw.create_payment(amount=Decimal("5.00"))
+    verified = gw.verify_payment("viva-demo-unpaidxx")
+    assert verified["paid"] is False
+    assert verified["status"] == "pending"
 
 
 @pytest.mark.unit
@@ -283,6 +312,7 @@ def test_mydata_live_transmit_posts_aade_invoices_doc(settings):
 def test_start_booking_checkout_returns_api_fields(settings):
     from payments.gateway import start_booking_checkout
 
+    settings.DEBUG = True
     settings.VIVA_MERCHANT_ID = ""
     settings.VIVA_API_KEY = ""
     settings.DEFAULT_PAYMENT_GATEWAY = "viva"
@@ -309,6 +339,7 @@ def test_hold_dict_includes_checkout_for_deposit(settings):
     from inventory.models import RatePlan, RatePlanPrice, RoomType, RoomTypeAvailability
     from properties.models import Property
 
+    settings.DEBUG = True
     settings.VIVA_MERCHANT_ID = ""
     settings.VIVA_API_KEY = ""
     prop = Property.objects.create(

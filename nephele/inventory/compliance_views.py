@@ -16,7 +16,8 @@ from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework import status
 
-from accounts.api_permissions import IsHotelStaff
+from accounts.api_permissions import MANAGEMENT_ROLES, IsHotelStaff
+from accounts.permissions import get_user_role
 from room.models import Booking
 
 
@@ -172,6 +173,28 @@ def _police_xml_response(rows, property_id):
     return resp
 
 
+def _staff_may_export_property(user, property_id) -> bool:
+    """Admins/managers: any property. Other staff: assigned property only."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    role = get_user_role(user)
+    if role in MANAGEMENT_ROLES:
+        return True
+    emp = getattr(user, "employee_profile", None)
+    if emp is None:
+        from accounts.models import Employee
+
+        emp = Employee.objects.filter(user=user).select_related("property").first()
+    if emp is None or emp.property_id is None:
+        return False
+    try:
+        return int(emp.property_id) == int(property_id)
+    except (TypeError, ValueError):
+        return False
+
+
 @api_view(["GET"])
 @renderer_classes([JSONRenderer, _CSVRenderer, _XMLRenderer])
 @permission_classes([IsAuthenticated, IsHotelStaff])
@@ -188,6 +211,11 @@ def police_sheet_export(request):
     if not property_id:
         return Response(
             {"error": "property_id required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if not _staff_may_export_property(request.user, property_id):
+        return Response(
+            {"error": "Not allowed to export for this property"},
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     qs = _police_sheet_queryset(property_id, date_from, date_to)

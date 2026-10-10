@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import secrets
 from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -31,6 +33,18 @@ class HoldExpiredError(BookingEngineError):
 
 class HoldNotFoundError(BookingEngineError):
     """Hold booking missing or not in held state."""
+
+
+class HoldTokenError(BookingEngineError):
+    """Missing or invalid hold_token for a public hold action."""
+
+
+class PaymentRequiredError(BookingEngineError):
+    """Online payment not verified; confirm must not proceed."""
+
+    def __init__(self, message, checkout=None):
+        super().__init__(message)
+        self.checkout = checkout or {}
 
 
 def compute_taxes(subtotal: Decimal, nights: int) -> dict:
@@ -207,20 +221,53 @@ def _deposit_due_amount(total, payment_mode, deposit_percent):
     return (total * pct / Decimal("100")).quantize(Decimal("0.01"))
 
 
-def _get_or_create_hold_guest(
-    guest_email, guest_first_name, guest_last_name, guest_phone
-):
+def guest_contact_email(guest) -> str:
+    """Prefer preferences.contact_email (public BE) over stored Guest.email."""
+    if not guest:
+        return ""
+    prefs = getattr(guest, "preferences", None) or {}
+    if isinstance(prefs, dict) and prefs.get("contact_email"):
+        return str(prefs["contact_email"])
+    return getattr(guest, "email", "") or ""
+
+
+def _unique_guest_email(base_email: str, suffix: str) -> str:
+    """Build a unique Guest.email when the contact address is already taken."""
     from accounts.models import Guest
 
-    guest, _ = Guest.objects.get_or_create(
-        email=guest_email,
-        defaults={
-            "first_name": guest_first_name or "Guest",
-            "last_name": guest_last_name,
-            "phone_number": guest_phone,
-        },
+    if not Guest.objects.filter(email__iexact=base_email).exists():
+        return base_email
+    local, _, domain = base_email.partition("@")
+    return f"{local}+{suffix}@{domain or 'nephele.local'}"
+
+
+def _create_public_hold_guest(
+    guest_email, guest_first_name, guest_last_name, guest_phone
+):
+    """
+    Always create a new Guest linked to a new User with an unusable password.
+
+    Never attach a public hold to an existing Guest found by email alone.
+    """
+    from django.contrib.auth.models import User
+
+    from accounts.models import Guest
+
+    user = User(username=f"be_{secrets.token_hex(12)}", email=guest_email)
+    user.set_unusable_password()
+    user.first_name = (guest_first_name or "Guest")[:150]
+    user.last_name = (guest_last_name or "")[:150]
+    user.save()
+
+    stored_email = _unique_guest_email(guest_email, f"be{secrets.token_hex(4)}")
+    return Guest.objects.create(
+        user=user,
+        email=stored_email,
+        first_name=guest_first_name or "Guest",
+        last_name=guest_last_name or "",
+        phone_number=(guest_phone or "")[:20],
+        preferences={"contact_email": guest_email},
     )
-    return guest
 
 
 @transaction.atomic
@@ -269,7 +316,7 @@ def create_hold(
     nights = (check_out - check_in).days
     _reserve_room_type_nights(room_type, check_in, check_out)
 
-    guest = _get_or_create_hold_guest(
+    guest = _create_public_hold_guest(
         guest_email, guest_first_name, guest_last_name, guest_phone
     )
 
@@ -278,6 +325,7 @@ def create_hold(
     hold_expires = timezone.now() + timedelta(minutes=ttl_minutes)
     total = taxes["total_with_taxes"]
     deposit_due = _deposit_due_amount(total, payment_mode, deposit_percent)
+    hold_token = secrets.token_urlsafe(32)
 
     payment_note = (
         f"payment_mode={payment_mode}; deposit_due={deposit_due}; "
@@ -297,6 +345,7 @@ def create_hold(
         children_ages=children_ages or [],
         status="held",
         hold_expires_at=hold_expires,
+        hold_token=hold_token,
         base_price=subtotal,
         actual_price=total,
         vat_amount=taxes["vat_amount"],
@@ -345,11 +394,82 @@ def _expire_stale_hold(booking):
     raise HoldExpiredError(str(_("Hold expired")))
 
 
+def assert_hold_token(booking, hold_token: str | None, *, staff_bypass: bool = False):
+    """Require matching hold_token unless staff_bypass is True."""
+    if staff_bypass:
+        return
+    expected = booking.hold_token or ""
+    provided = hold_token or ""
+    if not expected or not provided or not secrets.compare_digest(
+        str(provided), str(expected)
+    ):
+        raise HoldTokenError(str(_("Invalid or missing hold_token")))
+
+
+def _payment_marked_paid(payment_ref: str, booking_id: int) -> bool:
+    """True when a gateway webhook already completed a Payment for this ref."""
+    if not payment_ref:
+        return False
+    try:
+        from payments.models import Payment
+    except Exception:
+        return False
+    return Payment.objects.filter(
+        Q(transaction_id=payment_ref) | Q(reference_code=payment_ref),
+        booking_id=booking_id,
+        status="completed",
+    ).exists()
+
+
+def _held_payment_mode(booking, requested_mode: str | None) -> str:
+    """Held booking notes are source of truth; reject client payment downgrade."""
+    held = _parse_payment_mode(booking.notes) or "deposit"
+    if not requested_mode:
+        return held
+    if held in ("deposit", "full") and requested_mode == "pay_at_hotel":
+        raise PaymentRequiredError(
+            str(_("Cannot switch to pay_at_hotel after online payment was selected")),
+            checkout=gateway_checkout_for_booking(booking, held),
+        )
+    return held
+
+
+def _ensure_online_payment(booking, payment_ref, payment_mode):
+    """Block confirm for deposit/full until gateway or webhook shows paid."""
+    mode = _held_payment_mode(booking, payment_mode)
+    if not _needs_online_payment(mode):
+        return
+    if _payment_marked_paid(payment_ref or "", booking.id):
+        return
+    if not payment_ref:
+        checkout = gateway_checkout_for_booking(booking, mode)
+        raise PaymentRequiredError(
+            str(_("Payment required before confirm")), checkout=checkout
+        )
+    try:
+        from payments.gateway import get_payment_gateway
+
+        verified = get_payment_gateway().verify_payment(payment_ref)
+    except Exception:
+        verified = {"paid": False}
+    if verified.get("paid"):
+        return
+    checkout = gateway_checkout_for_booking(booking, mode)
+    if not checkout.get("payment_ref"):
+        checkout["payment_ref"] = payment_ref
+    raise PaymentRequiredError(
+        str(_("Payment not completed")), checkout=checkout
+    )
+
+
 @transaction.atomic
 def confirm_hold(
     booking_id: int,
     payment_ref: str | None = None,
     payment_mode: str | None = None,
+    hold_token: str | None = None,
+    *,
+    staff_bypass: bool = False,
 ):
     from room.models import Booking
 
@@ -358,11 +478,14 @@ def confirm_hold(
     except Booking.DoesNotExist as exc:
         raise HoldNotFoundError(str(_("Hold not found"))) from exc
 
+    assert_hold_token(booking, hold_token, staff_bypass=staff_bypass)
+
     if booking.status != "held":
         raise HoldNotFoundError(
             str(_("Booking %(id)s is not held")) % {"id": booking_id}
         )
     _expire_stale_hold(booking)
+    _ensure_online_payment(booking, payment_ref, payment_mode)
 
     booking.status = "confirmed"
     booking.hold_expires_at = None
@@ -373,7 +496,12 @@ def confirm_hold(
 
 
 @transaction.atomic
-def cancel_hold(booking_id: int):
+def cancel_hold(
+    booking_id: int,
+    hold_token: str | None = None,
+    *,
+    staff_bypass: bool = False,
+):
     """Cancel a held booking and restore room-type allotment."""
     from room.models import Booking
 
@@ -381,6 +509,8 @@ def cancel_hold(booking_id: int):
         booking = Booking.objects.select_for_update().get(pk=booking_id)
     except Booking.DoesNotExist as exc:
         raise HoldNotFoundError(str(_("Hold not found"))) from exc
+
+    assert_hold_token(booking, hold_token, staff_bypass=staff_bypass)
 
     if booking.status != "held":
         raise BookingEngineError(
@@ -418,9 +548,11 @@ def _release_room_type_allotment(booking):
     from inventory.models import RoomTypeAvailability
 
     for night in daterange(booking.check_in_date, booking.check_out_date):
-        avail = RoomTypeAvailability.objects.filter(
-            room_type_id=booking.room_type_id, date=night
-        ).first()
+        avail = (
+            RoomTypeAvailability.objects.select_for_update()
+            .filter(room_type_id=booking.room_type_id, date=night)
+            .first()
+        )
         if avail and avail.booked > 0:
             avail.booked -= 1
             avail.save(update_fields=["booked", "updated_at"])
@@ -475,7 +607,7 @@ def gateway_checkout_for_booking(booking, payment_mode=None) -> dict:
         from payments.gateway import start_booking_checkout
 
         guest = getattr(booking, "guest", None)
-        email = getattr(guest, "email", "") or ""
+        email = guest_contact_email(guest)
         return start_booking_checkout(
             amount=Decimal(str(amount)),
             booking_id=booking.id,
@@ -498,6 +630,7 @@ def hold_booking_dict(booking) -> dict:
         deposit_due = booking.actual_price
     payload = {
         "booking_id": booking.id,
+        "hold_token": booking.hold_token or "",
         "status": booking.status,
         "hold_expires_at": booking.hold_expires_at,
         "check_in": booking.check_in_date,
@@ -534,6 +667,18 @@ def _kw_or_booking(kwargs, key, booking_value):
     return booking_value if value is None else value
 
 
+def _resolve_modify_payment_mode(booking, requested_mode):
+    """Keep held online payment mode; reject downgrade to pay_at_hotel."""
+    held = _parse_payment_mode(booking.notes) or "deposit"
+    if not requested_mode:
+        return held
+    if held in ("deposit", "full") and requested_mode == "pay_at_hotel":
+        raise BookingEngineError(
+            str(_("Cannot switch to pay_at_hotel after online payment was selected"))
+        )
+    return requested_mode
+
+
 def _resolve_modify_params(booking, **kwargs):
     check_in = kwargs.get("check_in") or booking.check_in_date
     check_out = kwargs.get("check_out") or booking.check_out_date
@@ -541,7 +686,7 @@ def _resolve_modify_params(booking, **kwargs):
     children = _kw_or_booking(kwargs, "children", booking.children)
     room_type_id = kwargs.get("room_type_id") or booking.room_type_id
     rate_plan_id = kwargs.get("rate_plan_id") or booking.rate_plan_id
-    payment_mode = kwargs.get("payment_mode") or _parse_payment_mode(booking.notes)
+    payment_mode = _resolve_modify_payment_mode(booking, kwargs.get("payment_mode"))
     if check_out <= check_in:
         raise BookingEngineError(str(_("check_out must be after check_in")))
     if not room_type_id or not rate_plan_id:
@@ -588,6 +733,14 @@ def _apply_hold_repricing(
     return booking
 
 
+def _booking_property_id(booking):
+    if booking.room_type_id:
+        return booking.room_type.property_id
+    if booking.room_id:
+        return booking.room.property_id
+    return None
+
+
 @transaction.atomic
 def modify_hold(
     booking_id: int,
@@ -599,16 +752,23 @@ def modify_hold(
     room_type_id=None,
     rate_plan_id=None,
     payment_mode=None,
+    hold_token: str | None = None,
+    staff_bypass: bool = False,
 ):
     """Re-quote and re-hold an existing held/pending booking with new params."""
     from inventory.models import RatePlan, RoomType
     from room.models import Booking
 
     try:
-        booking = Booking.objects.select_for_update().get(pk=booking_id)
+        booking = (
+            Booking.objects.select_for_update()
+            .select_related("room_type", "room")
+            .get(pk=booking_id)
+        )
     except Booking.DoesNotExist as exc:
         raise HoldNotFoundError(str(_("Hold not found"))) from exc
 
+    assert_hold_token(booking, hold_token, staff_bypass=staff_bypass)
     _modifiable_hold_or_raise(booking)
     (
         check_in,
@@ -629,10 +789,21 @@ def modify_hold(
         payment_mode=payment_mode,
     )
 
+    property_id = _booking_property_id(booking)
+    if not property_id:
+        raise BookingEngineError(str(_("Booking has no property scope")))
+
     _release_room_type_allotment(booking)
 
-    room_type = RoomType.objects.select_for_update().get(pk=room_type_id)
-    rate_plan = RatePlan.objects.get(pk=rate_plan_id, property_id=room_type.property_id)
+    try:
+        room_type = RoomType.objects.select_for_update().get(
+            pk=room_type_id, property_id=property_id
+        )
+        rate_plan = RatePlan.objects.get(pk=rate_plan_id, property_id=property_id)
+    except (RoomType.DoesNotExist, RatePlan.DoesNotExist) as exc:
+        raise BookingEngineError(
+            str(_("Room type / rate plan not found for this property"))
+        ) from exc
 
     booking = _apply_hold_repricing(
         booking,

@@ -27,7 +27,18 @@ function LookupForm({ form, setForm, onLookup, loading }) {
             onChange={set('booking_id')}
           />
         </Grid>
-        <Grid item xs={12} sm={5}>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            required
+            label={t('holdToken')}
+            name="hold_token"
+            value={form.hold_token}
+            onChange={set('hold_token')}
+            helperText={t('holdTokenHint')}
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
           <TextField
             fullWidth
             type="email"
@@ -113,8 +124,12 @@ function BookingSummary({ booking }) {
   )
 }
 
-async function lookupBooking(bookingId, email, t) {
-  const conf = await getConfirmation(bookingId)
+async function lookupBooking(bookingId, holdToken, email, t) {
+  if (!holdToken) {
+    throw new Error(t('holdTokenRequired'))
+  }
+  const conf = await getConfirmation(bookingId, holdToken)
+  // Optional UX check only — auth is hold_token on the API
   if (email && conf.guest_email && conf.guest_email.toLowerCase() !== email.toLowerCase()) {
     throw new Error(t('emailMismatch'))
   }
@@ -126,6 +141,7 @@ function ManageInner() {
   const [params] = useSearchParams()
   const [lookup, setLookup] = useState({
     booking_id: params.get('id') || '',
+    hold_token: params.get('token') || params.get('hold_token') || '',
     email: params.get('email') || '',
   })
   const [booking, setBooking] = useState(null)
@@ -140,7 +156,7 @@ function ManageInner() {
     setMsg('')
     setBusy(true)
     try {
-      const conf = await lookupBooking(lookup.booking_id, lookup.email, t)
+      const conf = await lookupBooking(lookup.booking_id, lookup.hold_token, lookup.email, t)
       setBooking(conf)
       setModify({
         check_in: conf.check_in || conf.check_in_date || '',
@@ -157,12 +173,16 @@ function ManageInner() {
 
   const handleCancel = async () => {
     if (!booking) return
+    if (!lookup.hold_token) {
+      setError(t('holdTokenRequired'))
+      return
+    }
     setError('')
     setMsg('')
     setBusy(true)
     try {
       const id = booking.booking_id || booking.id
-      const result = await cancelHold(id)
+      const result = await cancelHold(id, lookup.hold_token)
       setMsg(`#${result.booking_id} ${t('bookingCancelled')}`)
       setBooking({ ...booking, status: result.status })
     } catch (err) {
@@ -175,12 +195,17 @@ function ManageInner() {
   const handleModify = async (e) => {
     e.preventDefault()
     if (!booking) return
+    if (!lookup.hold_token) {
+      setError(t('holdTokenRequired'))
+      return
+    }
     setError('')
     setMsg('')
     setBusy(true)
     try {
       const id = booking.booking_id || booking.id
       const payload = {
+        hold_token: lookup.hold_token,
         check_in: modify.check_in || undefined,
         check_out: modify.check_out || undefined,
         adults: Number(modify.adults) || undefined,

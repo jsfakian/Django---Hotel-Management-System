@@ -18,7 +18,11 @@ export function parseMappingConfig(raw) {
   return JSON.parse(text)
 }
 
-/** Ensure both canonical and legacy mapping keys are present. */
+/**
+ * Dual-write canonical + legacy mapping keys for backward-compat API clients.
+ * Backend normalize_mapping_config accepts either; this is the ONE place that
+ * expands both shapes (MappingMatrix emits canonical keys only).
+ */
 export function withDualMappingKeys(cfg) {
   const raw = cfg || {}
   const rooms = raw.room_type_mappings || raw.room_mappings || {}

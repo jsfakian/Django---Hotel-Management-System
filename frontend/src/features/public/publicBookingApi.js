@@ -1,6 +1,9 @@
 /**
  * Public booking-engine helpers (no JWT).
  * Uses fetch against VITE_API_BASE_URL so anonymous guests are not redirected to /login.
+ *
+ * Hold responses include `{ booking_id, hold_token, ... }`. Confirm / cancel / modify /
+ * confirmation lookups must send the same `hold_token` (body or ?hold_token=).
  */
 
 const baseUrl = () => (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
@@ -39,14 +42,18 @@ export function confirmBooking(payload) {
   return publicRequest('/booking-engine/confirm/', { method: 'POST', body: payload })
 }
 
-export function getConfirmation(id) {
-  return publicRequest(`/booking-engine/confirmation/${id}/`, { method: 'GET' })
+export function getConfirmation(id, holdToken) {
+  const q = holdToken ? `?hold_token=${encodeURIComponent(holdToken)}` : ''
+  return publicRequest(`/booking-engine/confirmation/${id}/${q}`, { method: 'GET' })
 }
 
-export function cancelHold(bookingId) {
+export function cancelHold(bookingId, holdToken) {
   return publicRequest('/booking-engine/cancel/', {
     method: 'POST',
-    body: { booking_id: Number(bookingId) },
+    body: {
+      booking_id: Number(bookingId),
+      hold_token: holdToken || '',
+    },
   })
 }
 

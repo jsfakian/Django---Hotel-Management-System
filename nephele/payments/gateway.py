@@ -14,6 +14,32 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+def _demo_paid_allowed() -> bool:
+    """Demo verify_payment may report paid only in DEBUG or PAYMENT_DEMO."""
+    return bool(
+        getattr(settings, "DEBUG", False) or getattr(settings, "PAYMENT_DEMO", False)
+    )
+
+
+def _viva_demo_verify_result(payment_id: str) -> Dict[str, Any]:
+    if _demo_paid_allowed():
+        return {"payment_id": payment_id, "status": "paid", "paid": True}
+    return {"payment_id": payment_id, "status": "pending", "paid": False}
+
+
+def _viva_verify_result_from_data(
+    payment_id: str, data: Dict[str, Any]
+) -> Dict[str, Any]:
+    status_val = str(data.get("statusId") or data.get("status") or "").lower()
+    paid = status_val in ("f", "finished", "paid", "captured", "1")
+    return {
+        "payment_id": payment_id,
+        "status": "paid" if paid else status_val or "pending",
+        "paid": paid,
+        "raw": data,
+    }
+
+
 class PaymentGatewayError(Exception):
     pass
 
@@ -136,6 +162,10 @@ class VivaWalletGateway(PaymentGateway):
         return_url: str = "",
     ) -> Dict[str, Any]:
         if not self.merchant_id or not self.api_key:
+            if not _demo_paid_allowed():
+                raise PaymentGatewayError(
+                    "Viva Wallet credentials missing; refuse demo checkout outside DEBUG/PAYMENT_DEMO"
+                )
             return self._demo_payment(return_url)
         payload = self._build_order_payload(
             amount=amount,
@@ -146,26 +176,22 @@ class VivaWalletGateway(PaymentGateway):
         )
         return self._post_checkout_order(payload)
 
+    def _fetch_viva_transaction(self, payment_id: str) -> Dict[str, Any]:
+        resp = requests.get(
+            f"{self.api_base}/checkout/v2/transactions/{payment_id}",
+            auth=self._auth(),
+            timeout=30,
+        )
+        return resp.json() if resp.content else {}
+
     def verify_payment(self, payment_id: str) -> Dict[str, Any]:
         if str(payment_id).startswith("viva-demo-"):
-            return {"payment_id": payment_id, "status": "paid", "paid": True}
+            return _viva_demo_verify_result(payment_id)
         if not self.merchant_id or not self.api_key:
             return {"payment_id": payment_id, "status": "unknown", "paid": False}
         try:
-            resp = requests.get(
-                f"{self.api_base}/checkout/v2/transactions/{payment_id}",
-                auth=self._auth(),
-                timeout=30,
-            )
-            data = resp.json() if resp.content else {}
-            status_val = str(data.get("statusId") or data.get("status") or "").lower()
-            paid = status_val in ("f", "finished", "paid", "captured", "1")
-            return {
-                "payment_id": payment_id,
-                "status": "paid" if paid else status_val or "pending",
-                "paid": paid,
-                "raw": data,
-            }
+            data = self._fetch_viva_transaction(payment_id)
+            return _viva_verify_result_from_data(payment_id, data)
         except Exception as exc:
             raise PaymentGatewayError(str(exc)) from exc
 
@@ -185,6 +211,10 @@ class StripeGateway(PaymentGateway):
     ) -> Dict[str, Any]:
         secret = getattr(settings, "STRIPE_SECRET_KEY", "")
         if not secret:
+            if not _demo_paid_allowed():
+                raise PaymentGatewayError(
+                    "Stripe credentials missing; refuse demo checkout outside DEBUG/PAYMENT_DEMO"
+                )
             pid = f"stripe-demo-{uuid.uuid4().hex[:12]}"
             return {
                 "payment_id": pid,
@@ -216,7 +246,9 @@ class StripeGateway(PaymentGateway):
 
     def verify_payment(self, payment_id: str) -> Dict[str, Any]:
         if str(payment_id).startswith("stripe-demo-"):
-            return {"payment_id": payment_id, "status": "paid", "paid": True}
+            if _demo_paid_allowed():
+                return {"payment_id": payment_id, "status": "paid", "paid": True}
+            return {"payment_id": payment_id, "status": "pending", "paid": False}
         secret = getattr(settings, "STRIPE_SECRET_KEY", "")
         if not secret:
             return {"payment_id": payment_id, "status": "unknown", "paid": False}

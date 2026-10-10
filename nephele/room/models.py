@@ -156,6 +156,14 @@ class Booking(models.Model):
         default="pending",
     )
     hold_expires_at = models.DateTimeField(null=True, blank=True)
+    hold_token = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        db_index=True,
+        help_text="Opaque token required for public hold confirm/cancel/modify",
+    )
 
     related_bookings = models.ForeignKey(
         "self",

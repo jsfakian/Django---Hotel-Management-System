@@ -4,6 +4,7 @@ import {
 } from '@mui/material'
 
 function rowsFromConfig(mappingConfig) {
+  // Read canonical keys first; fall back to legacy aliases for display
   const rooms = mappingConfig?.room_type_mappings
     || mappingConfig?.room_mappings
     || mappingConfig?.rooms
@@ -26,24 +27,19 @@ function rowsFromConfig(mappingConfig) {
   }))
 }
 
+/** Emit canonical keys only; dual-write lives in channelFormUtils.withDualMappingKeys. */
 function configFromRows(rows) {
-  const room_mappings = {}
-  const rate_mappings = {}
+  const room_type_mappings = {}
+  const rate_plan_mappings = {}
   rows.forEach((r) => {
     if (r.local_room_type_id && r.ota_room_id) {
-      room_mappings[String(r.local_room_type_id)] = String(r.ota_room_id)
+      room_type_mappings[String(r.local_room_type_id)] = String(r.ota_room_id)
     }
     if (r.local_rate_plan_id && r.ota_rate_id) {
-      rate_mappings[String(r.local_rate_plan_id)] = String(r.ota_rate_id)
+      rate_plan_mappings[String(r.local_rate_plan_id)] = String(r.ota_rate_id)
     }
   })
-  // Dual keys for backend normalize_mapping_config compatibility
-  return {
-    room_mappings,
-    room_type_mappings: { ...room_mappings },
-    rate_mappings,
-    rate_plan_mappings: { ...rate_mappings },
-  }
+  return { room_type_mappings, rate_plan_mappings }
 }
 
 export default function MappingMatrix({
@@ -153,7 +149,7 @@ export default function MappingMatrix({
             /* keep matrix until JSON is valid again */
           }
         }}
-        helperText='Matrix edits write room_type_mappings + room_mappings and rate_plan_mappings + rate_mappings'
+        helperText='Matrix edits write room_type_mappings and rate_plan_mappings (canonical keys)'
       />
     </Box>
   )

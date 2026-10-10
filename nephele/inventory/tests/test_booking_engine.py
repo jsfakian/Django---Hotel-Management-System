@@ -164,8 +164,15 @@ def test_confirm_hold_sets_confirmed(catalog):
         adults=1,
         guest_email="confirm@example.com",
         guest_name="Confirm Guest",
+        payment_mode="pay_at_hotel",
     )
-    confirmed = confirm_hold(booking.id, payment_ref="pay_123")
+    assert booking.hold_token
+    confirmed = confirm_hold(
+        booking.id,
+        payment_ref="pay_123",
+        payment_mode="pay_at_hotel",
+        hold_token=booking.hold_token,
+    )
     assert confirmed.status == "confirmed"
     assert confirmed.hold_expires_at is None
     assert "pay_123" in (confirmed.notes or "")
@@ -183,12 +190,17 @@ def test_confirm_expired_hold_raises(catalog):
         adults=1,
         guest_email="expired@example.com",
         guest_name="Expired Guest",
+        payment_mode="pay_at_hotel",
     )
     Booking.objects.filter(pk=booking.pk).update(
         hold_expires_at=timezone.now() - timedelta(minutes=1)
     )
     with pytest.raises(HoldExpiredError):
-        confirm_hold(booking.id)
+        confirm_hold(
+            booking.id,
+            payment_mode="pay_at_hotel",
+            hold_token=booking.hold_token,
+        )
 
 
 @pytest.mark.unit

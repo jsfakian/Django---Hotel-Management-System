@@ -116,7 +116,7 @@ def test_deposit_and_cancel_hold(catalog):
     ).booked
     assert booked == 1
 
-    cancelled = cancel_hold(booking.id)
+    cancelled = cancel_hold(booking.id, hold_token=booking.hold_token)
     assert cancelled.status == "cancelled"
     booked_after = RoomTypeAvailability.objects.get(
         room_type=catalog["room_type"], date=catalog["check_in"]
@@ -167,8 +167,15 @@ def test_modify_hold_changes_dates_and_allotment(catalog):
             defaults={"price_2": Decimal("100.00")},
         )
 
-    payload = modify_hold(booking.id, check_in=new_in, check_out=new_out, adults=1)
+    payload = modify_hold(
+        booking.id,
+        check_in=new_in,
+        check_out=new_out,
+        adults=1,
+        hold_token=booking.hold_token,
+    )
     assert payload["booking_id"] == booking.id
+    assert payload["hold_token"] == booking.hold_token
     assert payload["status"] == "held"
     assert payload["check_in"] == new_in
     assert payload["check_out"] == new_out
@@ -204,7 +211,15 @@ def test_modify_hold_api_endpoint(catalog):
     )
     client = APIClient()
     url = f"/api/v1/booking-engine/holds/{booking.id}/modify/"
-    resp = client.post(url, {"adults": 1, "payment_mode": "full"}, format="json")
+    resp = client.post(
+        url,
+        {
+            "adults": 1,
+            "payment_mode": "full",
+            "hold_token": booking.hold_token,
+        },
+        format="json",
+    )
     assert resp.status_code == 200
     assert resp.data["adults"] == 1
     assert resp.data["payment_mode"] == "full"

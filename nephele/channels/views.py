@@ -247,11 +247,53 @@ def _send_channel_booking_alert(booking, channel):
         pass  # Continue even if notification fails
 
 
+_WEBHOOK_PII_KEYS = frozenset(
+    {
+        "guest_email",
+        "email",
+        "guest_first_name",
+        "guest_last_name",
+        "guest_phone",
+        "phone",
+        "phone_number",
+        "first_name",
+        "last_name",
+        "name",
+    }
+)
+
+
+def _is_pii_key(key: str) -> bool:
+    key_l = (key or "").lower()
+    if key_l in _WEBHOOK_PII_KEYS:
+        return True
+    return "email" in key_l or "phone" in key_l or key_l.endswith("_name")
+
+
+def _redact_webhook_pii(data):
+    """Strip guest email/name/phone from payloads stored in webhook logs."""
+    if isinstance(data, list):
+        return [_redact_webhook_pii(item) for item in data]
+    if not isinstance(data, dict):
+        return data
+    out = {}
+    for key, value in data.items():
+        if _is_pii_key(key):
+            out[key] = "[REDACTED]"
+        elif isinstance(value, (dict, list)):
+            out[key] = _redact_webhook_pii(value)
+        else:
+            out[key] = value
+    return out
+
+
 def _json_safe_payload(data):
     """Convert validated webhook data into JSON-serializable dict for logs."""
     from decimal import Decimal
     from datetime import date, datetime
 
+    if isinstance(data, list):
+        return [_json_safe_payload(item) for item in data]
     if not isinstance(data, dict):
         return data
     out = {}
@@ -260,23 +302,81 @@ def _json_safe_payload(data):
             out[key] = str(value)
         elif isinstance(value, (date, datetime)):
             out[key] = value.isoformat()
+        elif isinstance(value, (dict, list)):
+            out[key] = _json_safe_payload(value)
         else:
             out[key] = value
-    return out
+    return _redact_webhook_pii(out)
+
+
+def _reusable_channel_guest(email, external_id):
+    """Reuse guest only when channel_external_id matches this booking."""
+    if not external_id:
+        return None
+    existing = Guest.objects.filter(email__iexact=email).select_related("user").first()
+    if not existing:
+        return None
+    prefs = existing.preferences or {}
+    if prefs.get("channel_external_id") == external_id:
+        return existing
+    return None
+
+
+def _unique_channel_guest_email(email):
+    import secrets
+
+    if not Guest.objects.filter(email__iexact=email).exists():
+        return email
+    local, _, domain = email.partition("@")
+    return f"{local}+ch{secrets.token_hex(4)}@{domain or 'nephele.local'}"
+
+
+def _create_channel_guest_user(validated_data, email):
+    import secrets
+
+    from django.contrib.auth.models import User
+
+    user = User(username=f"ch_{secrets.token_hex(12)}", email=email)
+    user.set_unusable_password()
+    user.first_name = (validated_data.get("guest_first_name") or "Guest")[:150]
+    user.last_name = (validated_data.get("guest_last_name") or "")[:150]
+    user.save()
+    return user
+
+
+def _create_channel_guest(validated_data):
+    """
+    Create a Guest for an OTA webhook.
+
+    Never attach to an existing profile by email alone — only reuse when
+    preferences.channel_external_id matches this channel booking id.
+    """
+    email = validated_data["guest_email"]
+    external_id = str(validated_data.get("channel_booking_id") or "")
+    reusable = _reusable_channel_guest(email, external_id)
+    if reusable:
+        return reusable
+
+    user = _create_channel_guest_user(validated_data, email)
+    stored_email = _unique_channel_guest_email(email)
+
+    return Guest.objects.create(
+        user=user,
+        email=stored_email,
+        first_name=validated_data.get("guest_first_name") or "Guest",
+        last_name=validated_data.get("guest_last_name") or "",
+        phone_number=(validated_data.get("guest_phone") or "")[:20],
+        preferences={
+            "contact_email": email,
+            "channel_external_id": external_id,
+        },
+    )
 
 
 def _create_channel_booking(channel, room, validated_data):
     """Create guest, booking, channel link and availability atomically."""
     with transaction.atomic():
-        # Get or create guest
-        guest, _ = Guest.objects.get_or_create(
-            email=validated_data['guest_email'],
-            defaults={
-                'first_name': validated_data['guest_first_name'],
-                'last_name': validated_data['guest_last_name'],
-                'phone_number': validated_data.get('guest_phone', ''),
-            }
-        )
+        guest = _create_channel_guest(validated_data)
 
         source_choices = {c[0] for c in Booking.BOOKING_SOURCE_CHOICES}
         booking_source = (
@@ -413,6 +513,59 @@ def _unmapped_local_ids(local_ids, mapping):
     return sorted(local_ids - {int(k) for k in mapping if str(k).isdigit()})
 
 
+def _ical_feed_token_ok(request, expected):
+    from accounts.api_permissions import is_hotel_staff
+
+    if is_hotel_staff(request.user):
+        return True
+    provided = request.query_params.get("token") or ""
+    return bool(provided) and provided == expected
+
+
+def _ical_feed_get_response(request, channel, connector, expected):
+    from django.http import HttpResponse
+
+    if not _ical_feed_token_ok(request, expected):
+        return Response(
+            {
+                "error": "Invalid or missing ical token",
+                "hint": "Pass ?token=<ical_token> from channel.mapping_config",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if request.query_params.get("url_only") in ("1", "true", "True"):
+        return Response(
+            {
+                "channel_id": channel.id,
+                "property_id": channel.property_id,
+                "ical_url": connector.get_feed_url(channel),
+                "ical_token": expected,
+            }
+        )
+    feed = connector.export_feed(channel)
+    return HttpResponse(feed, content_type="text/calendar; charset=utf-8")
+
+
+def _ical_feed_put_response(request, channel, connector):
+    url = request.data.get("ical_url") or request.data.get("url") or ""
+    try:
+        result = connector.set_feed_url(channel, url)
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.data.get("import") in (True, "true", "1", 1):
+        pull = connector.pull_bookings(channel)
+        result["pull"] = pull
+        ChannelWebhookLog.objects.create(
+            channel=channel,
+            event="ical_import",
+            payload={"ical_url": url, "pull": pull},
+            status="processed" if pull.get("status") == "ok" else "failed",
+            error_message=pull.get("message", ""),
+        )
+    return Response(result)
+
+
 class ChannelViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing OTA channel integrations.
@@ -444,6 +597,9 @@ class ChannelViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter channels by user's accessible properties"""
+        # Public iCal export is token-gated; allow lookup by pk for GET.
+        if self.action == "ical_feed" and self.request.method == "GET":
+            return Channel.objects.filter(channel_name="ical", is_active=True)
         user = self.request.user
         if user.is_superuser or user.groups.filter(name__in=['admin', 'manager']).exists():
             return Channel.objects.all()
@@ -610,37 +766,12 @@ class ChannelViewSet(viewsets.ModelViewSet):
         PUT  /channels/{id}/ical/ — set mapping_config.ical_url
              body: {"ical_url": "https://..."}; optional import=true to pull.
         """
-        from django.http import HttpResponse
-        from .connectors.ical import ICalConnector
+        from .connectors.ical import ICalConnector, ensure_ical_token
 
         channel = self.get_object()
         connector = ICalConnector()
 
         if request.method == 'GET':
-            if request.query_params.get('url_only') in ('1', 'true', 'True'):
-                return Response({
-                    "channel_id": channel.id,
-                    "property_id": channel.property_id,
-                    "ical_url": connector.get_feed_url(channel),
-                })
-            feed = connector.export_feed(channel)
-            return HttpResponse(feed, content_type='text/calendar; charset=utf-8')
-
-        # PUT — configure remote feed URL
-        url = request.data.get('ical_url') or request.data.get('url') or ''
-        try:
-            result = connector.set_feed_url(channel, url)
-        except ValueError as exc:
-            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        if request.data.get('import') in (True, 'true', '1', 1):
-            pull = connector.pull_bookings(channel)
-            result['pull'] = pull
-            ChannelWebhookLog.objects.create(
-                channel=channel,
-                event='ical_import',
-                payload={'ical_url': url, 'pull': pull},
-                status='processed' if pull.get('status') == 'ok' else 'failed',
-                error_message=pull.get('message', ''),
-            )
-        return Response(result)
+            expected = ensure_ical_token(channel)
+            return _ical_feed_get_response(request, channel, connector, expected)
+        return _ical_feed_put_response(request, channel, connector)

@@ -63,7 +63,7 @@ class MyDataService:
         return headers
     
     def _counterpart_afm(self, invoice: Invoice) -> str:
-        """Guest AFM/VAT when available; empty for B2C retail invoices."""
+        """Guest AFM/VAT when available; empty for B2C (never use document_number)."""
         guest = invoice.guest
         if not guest:
             return ""
@@ -72,7 +72,7 @@ class MyDataService:
             val = prefs.get(key) if isinstance(prefs, dict) else None
             if val:
                 return str(val)
-        return str(getattr(guest, "document_number", "") or "")
+        return ""
 
     def _counterpart_for_invoice(self, invoice: Invoice) -> Dict:
         guest = invoice.guest

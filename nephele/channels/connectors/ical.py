@@ -102,6 +102,29 @@ def _parse_with_stdlib(ical_text: str) -> List[Dict[str, Any]]:
     return events
 
 
+def _ical_summary(booking) -> str:
+    """Privacy-safe SUMMARY — room type or 'Reserved', never guest names."""
+    room_type = getattr(booking, "room_type", None)
+    if room_type is not None and getattr(room_type, "name", None):
+        return str(room_type.name)
+    return "Reserved"
+
+
+def ensure_ical_token(channel) -> str:
+    """Return mapping_config.ical_token, generating and persisting one if missing."""
+    import secrets
+
+    cfg = dict(channel.mapping_config or {})
+    token = cfg.get("ical_token") or ""
+    if token:
+        return str(token)
+    token = secrets.token_urlsafe(24)
+    cfg["ical_token"] = token
+    channel.mapping_config = cfg
+    channel.save(update_fields=["mapping_config", "updated_at"])
+    return token
+
+
 def build_ical_feed(channel, bookings) -> str:
     """Build a VCALENDAR string for the property's bookings."""
     lines = [
@@ -113,9 +136,7 @@ def build_ical_feed(channel, bookings) -> str:
     ]
     for booking in bookings:
         uid = f"nephele-booking-{booking.id}@nephele"
-        summary = f"Booking {booking.id}"
-        if booking.guest_id:
-            summary = f"{booking.guest.first_name} {booking.guest.last_name}".strip() or summary
+        summary = _ical_summary(booking)
         check_in = booking.check_in_date.strftime("%Y%m%d")
         check_out = booking.check_out_date.strftime("%Y%m%d")
         lines.extend(
@@ -131,6 +152,84 @@ def build_ical_feed(channel, bookings) -> str:
         )
     lines.append("END:VCALENDAR")
     return "\r\n".join(lines) + "\r\n"
+
+
+def _ical_event_stay(event):
+    uid = event.get("uid") or ""
+    check_in = event.get("check_in")
+    check_out = event.get("check_out")
+    if not uid or not check_in or not check_out:
+        return None
+    if check_out <= check_in:
+        check_out = check_in + timedelta(days=1)
+    return uid, check_in, check_out
+
+
+def _get_or_create_ical_guest(uid):
+    import secrets
+
+    from django.contrib.auth.models import User
+
+    from accounts.models import Guest
+
+    email = f"ical+{uid[:40]}@nephele.local"
+    existing = Guest.objects.filter(email__iexact=email).first()
+    if existing and (existing.preferences or {}).get("channel_external_id") == uid:
+        return existing
+    user = User(username=f"ical_{secrets.token_hex(10)}", email=email)
+    user.set_unusable_password()
+    user.save()
+    if existing:
+        email = f"ical+{secrets.token_hex(8)}@nephele.local"
+    return Guest.objects.create(
+        user=user,
+        email=email,
+        first_name="iCal",
+        last_name="Guest",
+        preferences={"channel_external_id": uid},
+    )
+
+
+def _import_ical_event(channel, event, room) -> bool:
+    from channels.models import ChannelBooking
+    from room.models import Booking
+
+    stay = _ical_event_stay(event)
+    if stay is None:
+        return False
+    uid, check_in, check_out = stay
+    if ChannelBooking.objects.filter(
+        channel=channel, channel_booking_id=uid
+    ).exists():
+        return False
+    with transaction.atomic():
+        guest = _get_or_create_ical_guest(uid)
+        price = room.base_price if room else 0
+        booking = Booking.objects.create(
+            room=room,
+            guest=guest,
+            check_in_date=check_in,
+            check_out_date=check_out,
+            number_of_guests=1,
+            adults=1,
+            base_price=price,
+            actual_price=price,
+            status="confirmed",
+            booking_source="ical",
+            notes=f"Imported from iCal UID={uid}",
+        )
+        ChannelBooking.objects.create(
+            channel=channel,
+            channel_booking_id=uid,
+            nephele_booking=booking,
+            sync_status="synced",
+            channel_data={
+                "uid": uid,
+                "check_in": str(check_in),
+                "check_out": str(check_out),
+            },
+        )
+    return True
 
 
 class ICalConnector(ChannelConnector):
@@ -201,17 +300,12 @@ class ICalConnector(ChannelConnector):
     ) -> str:
         from room.models import Booking
 
-        qs = Booking.objects.filter(
-            room__property=channel.property,
-            status__in=["held", "pending", "confirmed", "checked_in"],
-        ).select_related("guest")
-        # Also include catalog-only bookings
         from django.db.models import Q
 
         qs = Booking.objects.filter(
             Q(room__property=channel.property) | Q(room_type__property=channel.property),
             status__in=["held", "pending", "confirmed", "checked_in"],
-        ).select_related("guest")
+        ).select_related("guest", "room_type")
         if date_from:
             qs = qs.filter(check_out_date__gt=date_from)
         if date_to:
@@ -219,54 +313,13 @@ class ICalConnector(ChannelConnector):
         return build_ical_feed(channel, qs)
 
     def import_feed(self, channel, ical_text: str) -> int:
-        from accounts.models import Guest
-        from channels.models import ChannelBooking
-        from room.models import Booking, Room
+        from room.models import Room
 
         events = parse_vevents(ical_text)
-        imported = 0
         room = Room.objects.filter(property=channel.property).order_by("id").first()
+        imported = 0
         for event in events:
-            uid = event.get("uid") or ""
-            check_in = event.get("check_in")
-            check_out = event.get("check_out")
-            if not uid or not check_in or not check_out:
-                continue
-            if check_out <= check_in:
-                check_out = check_in + timedelta(days=1)
-            if ChannelBooking.objects.filter(
-                channel=channel, channel_booking_id=uid
-            ).exists():
-                continue
-            with transaction.atomic():
-                guest, _ = Guest.objects.get_or_create(
-                    email=f"ical+{uid[:40]}@nephele.local",
-                    defaults={
-                        "first_name": (event.get("summary") or "iCal")[:100],
-                        "last_name": "Guest",
-                    },
-                )
-                price = room.base_price if room else 0
-                booking = Booking.objects.create(
-                    room=room,
-                    guest=guest,
-                    check_in_date=check_in,
-                    check_out_date=check_out,
-                    number_of_guests=1,
-                    adults=1,
-                    base_price=price,
-                    actual_price=price,
-                    status="confirmed",
-                    booking_source="ical",
-                    notes=f"Imported from iCal UID={uid}",
-                )
-                ChannelBooking.objects.create(
-                    channel=channel,
-                    channel_booking_id=uid,
-                    nephele_booking=booking,
-                    sync_status="synced",
-                    channel_data=event,
-                )
+            if _import_ical_event(channel, event, room):
                 imported += 1
         return imported
 

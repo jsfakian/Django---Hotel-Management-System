@@ -46,11 +46,18 @@ def _legacy_push_room_availability(channel, channel_room_id, avail_records):
 
 
 def _legacy_sync_rooms(channel, date_from, date_to) -> int:
+    from channels.mapping_utils import normalize_mapping_config
+
     rooms = Room.objects.filter(property=channel.property)
+    mappings = normalize_mapping_config(channel.mapping_config)["room_type_mappings"]
     rooms_affected = 0
     for room in rooms:
-        mappings = channel.mapping_config.get("room_mappings", {})
-        channel_room_id = mappings.get(str(room.id))
+        # Prefer room-type catalog key; fall back to physical room id (legacy).
+        channel_room_id = None
+        if room.room_type_fk_id:
+            channel_room_id = mappings.get(str(room.room_type_fk_id))
+        if not channel_room_id:
+            channel_room_id = mappings.get(str(room.id))
         if not channel_room_id:
             logger.warning("No mapping for room %s in channel %s", room.id, channel)
             continue

@@ -3,7 +3,12 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Box, Button, CircularProgress, Typography, Grid } from '@mui/material'
 import BookingShell from './BookingShell'
 import { useBookingT } from './bookingLang'
-import { clearBookingDraft, getConfirmation, loadBookingDraft } from '../../../features/public/publicBookingApi'
+import {
+  clearBookingDraft,
+  confirmBooking,
+  getConfirmation,
+  loadBookingDraft,
+} from '../../../features/public/publicBookingApi'
 
 function Detail({ label, value }) {
   return (
@@ -64,9 +69,33 @@ function fallbackFromDraft(id, fallback) {
   }
 }
 
-function ConfirmActions({ id, clientSecret }) {
+function resolveHoldToken(location, draft) {
+  const params = new URLSearchParams(location.search || '')
+  return (
+    params.get('token')
+    || params.get('hold_token')
+    || location.state?.hold_token
+    || draft?.hold_token
+    || undefined
+  )
+}
+
+function paymentReturnState(location) {
+  const params = new URLSearchParams(location.search || '')
+  const paymentRef = params.get('payment_ref')
+    || params.get('ref')
+    || location.state?.payment_ref
+  const verified = params.get('paid') === '1'
+    || params.get('status') === 'paid'
+    || Boolean(location.state?.payment_verified)
+  return { paymentRef, verified }
+}
+
+function ConfirmActions({ id, clientSecret, holdToken }) {
   const navigate = useNavigate()
   const { t } = useBookingT()
+  const manageQs = new URLSearchParams({ id: String(id) })
+  if (holdToken) manageQs.set('token', holdToken)
   return (
     <>
       {clientSecret && (
@@ -80,7 +109,7 @@ function ConfirmActions({ id, clientSecret }) {
         </Button>
         <Button
           variant="outlined"
-          onClick={() => navigate(`/book/manage?id=${encodeURIComponent(id)}`)}
+          onClick={() => navigate(`/book/manage?${manageQs.toString()}`)}
         >
           {t('manageHold')}
         </Button>
@@ -93,6 +122,7 @@ export default function BookingConfirmPage() {
   const { id } = useParams()
   const location = useLocation()
   const draft = loadBookingDraft()
+  const holdToken = resolveHoldToken(location, draft)
   const clientSecret = location.state?.client_secret
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
@@ -101,13 +131,27 @@ export default function BookingConfirmPage() {
   useEffect(() => {
     let cancelled = false
     const fallback = loadBookingDraft()
+    const token = resolveHoldToken(location, fallback)
+    const { paymentRef, verified } = paymentReturnState(location)
+
     async function run() {
       setLoading(true)
       try {
-        const conf = await getConfirmation(id)
+        if (verified && paymentRef && token) {
+          await confirmBooking({
+            booking_id: Number(id),
+            hold_token: token,
+            payment_ref: paymentRef,
+            payment_mode: fallback?.payment_mode,
+            guest_email: fallback?.guest_email,
+          })
+        }
+        const conf = await getConfirmation(id, token)
         if (!cancelled) {
           setData(conf)
-          clearBookingDraft()
+          if (conf?.status === 'confirmed' || conf?.status === 'cancelled') {
+            clearBookingDraft()
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -120,7 +164,7 @@ export default function BookingConfirmPage() {
     }
     run()
     return () => { cancelled = true }
-  }, [id])
+  }, [id, location])
 
   return (
     <BookingShell subtitleKey="confirmSubtitle">
@@ -128,7 +172,7 @@ export default function BookingConfirmPage() {
       {!loading && (
         <>
           <ConfirmationBody id={id} data={data} draft={draft} error={error} />
-          <ConfirmActions id={id} clientSecret={clientSecret} />
+          <ConfirmActions id={id} clientSecret={clientSecret} holdToken={holdToken} />
         </>
       )}
     </BookingShell>
