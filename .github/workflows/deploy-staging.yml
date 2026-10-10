@@ -71,7 +71,7 @@ jobs:
         DEBUG: 'True'
       run: |
         cd nephele
-        pytest --ignore=tests/e2e --cov=. --cov-report=xml -v
+        pytest -m "not e2e" --cov=. --cov-report=xml -v
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3

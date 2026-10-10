@@ -1,8 +1,11 @@
 # nephele/tests/e2e/test_manager_e2e.py
 import pytest
+
+pytest.importorskip("playwright")
 from playwright.sync_api import expect
 
 from tests.e2e.conftest import do_login
+
 
 pytestmark = [pytest.mark.e2e, pytest.mark.slow]
 

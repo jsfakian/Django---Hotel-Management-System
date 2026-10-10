@@ -1,0 +1,5 @@
+# Browser E2E extras (install after requirements-ci / requirements-test)
+# Used by: make playwright-install, make test-e2e-browser, CI e2e job
+
+playwright==1.40.0
+pytest-playwright==0.4.4

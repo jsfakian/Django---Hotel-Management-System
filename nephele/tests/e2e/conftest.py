@@ -17,8 +17,9 @@ def api_url():
 
 @pytest.fixture(scope="session")
 def admin_token(api_url):
+    # Defaults match docker-compose bootstrap (see DJANGO_SUPERUSER_*).
     username = os.getenv("DJANGO_SUPERUSER_USERNAME", "admin")
-    password = os.getenv("DJANGO_SUPERUSER_PASSWORD", "admin")
+    password = os.getenv("DJANGO_SUPERUSER_PASSWORD", "admin123")
     response = requests.post(
         f"{api_url}/api/v1/auth/login/",
         json={"username": username, "password": password},

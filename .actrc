@@ -1,0 +1,4 @@
+# nektos/act defaults for Nephele (used by make ci-local / scripts/ci-local.sh)
+-P ubuntu-latest=catthehacker/ubuntu:act-22.04
+--container-architecture linux/amd64
+--artifact-server-path /tmp/act-artifacts

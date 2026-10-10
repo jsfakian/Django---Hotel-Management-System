@@ -4,7 +4,7 @@ COMPOSE := docker compose
 # Deploy, DB backup, and daily cron targets (make deploy / make backup / make backup-cron-install)
 include deploy.mk
 
-.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-e2e-browser playwright-install test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-migrate prod-static prod-health prod-backup prod-restore backup-setup backup-weekly backup-monthly backup-health backup-verify backup-test tf-init tf-validate tf-plan tf-apply tf-destroy tf-apply-dev tf-apply-staging tf-apply-prod tf-plan-dev tf-plan-staging tf-plan-prod tf-destroy-dev tf-destroy-staging tf-destroy-prod tf-output tf-fmt tf-import lb-info lb-targets lb-rules lb-test lb-metrics asg-info asg-tasks asg-activity asg-metrics asg-test-scaling cache-status cache-flush cache-warm cache-bench perf-report db-indexes db-analyze security-check waf-status rotate-secrets compliance-audit dr-status failover-simulate backup-restore rto-test rpo-verify
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-e2e-browser playwright-install test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test act-install ci-local ci-local-job ci-local-e2e test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-migrate prod-static prod-health prod-backup prod-restore backup-setup backup-weekly backup-monthly backup-health backup-verify backup-test tf-init tf-validate tf-plan tf-apply tf-destroy tf-apply-dev tf-apply-staging tf-apply-prod tf-plan-dev tf-plan-staging tf-plan-prod tf-destroy-dev tf-destroy-staging tf-destroy-prod tf-output tf-fmt tf-import lb-info lb-targets lb-rules lb-test lb-metrics asg-info asg-tasks asg-activity asg-metrics asg-test-scaling cache-status cache-flush cache-warm cache-bench perf-report db-indexes db-analyze security-check waf-status rotate-secrets compliance-audit dr-status failover-simulate backup-restore rto-test rpo-verify
 
 help:
 	@echo "Nephele - Available Commands"
@@ -42,10 +42,18 @@ help:
 	@echo "  make test-unit       Run unit tests only (70% pyramid)"
 	@echo "  make test-integration Run integration tests only (20% pyramid)"
 	@echo "  make test-e2e        Run E2E tests only (5% pyramid)"
+	@echo "  make test-e2e-browser Playwright browser e2e (needs: make up)"
+	@echo "  make playwright-install Install Playwright + Chromium"
 	@echo "  make test-performance Run performance/load tests"
 	@echo "  make test-verbose    Run all tests with verbose output"
 	@echo "  make test-fast       Run faster tests (skip slow/performance)"
 	@echo "  make test-failed     Re-run only failed tests"
+	@echo ""
+	@echo "Local GitHub Actions runners (nektos/act):"
+	@echo "  make act-install     Install nektos/act into tools/bin/"
+	@echo "  make ci-local        Run tests.yml locally (default: test@3.11)"
+	@echo "  make ci-local-job JOB=integration  Run one workflow job via act"
+	@echo "  make ci-local-e2e    Run Playwright e2e against local stack"
 	@echo ""
 	@echo "Testing - GDPR Compliance (NEW):"
 	@echo "  make test-gdpr       Run all GDPR tests (21 tests)"
@@ -222,21 +230,37 @@ test-integration:
 	cd nephele && ../.venv/bin/python -m pytest tests/integration/ -v --tb=short
 
 # Run E2E tests only (5% of pyramid - critical paths)
-test-e2e:
-	@echo "Running E2E tests (Critical user journeys)..."
-	cd nephele && ../.venv/bin/python -m pytest tests/e2e_base.py tests/e2e/ -v --tb=short
+test-e2e: test-e2e-browser
 
-# Install Playwright browsers
+# Install Playwright Python package + Chromium
 playwright-install:
-	@echo "Installing Playwright browsers..."
-	.venv/bin/playwright install chromium
+	@echo "Installing Playwright e2e dependencies..."
+	@test -x .venv/bin/python || python3 -m venv .venv
+	.venv/bin/pip install -q -r nephele/requirements-e2e.txt
+	.venv/bin/playwright install --with-deps chromium
 	@echo "Playwright browsers installed"
 
 # Run browser-based E2E tests with Playwright (requires stack running: make up)
 test-e2e-browser:
-	@echo "Running Playwright E2E browser tests..."
-	@echo "Prerequisites: make up && make load-demo-data"
-	cd nephele && ../.venv/bin/python -m pytest tests/e2e/ -v --tb=short -m "e2e"
+	@echo "Running Playwright E2E browser tests (local stack)..."
+	@bash scripts/ci-local-e2e.sh
+
+# Install nektos/act (local GitHub Actions runner) into tools/bin/
+act-install:
+	@bash tools/install-nektos-act.sh
+
+# Run .github/workflows/tests.yml locally via nektos/act
+ci-local: act-install
+	@bash scripts/ci-local.sh $(ARGS)
+
+# Run a single workflow job locally, e.g. make ci-local-job JOB=integration
+ci-local-job: act-install
+	@test -n "$(JOB)" || (echo "Usage: make ci-local-job JOB=test|integration|performance|security|e2e" >&2; exit 1)
+	@ACT_JOB="$(JOB)" bash scripts/ci-local.sh $(ARGS)
+
+# Playwright e2e against docker-compose stack (same as CI e2e job intent)
+ci-local-e2e: playwright-install
+	@bash scripts/ci-local-e2e.sh $(ARGS)
 
 # Run performance tests
 test-performance:
@@ -371,17 +395,17 @@ test-validate:
 	@cd nephele && ../.venv/bin/python -m pytest --collect-only -q
 	@echo "✓ Test collection successful"
 
-# CI/CD simulation - run like GitHub Actions
+# CI/CD simulation - run like GitHub Actions (host venv; prefer make ci-local for act)
 ci-test:
-	@echo "Running CI/CD simulation (like GitHub Actions)..."
+	@echo "Running CI/CD simulation (like GitHub Actions test job)..."
 	@echo "1. Running linting..."
 	-@cd nephele && python -m flake8 . --max-line-length=100 --exclude=migrations,__pycache__,.venv --format=json > /dev/null 2>&1 || true
-	@echo "2. Running full test suite with coverage..."
-	cd nephele && ../.venv/bin/python -m pytest --cov=. --cov-report=xml --cov-report=term-missing --junitxml=test-results.xml -v
+	@echo "2. Running non-e2e suite with coverage..."
+	cd nephele && ../.venv/bin/python -m pytest -m "not e2e" --cov=. --cov-report=xml --cov-report=term-missing --junitxml=test-results.xml -v
 	@echo ""
 	@echo "3. Analyzing coverage..."
 	@cd nephele && python -c "import xml.etree.ElementTree as ET; tree = ET.parse('.coverage'); root = tree.getroot()" 2>/dev/null || echo "Coverage XML not found, using text report"
-	@echo "✓ CI/CD simulation complete"
+	@echo "✓ CI/CD simulation complete (for full Actions containers: make ci-local)"
 
 # ==============================================================================
 # Monitoring System Testing
