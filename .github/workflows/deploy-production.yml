@@ -413,14 +413,13 @@ jobs:
         BASE="${HEALTH_URL%/health/}"
         BASE="${BASE:-https://${DEPLOY_HOST}}"
         echo "Running smoke tests against $BASE"
-        endpoints=("/health/" "/admin/" "/api/v1/schema/")
-        for endpoint in "${endpoints[@]}"; do
-          if curl -skf "$BASE$endpoint" > /dev/null; then
-            echo "✓ $endpoint is responding"
-          else
-            echo "✗ $endpoint is not responding"
-            exit 1
-          fi
+        # Accept 2xx/3xx/401/403 — schema/admin may require auth but must not 5xx.
+        for endpoint in /health/ /admin/ /api/v1/schema/; do
+          code=$(curl -sk -o /dev/null -w '%{http_code}' "$BASE$endpoint" || echo 000)
+          case "$code" in
+            2*|3*|401|403) echo "✓ $endpoint → HTTP $code" ;;
+            *) echo "✗ $endpoint → HTTP $code"; exit 1 ;;
+          esac
         done
 
     - name: Create GitHub Release
@@ -440,54 +439,8 @@ jobs:
 
     - name: Notify deployment success
       if: success()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '✅ Production deployment successful!\n\nDeployed at: ' + new Date().toISOString()
-          })
+      run: echo "✅ Production deployment successful at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
     - name: Notify deployment failure
       if: failure()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: '❌ Production deployment failed!\n\nPlease check the workflow logs at: ' + context.payload.pull_request.html_url
-          })
-
-    - name: Rollback on failure
-      if: failure()
-      env:
-        DEPLOY_KEY: ${{ secrets.PROD_DEPLOY_KEY }}
-        DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-        DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-        DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
-        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT }}
-      run: |
-        set -euo pipefail
-        PORT="${DEPLOY_PORT:-58889}"
-        mkdir -p ~/.ssh
-        printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-        
-        echo "⚠️ Deployment failed! Rolling back..."
-        ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
-          "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") bash -s" << 'EOF'
-        set -euo pipefail
-        cd "$DEPLOY_PATH"
-        # Get last known good commit
-        LAST_GOOD_COMMIT=$(git log --grep="deployment successful" -1 --format="%H" || git log -1 --format="%H")
-        echo "Rolling back to: $LAST_GOOD_COMMIT"
-        git checkout "$LAST_GOOD_COMMIT"
-        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele down
-        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele up -d
-        echo "Rollback complete"
-        EOF
+      run: echo "❌ Production deployment failed — see job logs (no auto-rollback)."
