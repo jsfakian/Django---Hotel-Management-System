@@ -158,16 +158,47 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    # Push and manual "Run workflow" both deploy (build already gated on test+security).
+    # Push and manual "Run workflow" both reach this job (build already gated on test+security).
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     environment:
       name: staging
-      url: https://staging.your-domain.com
+      url: https://centaur.med.uoc.gr
 
     steps:
     - uses: actions/checkout@v3
 
+    - name: Check staging deploy secrets
+      id: secrets
+      env:
+        DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+        DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+        DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+        DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+      run: |
+        missing=()
+        [ -n "$DEPLOY_KEY" ] || missing+=(STAGING_DEPLOY_KEY)
+        [ -n "$DEPLOY_HOST" ] || missing+=(STAGING_DEPLOY_HOST)
+        [ -n "$DEPLOY_USER" ] || missing+=(STAGING_DEPLOY_USER)
+        [ -n "$DEPLOY_PATH" ] || missing+=(STAGING_DEPLOY_PATH)
+        if [ "${#missing[@]}" -gt 0 ]; then
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Staging deploy skipped"
+            echo "Missing GitHub Actions secrets: \`${missing[*]}\`"
+            echo ""
+            echo "Add them under **Settings → Secrets and variables → Actions**, then re-run."
+            echo "This host currently has no SSH listener on :22, so either:"
+            echo "1. Enable \`sshd\` and allow inbound SSH for Actions, or"
+            echo "2. Register a **self-hosted** runner and point this job at it, or"
+            echo "3. Keep deploying locally with \`make deploy\` / \`make prod-up\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Staging deploy skipped — missing secrets: ${missing[*]}"
+        else
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Deploy to staging server
+      if: steps.secrets.outputs.configured == 'true'
       env:
         DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
         DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
@@ -175,51 +206,50 @@ jobs:
         DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
         DEPLOY_BRANCH: ${{ github.ref_name }}
       run: |
+        set -euo pipefail
         mkdir -p ~/.ssh
-        echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+        printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-        # Connect and deploy the branch that triggered this run
-        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+        ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") DEPLOY_BRANCH=$(printf %q "$DEPLOY_BRANCH") bash -s" << 'EOF'
         set -euo pipefail
         cd "$DEPLOY_PATH"
         git fetch origin
         git checkout "$DEPLOY_BRANCH"
         git pull origin "$DEPLOY_BRANCH"
-        docker compose -f docker-compose.prod.yml pull
-        docker compose -f docker-compose.prod.yml up -d
-        docker compose -f docker-compose.prod.yml exec -T django python manage.py migrate
-        docker compose -f docker-compose.prod.yml exec -T django python manage.py collectstatic --noinput
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele pull
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele up -d
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele exec -T django python manage.py migrate
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele exec -T django python manage.py collectstatic --noinput
         EOF
 
     - name: Run health checks
+      if: steps.secrets.outputs.configured == 'true'
+      env:
+        DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+        STAGING_HEALTH_URL: ${{ secrets.STAGING_HEALTH_URL }}
       run: |
-        # Wait for deployment to stabilize
-        sleep 30
-        
-        # Check health endpoint
-        for i in {1..5}; do
-          if curl -sf https://staging.your-domain.com/health/ > /dev/null; then
+        set -euo pipefail
+        HEALTH_URL="${STAGING_HEALTH_URL:-https://${DEPLOY_HOST}/health/}"
+        echo "Checking $HEALTH_URL"
+        sleep 20
+        for i in {1..8}; do
+          if curl -skf "$HEALTH_URL" > /dev/null; then
             echo "✓ Health check passed"
             exit 0
           fi
-          echo "Health check attempt $i/5..."
+          echo "Health check attempt $i/8..."
           sleep 10
         done
-        
-        echo "✗ Health check failed"
+        echo "✗ Health check failed for $HEALTH_URL"
         exit 1
 
     - name: Notify deployment
-      if: success()
-      run: |
-        echo "Deployment to staging successful!"
-        # Add Slack/email notification here if needed
+      if: success() && steps.secrets.outputs.configured == 'true'
+      run: echo "Deployment to staging successful!"
 
-    - name: Notify deployment failure
-      if: failure()
-      run: |
-        echo "Deployment to staging failed!"
-        # Add Slack/email notification here if needed
+    - name: Notify deployment skipped
+      if: success() && steps.secrets.outputs.configured != 'true'
+      run: echo "Staging remote deploy skipped (secrets not configured). Test/build still passed."
