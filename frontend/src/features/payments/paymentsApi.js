@@ -65,14 +65,14 @@ export const paymentsApi = api.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'Invoice', id }],
     }),
     transmitInvoiceToMydata: builder.mutation({
-      query: (id) => ({ url: `/payments/invoices/${id}/mydata/transmit/`, method: 'POST' }),
+      query: (id) => ({ url: `/invoices/${id}/mydata/transmit/`, method: 'POST' }),
       invalidatesTags: (result, error, id) => [{ type: 'Invoice', id }],
     }),
     getMyDataStatus: builder.query({
-      query: (id) => ({ url: `/payments/invoices/${id}/mydata/status/`, method: 'GET' }),
+      query: (id) => ({ url: `/invoices/${id}/mydata/status/`, method: 'GET' }),
     }),
     bulkTransmitMydata: builder.mutation({
-      query: (data) => ({ url: '/payments/invoices/mydata/bulk-transmit/', method: 'POST', data }),
+      query: (data) => ({ url: '/invoices/mydata/bulk-transmit/', method: 'POST', data }),
       invalidatesTags: [{ type: 'Invoice', id: 'LIST' }],
     }),
   }),

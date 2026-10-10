@@ -22,6 +22,7 @@ import {
   Logout,
 } from '@mui/icons-material'
 import { clearCredentials, selectCurrentUser } from '../../features/auth/authSlice'
+import { useLogoutMutation } from '../../features/auth/authApi'
 
 const DRAWER_WIDTH = 240
 
@@ -29,6 +30,7 @@ export default function TopBar({ onDrawerToggle }) {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const user = useSelector(selectCurrentUser)
+  const [logout] = useLogoutMutation()
 
   const [anchorEl, setAnchorEl] = useState(null)
 
@@ -40,8 +42,16 @@ export default function TopBar({ onDrawerToggle }) {
     navigate('/guest/profile')
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     handleMenuClose()
+    const refresh = localStorage.getItem('refresh_token')
+    try {
+      if (refresh) {
+        await logout({ refresh }).unwrap()
+      }
+    } catch {
+      // Still clear local session if blacklist fails
+    }
     dispatch(clearCredentials())
     navigate('/login', { replace: true })
   }

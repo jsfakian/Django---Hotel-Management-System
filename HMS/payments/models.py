@@ -144,11 +144,12 @@ class Payment(models.Model):
         )
     
     def is_expired(self):
-        """Check if payment is expired (24 hours)"""
+        """Check if verification window expired (24h from last code send, else created_at)."""
         if self.status in ['completed', 'refunded']:
             return False
-        
-        expiry_time = self.created_at + timedelta(hours=24)
+
+        start = self.verification_sent_at or self.created_at
+        expiry_time = start + timedelta(hours=24)
         return timezone.now() > expiry_time
 
 

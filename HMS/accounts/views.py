@@ -527,7 +527,10 @@ def request_data_export(request: Request) -> Response:
         
         # Otherwise queue async task
         else:
+            from django.core.cache import cache
+
             task = export_user_data_async.delay(user.id, send_email=send_email)
+            cache.set(f'gdpr_export_owner:{task.id}', user.id, timeout=60 * 60 * 24)
             return Response({
                 'status': 'queued',
                 'message': 'Large export queued for processing',
@@ -602,20 +605,30 @@ def check_export_status(request: Request, task_id: str) -> Response:
     """
     try:
         from celery import current_app
-        
+        from django.core.cache import cache
+
+        owner_id = cache.get(f'gdpr_export_owner:{task_id}')
+        if owner_id is None or int(owner_id) != request.user.id:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
         task = current_app.AsyncResult(task_id)
-        
-        return Response({
+        payload = {
             'task_id': task_id,
             'status': task.state,
             'progress': task.info.get('progress', 0) if task.state == 'PROGRESS' else None,
-            'result': task.result if task.state == 'SUCCESS' else None,
-        }, status=status.HTTP_200_OK)
-    
-    except Exception as e:
+        }
+        if task.state == 'SUCCESS' and isinstance(task.result, dict):
+            # Only expose non-sensitive completion metadata
+            payload['result'] = {
+                'status': task.result.get('status'),
+                'user_id': task.result.get('user_id'),
+            }
+        return Response(payload, status=status.HTTP_200_OK)
+
+    except Exception:
         return Response({
             'status': 'error',
-            'message': str(e),
+            'message': 'Unable to check export status',
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

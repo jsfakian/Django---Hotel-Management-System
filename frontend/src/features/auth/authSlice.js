@@ -16,10 +16,24 @@ const loadInitialState = () => {
   if (accessToken) {
     const decoded = decodeToken(accessToken)
     if (decoded) {
-      // Check if token is expired
       const now = Date.now() / 1000
-      if (decoded.exp && decoded.exp < now) {
+      const accessExpired = decoded.exp && decoded.exp < now
+      if (accessExpired) {
+        // Drop expired access only — keep refresh for silent re-auth
         localStorage.removeItem('access_token')
+        if (refreshToken) {
+          return {
+            user: {
+              id: decoded.user_id,
+              username: decoded.username,
+              email: decoded.email,
+              role: decoded.role,
+            },
+            accessToken: null,
+            refreshToken,
+            isAuthenticated: true,
+          }
+        }
         localStorage.removeItem('refresh_token')
         return {
           user: null,
@@ -42,10 +56,11 @@ const loadInitialState = () => {
     }
   }
 
+  // Refresh alone cannot authorize UI — role is unknown until access is renewed
   return {
     user: null,
     accessToken: null,
-    refreshToken: null,
+    refreshToken: refreshToken || null,
     isAuthenticated: false,
   }
 }

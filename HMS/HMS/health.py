@@ -65,8 +65,11 @@ def health_check(request):
     try:
         if hasattr(settings, 'CELERY_BROKER_URL'):
             from celery import current_app
-            current_app.control.inspect().active() is not None
-            health_status['services']['celery'] = 'ok'
+
+            ping = current_app.control.inspect(timeout=1.0).ping()
+            health_status['services']['celery'] = 'ok' if ping else 'down'
+            if not ping:
+                health_status['status'] = 'degraded'
     except Exception as exc:
         logger.warning(f"Celery health check failed (optional): {exc}")
         health_status['services']['celery'] = 'warning'
@@ -83,7 +86,7 @@ def health_db(request):
         return JsonResponse({'status': 'ok'}, status=200)
     except Exception as exc:
         logger.error(f"Database health check failed: {exc}")
-        return JsonResponse({'status': 'down', 'error': str(exc)}, status=503)
+        return JsonResponse({'status': 'down'}, status=503)
 
 
 def health_cache(request):
@@ -98,4 +101,4 @@ def health_cache(request):
             return JsonResponse({'status': 'down'}, status=503)
     except Exception as exc:
         logger.error(f"Cache health check failed: {exc}")
-        return JsonResponse({'status': 'down', 'error': str(exc)}, status=503)
+        return JsonResponse({'status': 'down'}, status=503)

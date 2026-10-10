@@ -84,7 +84,10 @@ class BookingSerializer(serializers.ModelSerializer):
             'notes', 'special_requests', 'dependees',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'created_at', 'updated_at',
+            'status', 'base_price', 'actual_price', 'date_of_reservation',
+        ]
     
     def get_guest_name(self, obj) -> str:
         if obj.guest:

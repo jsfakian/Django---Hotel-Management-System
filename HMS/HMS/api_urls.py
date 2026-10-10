@@ -6,6 +6,7 @@ API versioning: /api/v1/
 """
 
 from django.urls import path, include
+from rest_framework.permissions import IsAdminUser
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -26,7 +27,6 @@ from HMS.api_viewsets import (
     NotificationViewSet,
 )
 from channels.views import ChannelViewSet
-from inventory.views import RoomAvailabilityViewSet
 from accounts.views import (
     request_data_export,
     get_data_export,
@@ -68,16 +68,24 @@ urlpatterns = [
     path('gdpr/export-status/<str:task_id>/', check_export_status, name='gdpr_export_status'),
     path('gdpr/request-deletion/', request_data_deletion, name='gdpr_request_deletion'),
     
-    # API Documentation
-    path('schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('docs/swagger/', SpectacularSwaggerView.as_view(url_name='api:schema'), name='swagger_ui'),
+    # API Documentation (admin-only in all environments)
+    path(
+        'schema/',
+        SpectacularAPIView.as_view(permission_classes=[IsAdminUser]),
+        name='schema',
+    ),
+    path(
+        'docs/swagger/',
+        SpectacularSwaggerView.as_view(
+            url_name='api:schema',
+            permission_classes=[IsAdminUser],
+        ),
+        name='swagger_ui',
+    ),
 
     # Bookings supplemental endpoints (dynamic pricing & recommendations)
     path('bookings/', include('bookings.urls')),
-    
-    # Channel integration (OTA platforms)
-    path('channels/', include('channels.urls')),
-    
+
     # Inventory management (centralized availability)
     path('inventory/', include('inventory.urls')),
     

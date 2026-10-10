@@ -16,6 +16,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import JSONParser
 
+from accounts.api_permissions import IsHotelStaff
+
 from .models import RoomAvailability, AvailabilitySyncLog
 from .serializers import (
     RoomAvailabilitySerializer, RoomAvailabilityBulkSerializer,
@@ -39,8 +41,8 @@ class RoomAvailabilityViewSet(viewsets.ViewSet):
     - GET /inventory/sync-log/{property_id}
     """
     
-    permission_classes = [IsAuthenticated]
-    
+    permission_classes = [IsAuthenticated, IsHotelStaff]
+
     @action(detail=False, methods=['get'], url_path='availability/(?P<property_id>[0-9]+)')
     def get_property_availability(self, request, property_id=None):
         """

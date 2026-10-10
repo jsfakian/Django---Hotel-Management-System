@@ -7,7 +7,7 @@ It supports five user roles: Admin, Manager, Receptionist, Staff, Guest.
 - **Backend**: Django 4.2, Django REST Framework 3.14, PostgreSQL 15, Redis 7
 - **Async tasks**: Celery 5.3 + Celery Beat (scheduled tasks via `django_celery_beat`)
 - **Auth**: JWT via `djangorestframework-simplejwt`
-- **API docs**: drf-spectacular (OpenAPI/Swagger at `/api/v1/schema/swagger-ui/`)
+- **API docs**: drf-spectacular (OpenAPI at `/api/v1/schema/`, Swagger UI at `/api/v1/docs/swagger/`)
 - **Monitoring**: Prometheus + Grafana + Alertmanager (via `django-prometheus`)
 - **ML/Pricing**: scikit-learn, XGBoost — model stored at `HMS/dynamic_pricing_model.pkl`
 - **Greek tax integration**: MyData API (AADE) in `HMS/payments/mydata_service.py`
@@ -19,25 +19,30 @@ It supports five user roles: Admin, Manager, Receptionist, Staff, Guest.
 ```
 .
 ├── HMS/                    # Django project root (manage.py lives here)
-│   ├── HMS/                # Django settings package (settings.py, urls.py, celery.py)
+│   ├── HMS/                # settings, urls, celery, API viewsets
 │   ├── accounts/           # Users, employees, guests, GDPR
 │   ├── analytics/          # BI dashboards, reporting, forecasting
-│   ├── bookings/           # Reservations, dynamic pricing, ML predictor
-│   ├── channels/           # OTA channel integration (Booking.com, Airbnb, etc.)
+│   ├── bookings/           # Dynamic pricing, ML predictor
+│   ├── channels/           # OTA channel integration
 │   ├── contracts/          # Travel agency contracts
-│   ├── hotel/              # Hotel-level models and views
+│   ├── hotel/              # Legacy hotel-level models/views
 │   ├── inventory/          # Centralised room availability
-│   ├── notifications/      # Email/push notifications, pricing alerts
-│   ├── payments/           # Payments, invoices, MyData/AADE integration
-│   ├── properties/         # Multi-property support
-│   ├── room/               # Room types, pricing history
+│   ├── notifications/      # Email/push notifications
+│   ├── payments/           # Payments, invoices, MyData/AADE
+│   ├── properties/         # Multi-property + travel agencies
+│   ├── room/               # Rooms + booking records
 │   ├── templates/          # Django HTML templates
-│   ├── tests/              # Cross-app integration and performance tests
-│   └── fixtures/           # Demo data fixtures
-├── monitoring/             # Prometheus, Alertmanager, Grafana provisioning
+│   └── tests/              # Cross-app pytest suite
+├── frontend/               # React SPA (Vite + MUI)
+├── monitoring/             # Prometheus, Alertmanager, Grafana
 ├── terraform/              # AWS infrastructure
+├── k8s/                    # Kubernetes manifests
 ├── deployment/             # Deployment scripts and configs
-├── scripts/                # Utility scripts (data import, etc.)
+├── scripts/                # Backup / health / ops scripts
+├── manuals/                # End-user role manuals
+├── docs/README.md          # Curated documentation index
+├── ARCHITECTURE.md         # System architecture
+├── CONTRIBUTING.md         # Contributor guide
 ├── docker-compose.yml      # Development stack
 ├── docker-compose.prod.yml # Production stack
 ├── Makefile                # All project commands
@@ -100,15 +105,15 @@ python manage.py <command>
 |---|---|
 | `accounts` | User model, Employee, Guest profiles, permissions, GDPR export/deletion |
 | `analytics` | Occupancy reports, revenue analytics, BI dashboards, ML forecasting |
-| `bookings` | Booking lifecycle, dynamic pricing engine, ML price predictor |
+| `bookings` | Dynamic pricing engine, ML price predictor, PricingHistory |
 | `channels` | OTA platform integration (Booking.com, Expedia, Airbnb) |
 | `contracts` | Travel agency contracts and commission management |
-| `hotel` | Core hotel entity, amenities, hotel-level config |
+| `hotel` | Legacy ops entities (events, bills, storage, announcements) |
 | `inventory` | Centralised availability (RoomAvailability model, overbooking logic) |
 | `notifications` | Async email/push notifications, pricing alerts via Celery |
 | `payments` | Payment processing, invoices, MyData/AADE submission |
 | `properties` | Multi-property management (a company can own multiple hotels) |
-| `room` | Room types, physical rooms, pricing history |
+| `room` | Physical rooms and booking records |
 
 ## API Structure
 Base URL: `/api/v1/`
@@ -129,8 +134,9 @@ Base URL: `/api/v1/`
 | `channels/` | ChannelViewSet |
 | `analytics/` | Analytics endpoints |
 
-Full Swagger UI: `http://localhost:8000/api/v1/schema/swagger-ui/`
+Full Swagger UI: `http://localhost:8000/api/v1/docs/swagger/`
 
+Canonical docs: `README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, `docs/guides/`, `docs/README.md`. Historical paperwork: `docs/archive/`.
 ## Testing Conventions
 - **Framework**: pytest + pytest-django
 - **Config**: `HMS/pytest.ini`, `HMS/conftest.py`
@@ -174,6 +180,7 @@ Key variables (see `.env` for full list):
 ## Infrastructure Ports (dev)
 | Service | Port |
 |---|---|
+| React SPA | 3000 |
 | Django | 8000 |
 | PostgreSQL | 5433 |
 | Redis | 6380 |
@@ -183,15 +190,14 @@ Key variables (see `.env` for full list):
 | Celery Flower | 5555 (if enabled) |
 
 ## Celery Tasks
-Tasks are defined in `<app>/tasks.py`. Beat schedule is in `HMS/HMS/celery_config.py`.
+Tasks are defined in `<app>/tasks.py`. Active beat schedule is `CELERY_BEAT_SCHEDULE` in `HMS/HMS/settings.py` (compose also uses `django_celery_beat` DatabaseScheduler). `HMS/HMS/celery_config.py` is an alternate schedule file not wired into settings.
 Key task modules: `bookings/tasks.py`, `analytics/tasks.py`, `notifications/tasks.py`, `channels/tasks.py`, `accounts/tasks.py`.
 
 ## Dynamic Pricing
 The ML pricing engine lives in `HMS/bookings/`:
-- `pricing_service.py` — business logic for price calculation
 - `price_predictor.py` — loads `dynamic_pricing_model.pkl`, wraps scikit-learn/XGBoost model
-- `pricing_views.py` — API endpoints for pricing queries
-- `PricingHistory` model in `HMS/room/models.py` stores historical data for training
+- Pricing REST under `/api/v1/bookings/` (predict, history, scenario, models, …)
+- `PricingHistory` model in `HMS/bookings/models.py` stores historical data for training
 
 ## MyData (AADE) Integration
 Greek tax authority electronic invoicing. See `HMS/payments/mydata_service.py`.

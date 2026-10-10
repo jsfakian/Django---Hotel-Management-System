@@ -40,7 +40,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             'created_at', 'read_at', 'expires_at', 'is_new'
         ]
         read_only_fields = [
-            'id', 'created_at', 'expires_at', 'is_new'
+            'id', 'user', 'created_at', 'expires_at', 'is_new', 'read_at',
         ]
 
     def get_is_new(self, obj) -> bool:

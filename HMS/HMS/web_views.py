@@ -82,12 +82,17 @@ def _create_booking_notification(booking, created_by_travel_agent=False):
             else:
                 message = f"New booking from {booking_source} for Room {booking.room.room_number}"
             
+            from notifications.models import NotificationType
+
+            ntype = NotificationType.objects.filter(code='booking_created').first()
+            if not ntype:
+                continue
             Notification.objects.create(
                 user=staff.user,
-                notification_type='booking_created',
+                notification_type=ntype,
                 title='New Booking',
                 message=message,
-                priority='high'
+                priority='high',
             )
 
 
@@ -191,8 +196,8 @@ MODULE_MODEL_MAP = {
 
 MODULE_FIELD_CONFIG = {
     'users': {
-        'fields': ['username', 'first_name', 'last_name', 'email', 'is_active', 'is_staff'],
-        'columns': ['id', 'username', 'email', 'is_active', 'is_staff', 'date_joined'],
+        'fields': ['username', 'first_name', 'last_name', 'email', 'is_active'],
+        'columns': ['id', 'username', 'email', 'is_active', 'date_joined'],
     },
     'rooms': {
         'fields': ['room_number', 'floor', 'room_type', 'capacity', 'number_of_beds', 'base_price', 'current_price', 'status', 'property'],
@@ -793,6 +798,13 @@ def module_portal(request, module_key):
 
 @login_required(login_url='login')
 def module_crud_page(request, module_key, action, pk=None):
+    from accounts.permissions import get_user_role
+    from django.http import HttpResponseForbidden
+
+    role = get_user_role(request.user)
+    if role not in ('admin', 'manager', 'receptionist') and not request.user.is_superuser:
+        return HttpResponseForbidden('Staff access required for portal CRUD.')
+
     module = MODULE_CATALOG.get(module_key)
     if not module or action not in (*CRUD_ACTIONS, 'view'):
         raise Http404('Module action not found')

@@ -5,6 +5,13 @@ Inherits from main settings but overrides to use SQLite for testing
 
 from .settings import *  # noqa: F401, F403
 
+SECRET_KEY = 'test-secret-key-task5f'
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,  # noqa: F405
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {},
+}
+
 # Override database to use SQLite for testing (faster and no external dependency)
 DATABASES = {
     'default': {
@@ -59,7 +66,3 @@ STATIC_ROOT = '/tmp/hms_test_static/'
 
 # Disable email sending in tests
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
-
-# Get SECRET_KEY from environment or use test key
-if 'secret_key' not in (SK := os.environ.get('SECRET_KEY', 'test-secret-key-task5f')):
-    SECRET_KEY = 'test-secret-key-task5f'

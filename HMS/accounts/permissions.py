@@ -87,15 +87,19 @@ def get_user_role(user):
     """
     Get the primary role of a user.
     Returns the role name or None if user has no role.
+    Superusers are treated as admin.
     """
-    if not user.is_authenticated:
+    if not user or not getattr(user, 'is_authenticated', False):
         return None
-    
+
+    if getattr(user, 'is_superuser', False):
+        return 'admin'
+
     try:
         group = user.groups.first()
-        return group.name if group else None
+        return group.name if group else 'guest'
     except Exception:
-        return None
+        return 'guest'
 
 
 def has_permission(user, permission):

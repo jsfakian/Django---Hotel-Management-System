@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from drf_spectacular.utils import extend_schema, OpenApiTypes
+from accounts.api_permissions import IsHotelStaff
 from .models import Contract
 from .serializers import ContractSerializer, ContractSignSerializer
 
@@ -17,7 +18,7 @@ from .serializers import ContractSerializer, ContractSignSerializer
     responses=ContractSerializer,
 )
 @api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def contract_list_create(request):
     """List all contracts or create a new one"""
     if request.method == "GET":
@@ -49,7 +50,7 @@ def contract_list_create(request):
     responses={204: OpenApiTypes.OBJECT},
 )
 @api_view(["GET", "PUT", "DELETE"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def contract_detail(request, contract_id):
     """Retrieve, update or delete a contract by ID"""
     contract = get_object_or_404(Contract, id=contract_id)
@@ -75,7 +76,7 @@ def contract_detail(request, contract_id):
     responses={200: OpenApiTypes.OBJECT},
 )
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def sign_contract(request, contract_id):
     """Sign a contract as a hotel manager or agent"""
     contract = get_object_or_404(Contract, id=contract_id)
@@ -99,7 +100,7 @@ def sign_contract(request, contract_id):
     responses={(200, 'application/pdf'): OpenApiTypes.BINARY},
 )
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def download_contract_pdf(request, contract_id):
     """Generate a PDF version of the contract"""
     contract = get_object_or_404(Contract, id=contract_id)

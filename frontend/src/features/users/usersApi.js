@@ -6,16 +6,22 @@ export const usersApi = api.injectEndpoints({
       query: (params = {}) => ({ url: '/users/', method: 'GET', params }),
       providesTags: (result) =>
         result
-          ? [...(result.results || result).map(({ id }) => ({ type: 'User', id })), { type: 'User', id: 'LIST' }]
+          ? [
+              ...(result.results || result).map(({ id }) => ({ type: 'User', id })),
+              { type: 'User', id: 'LIST' },
+            ]
           : [{ type: 'User', id: 'LIST' }],
     }),
     getUser: builder.query({
       query: (id) => ({ url: `/users/${id}/`, method: 'GET' }),
-      providesTags: (result, error, id) => [{ type: 'User', id }],
+      providesTags: (_result, _error, id) => [{ type: 'User', id }],
     }),
     updateUser: builder.mutation({
       query: ({ id, ...data }) => ({ url: `/users/${id}/`, method: 'PATCH', data }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'User', id }, { type: 'User', id: 'LIST' }],
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'User', id },
+        { type: 'User', id: 'LIST' },
+      ],
     }),
     deleteUser: builder.mutation({
       query: (id) => ({ url: `/users/${id}/`, method: 'DELETE' }),

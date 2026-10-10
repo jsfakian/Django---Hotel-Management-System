@@ -69,8 +69,11 @@ axiosInstance.interceptors.response.use(
           `${import.meta.env.VITE_API_BASE_URL}/auth/refresh/`,
           { refresh: refreshToken }
         )
-        const { access } = response.data
+        const { access, refresh } = response.data
         localStorage.setItem('access_token', access)
+        if (refresh) {
+          localStorage.setItem('refresh_token', refresh)
+        }
         axiosInstance.defaults.headers.common.Authorization = `Bearer ${access}`
         processQueue(null, access)
         originalRequest.headers.Authorization = `Bearer ${access}`

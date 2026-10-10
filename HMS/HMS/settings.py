@@ -17,14 +17,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'dev-only-insecure-secret-key-change-me'
+    else:
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured('SECRET_KEY environment variable is required when DEBUG=False')
+
 _allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()] or ['*']
+_allowed_hosts = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()]
+if _allowed_hosts:
+    ALLOWED_HOSTS = _allowed_hosts
+elif DEBUG:
+    ALLOWED_HOSTS = ['*']
+else:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured('ALLOWED_HOSTS must be set when DEBUG=False')
 
 
 # Application definition
@@ -40,6 +55,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'django_filters',
     'drf_spectacular',  # OpenAPI/Swagger documentation
@@ -140,11 +156,28 @@ AUTH_PASSWORD_VALIDATORS = [
 # REST Framework Configuration
 # Per Task 4 API Design Specifications
 
+_DEFAULT_RENDERERS = [
+    'rest_framework.renderers.JSONRenderer',
+]
+if DEBUG:
+    _DEFAULT_RENDERERS.append('rest_framework.renderers.BrowsableAPIRenderer')
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/minute',
+        'user': '600/minute',
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
     'DEFAULT_FILTER_BACKENDS': [
@@ -152,10 +185,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-    ],
+    'DEFAULT_RENDERER_CLASSES': _DEFAULT_RENDERERS,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'EXCEPTION_HANDLER': 'HMS.exceptions.custom_exception_handler',
     'TEST_REQUEST_RENDERER_CLASSES': [
@@ -182,12 +212,16 @@ SIMPLE_JWT = {
 # CORS Configuration
 # For frontend integration
 
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://localhost:8000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:8000',
-]
+_cors_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if _cors_env.strip():
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(',') if o.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:3000',
+        'http://localhost:8000',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:8000',
+    ]
 
 # Internationalization
 
@@ -310,6 +344,23 @@ SPECTACULAR_SETTINGS = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Cache (Redis when CACHE_URL set — required for GDPR export ownership across workers)
+_cache_url = os.environ.get('CACHE_URL') or os.environ.get('REDIS_URL')
+if _cache_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _cache_url,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'hms-local',
+        }
+    }
 
 # Celery Configuration
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')

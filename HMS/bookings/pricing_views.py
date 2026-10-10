@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
+from accounts.api_permissions import IsHotelStaff, is_hotel_staff
 from room.models import Room
 from bookings.models import PricingHistory
 from bookings.pricing_service import get_pricing_analyzer
@@ -46,8 +47,10 @@ def pricing_analysis_view(request, room_id, date_str=None):
     else:
         selected_date = datetime.now().date()
     
-    # Check permissions
-    can_edit = request.user.is_staff or request.user.groups.filter(name='Manager').exists()
+    can_edit = is_hotel_staff(request.user) and (
+        request.user.is_superuser
+        or request.user.groups.filter(name__in=['admin', 'manager']).exists()
+    )
     
     context = {
         'room': room,
@@ -61,7 +64,7 @@ def pricing_analysis_view(request, room_id, date_str=None):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def pricing_summary_api(request):
     """
     Get summary statistics for all rooms' pricing.

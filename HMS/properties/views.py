@@ -9,12 +9,7 @@ from .models import Property, PropertyAmenity, PropertyPolicy, TravelAgency
 from .forms import PropertyForm, PropertyAmenityForm, PropertyPolicyForm
 
 
-def get_user_role(user):
-    """Get the role of the current user"""
-    try:
-        return str(user.groups.all()[0])
-    except:
-        return None
+from accounts.permissions import get_user_role  # noqa: F401 — shared role helper
 
 
 @login_required(login_url='login')

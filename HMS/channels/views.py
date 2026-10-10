@@ -52,6 +52,14 @@ class ChannelViewSet(viewsets.ModelViewSet):
     
     serializer_class = ChannelSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        from accounts.api_permissions import IsHotelStaff
+        from rest_framework.permissions import AllowAny
+
+        if self.action == 'receive_booking':
+            return [AllowAny()]
+        return [IsAuthenticated(), IsHotelStaff()]
     filterset_fields = ['property', 'channel_name', 'is_active']
     search_fields = ['channel_name', 'account_id']
     ordering_fields = ['created_at', 'last_sync_at']
@@ -59,13 +67,13 @@ class ChannelViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter channels by user's accessible properties"""
         user = self.request.user
-        # Staff can see channels for their properties
-        if hasattr(user, 'employee'):
-            properties = user.employee.filter(status='active').values_list('property', flat=True)
-            return Channel.objects.filter(property__in=properties)
-        # Managers can see all channels for their properties
-        if hasattr(user, 'managed_properties'):
-            return Channel.objects.filter(property__in=user.managed_properties.all())
+        if user.is_superuser or user.groups.filter(name__in=['admin', 'manager']).exists():
+            return Channel.objects.all()
+        # Employees see channels for their assigned properties
+        if hasattr(user, 'employee_profile'):
+            emp = user.employee_profile
+            if emp.property_id:
+                return Channel.objects.filter(property_id=emp.property_id)
         return Channel.objects.none()
     
     def get_serializer_class(self):
@@ -99,14 +107,18 @@ class ChannelViewSet(viewsets.ModelViewSet):
         else:
             body_str = body
         
-        # Verify webhook signature if secret is configured
-        if channel.api_secret:
-            signature = request.headers.get('X-Webhook-Signature', '').replace('sha256=', '')
-            if not signature or not channel.verify_webhook_signature(body_str, signature):
-                return Response(
-                    {"error": "Invalid webhook signature"},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
+        # Require configured secret + valid signature (no open webhooks)
+        if not channel.api_secret:
+            return Response(
+                {"error": "Webhook secret not configured for this channel"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        signature = request.headers.get('X-Webhook-Signature', '').replace('sha256=', '')
+        if not signature or not channel.verify_webhook_signature(body_str, signature):
+            return Response(
+                {"error": "Invalid webhook signature"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         
         # Parse and validate booking data
         try:

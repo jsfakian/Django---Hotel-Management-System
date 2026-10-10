@@ -190,8 +190,8 @@ test-docker:
 	$(COMPOSE) exec django python manage.py test --noinput
 
 smoke:
-	curl -fsS http://localhost:8000/api/v1/schema/ > /dev/null
-	@echo "Smoke check passed: /api/v1/schema/ reachable"
+	curl -fsS http://localhost:8000/health/ > /dev/null
+	@echo "Smoke check passed: /health/ reachable"
 
 load-demo-data:
 	$(COMPOSE) exec django python manage.py load_demo_data

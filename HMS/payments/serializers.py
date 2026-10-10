@@ -37,7 +37,10 @@ class PaymentSerializer(serializers.ModelSerializer):
             'payment_method_name', 'transaction_id', 'reference_code',
             'description', 'is_verified', 'created_at', 'processed_at'
         ]
-        read_only_fields = ['id', 'transaction_id', 'reference_code', 'created_at']
+        read_only_fields = [
+            'id', 'transaction_id', 'reference_code', 'created_at',
+            'status', 'is_verified', 'processed_at',
+        ]
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -59,7 +62,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'invoice_number', 'created_at', 'updated_at'
+            'id', 'invoice_number', 'created_at', 'updated_at',
+            'status', 'paid_date', 'total_amount', 'tax_amount',
         ]
     
     def get_days_until_due(self, obj) -> int:
@@ -89,7 +93,8 @@ class RefundRequestSerializer(serializers.ModelSerializer):
             'rejection_reason', 'processed_by', 'processed_by_name',
         ]
         read_only_fields = [
-            'id', 'requested_at', 'approved_at', 'processed_at'
+            'id', 'requested_at', 'approved_at', 'processed_at',
+            'status', 'processed_by', 'rejection_reason',
         ]
 
 

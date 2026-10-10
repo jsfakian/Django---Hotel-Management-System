@@ -9,10 +9,11 @@ from django.db.models import Sum, Avg, Count, Q
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, inline_serializer
 
+from accounts.permissions import has_permission
 from properties.models import Property
 from room.models import Booking
 
@@ -46,9 +47,16 @@ from .serializers import (
 )
 
 
-class AnalyticsPermission(IsAuthenticated):
-    """Permission class for analytics endpoints - requires authentication"""
-    pass
+class AnalyticsPermission(BasePermission):
+    """Analytics requires view_analytics (admin/manager) or superuser."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        return has_permission(user, 'view_analytics')
 
 def _user_group_names(user):
     if not user or not user.is_authenticated:

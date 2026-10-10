@@ -5,8 +5,10 @@ from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParam
 from drf_spectacular.types import OpenApiTypes
 from rest_framework import serializers, status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from accounts.api_permissions import IsHotelStaff
+from accounts.permissions import get_user_role
 
 from room.models import Room, Booking
 from bookings.models import PricingHistory
@@ -56,6 +58,7 @@ def _normalize_amenities(raw_amenities):
     )
 )
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def get_dynamic_price(request, room_id):
     """Return latest dynamic pricing insight for a room."""
     try:
@@ -105,12 +108,19 @@ def get_dynamic_price(request, room_id):
     )
 )
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def get_room_recommendations(request, guest_id):
     """Return personalized room recommendations for a guest profile."""
     try:
         guest = Guest.objects.get(id=guest_id)
     except Guest.DoesNotExist:
         return Response({"error": "Guest not found"}, status=404)
+
+    own = getattr(request.user, 'guest_profile', None)
+    role = get_user_role(request.user)
+    if role not in ('admin', 'manager', 'receptionist', 'staff') and not request.user.is_superuser:
+        if not own or own.id != guest.id:
+            return Response({"error": "Forbidden"}, status=403)
 
     preferences = guest.preferences or {}
     preferred_room_type = str(preferences.get('room_type', '')).strip().lower()
@@ -198,10 +208,13 @@ def get_room_recommendations(request, guest_id):
     scored.sort(key=lambda row: (-row['score'], float(row['current_price'])))
     recommendations = scored[:top_n]
 
+    own = getattr(request.user, 'guest_profile', None)
+    email = guest.email if (own and own.id == guest.id) else None
+
     return Response(
         {
             'guest_id': guest.id,
-            'guest_email': guest.email,
+            'guest_email': email,
             'filters': {
                 'check_in_date': check_in,
                 'check_out_date': check_out,
@@ -231,6 +244,7 @@ def get_room_recommendations(request, guest_id):
     responses=PricingRecommendationSerializer,
 )
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def predict_pricing(request):
     """
     Get AI pricing recommendation with factors breakdown.
@@ -311,6 +325,7 @@ def predict_pricing(request):
     responses=PricingHistoryResponseSerializer,
 )
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def pricing_history(request):
     """
     Get historical pricing trend for a room.
@@ -357,6 +372,7 @@ def pricing_history(request):
     responses=PricingRecommendationSerializer,
 )
 @api_view(['POST'])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def analyze_scenario(request):
     """
     Analyze pricing with overridden parameters (what-if analysis).
@@ -447,6 +463,7 @@ def analyze_scenario(request):
     ),
 )
 @api_view(['GET'])
+@permission_classes([IsAuthenticated, IsHotelStaff])
 def get_available_models(request):
     """
     Get list of available pricing models and their metrics.

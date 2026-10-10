@@ -10,9 +10,10 @@ from datetime import timedelta, date
 from django.db.models import Sum, Count
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
+from accounts.api_permissions import IsHotelStaff
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +56,7 @@ def _daily_sums(app_label, model_name, date_field, value_field, days=7, **filter
     description="Aggregated counts for the main HMS dashboard card tiles.",
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHotelStaff])
 def dashboard_stats(request):
     """
     Returns a single JSON object with total counts for all core entities:
@@ -129,7 +130,7 @@ def dashboard_stats(request):
     description="7-day (or custom) daily trend series for bookings, payments, and revenue.",
 )
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHotelStaff])
 def trends(request):
     """
     Returns trend series (daily counts / sums) for the last N days.

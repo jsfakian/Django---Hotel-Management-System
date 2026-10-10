@@ -37,7 +37,7 @@ class GuestSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 'number_of_bookings', 'total_nights_stayed',
+            'id', 'user', 'number_of_bookings', 'total_nights_stayed',
             'created_at', 'updated_at'
         ]
     
@@ -102,10 +102,11 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'first_name', 'last_name',
             'is_staff', 'is_active', 'date_joined'
         ]
-        read_only_fields = ['id', 'date_joined']
+        read_only_fields = ['id', 'date_joined', 'is_staff', 'is_active']
         extra_kwargs = {
             'password': {'write_only': True, 'required': False}
         }
+
     
     def create(self, validated_data):
         password = validated_data.pop('password', None)

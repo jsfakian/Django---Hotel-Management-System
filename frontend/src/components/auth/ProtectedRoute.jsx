@@ -19,9 +19,12 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace />
   }
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
-    const dashboard = ROLE_DASHBOARDS[role] || '/login'
-    return <Navigate to={dashboard} replace />
+  // Require a known role when the route is role-scoped (no null-role bypass)
+  if (allowedRoles?.length) {
+    if (!role || !allowedRoles.includes(role)) {
+      const dashboard = ROLE_DASHBOARDS[role] || '/login'
+      return <Navigate to={dashboard} replace />
+    }
   }
 
   return children

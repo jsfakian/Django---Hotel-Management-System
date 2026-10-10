@@ -1,8 +1,80 @@
-real-data/
-__pycache__/
+# Secrets & local env
 .env
 .env.prod
-*.log
+.env.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Virtualenvs (never commit)
+.venv/
+venv/
 hms/
+ENV/
+
+# Django
+HMS/db.sqlite3
+HMS/db_*.sqlite3
+*.sqlite3
+HMS/staticfiles/
+HMS/media/
 HMS/logs/
+HMS/exports/*.zip
+HMS/exports/*.json
+!HMS/exports/.gitkeep
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/dist/**
+npm-debug.log*
+yarn-error.log*
+
+# ML / large local datasets (models under task3-algorithms/models may be committed intentionally)
+task3-data/real-data/
+!task3-data/real-data/README.md
+real-data/
+
+# IDE / OS / tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.qodo/
+*.log
+
+# Local screenshots / backups
 hms_screenshots/
+backup/daily/
+backup/weekly/
+backup/monthly/
+backup/emergency/
+backup/logs/
+
+# Terraform local state (use remote backend in real deploys)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+**/.terraform.lock.hcl
