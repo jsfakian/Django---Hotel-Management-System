@@ -304,12 +304,24 @@ LOGGING = {
 _log_dir = Path(os.environ.get('LOG_DIR', str(BASE_DIR / 'logs')))
 os.makedirs(_log_dir, exist_ok=True)
 
-# Static files (CSS, JavaScript, Images)
+# Static / media files
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        if not DEBUG
+        else 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
 
 # Security Settings
 # Per Task 4 Security Architecture
@@ -319,7 +331,6 @@ SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
-SECURE_BROWSER_XSS_FILTER = True
 SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
@@ -328,11 +339,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 _csrf_origins_env = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins_env.split(',') if o.strip()]
 SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
-SECURE_CONTENT_SECURITY_POLICY = {
-    'default-src': ("'self'",),
-    'script-src': ("'self'", "'unsafe-inline'"),
-    'style-src': ("'self'", "'unsafe-inline'"),
-}
+# Allow non-HTTPS URLs in model/admin URLFields for local/dev property sites.
+FORMS_URLFIELD_ASSUME_HTTPS = False
 
 # API Documentation
 SPECTACULAR_SETTINGS = {

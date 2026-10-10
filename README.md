@@ -8,7 +8,7 @@ Django 4.2 REST API + React SPA for multi-property hotel operations. Supports Ad
 
 | Layer | Technology |
 |-------|------------|
-| Backend | Django 4.2.7, Django REST Framework 3.14, SimpleJWT |
+| Backend | Django 5.2 LTS, Django REST Framework 3.16, SimpleJWT |
 | API docs | drf-spectacular (OpenAPI / Swagger) |
 | Database | PostgreSQL 15 |
 | Cache / broker | Redis 7 |

@@ -1,5 +1,5 @@
 # Browser E2E extras (install after requirements-ci / requirements-test)
 # Playwright >=1.45 required for Ubuntu 24.04 (GitHub Actions ubuntu-latest).
 
-playwright==1.49.1
-pytest-playwright==0.6.2
+playwright==1.51.0
+pytest-playwright==0.7.0

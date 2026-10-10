@@ -888,31 +888,28 @@ def _calculate_next_scheduled_time(scheduled_report):
     """
     Calculate next scheduled execution time for a scheduled report
     """
+    from zoneinfo import ZoneInfo
+
     from django.utils import timezone
-    import pytz
-    
-    user_tz = pytz.timezone(scheduled_report.timezone)
+
+    user_tz = ZoneInfo(scheduled_report.timezone)
     now_user_tz = timezone.now().astimezone(user_tz)
-    
+
     schedule_time = scheduled_report.schedule_time
-    
+
     # Create next scheduled datetime
     if scheduled_report.schedule_type == 'daily':
         next_date = now_user_tz.date() + timedelta(days=1)
-        next_datetime = user_tz.localize(
-            datetime.combine(next_date, schedule_time)
-        )
-    
+        next_datetime = datetime.combine(next_date, schedule_time, tzinfo=user_tz)
+
     elif scheduled_report.schedule_type == 'weekly':
         dow = scheduled_report.schedule_dow or 0
         days_ahead = (dow - now_user_tz.weekday()) % 7
         if days_ahead == 0:
             days_ahead = 7
         next_date = now_user_tz.date() + timedelta(days=days_ahead)
-        next_datetime = user_tz.localize(
-            datetime.combine(next_date, schedule_time)
-        )
-    
+        next_datetime = datetime.combine(next_date, schedule_time, tzinfo=user_tz)
+
     elif scheduled_report.schedule_type == 'monthly':
         day = scheduled_report.schedule_day or 1
         next_month = now_user_tz.date().replace(day=1) + timedelta(days=32)
@@ -922,17 +919,15 @@ def _calculate_next_scheduled_time(scheduled_report):
         except ValueError:
             # Handle cases like Feb 30
             next_date = next_month.replace(day=1) - timedelta(days=1)
-        
-        next_datetime = user_tz.localize(
-            datetime.combine(next_date, schedule_time)
-        )
-    
+
+        next_datetime = datetime.combine(next_date, schedule_time, tzinfo=user_tz)
+
     else:
         # Custom cron expression - set to 1 day from now
         next_datetime = timezone.now() + timedelta(days=1)
-    
-    # Convert to UTC
-    scheduled_report.next_scheduled_at = next_datetime.astimezone(pytz.UTC)
+
+    # Store as UTC-aware datetime
+    scheduled_report.next_scheduled_at = next_datetime.astimezone(ZoneInfo('UTC'))
 
 
 # ML-Based Forecasting Tasks (Leverage Task 3 Models)

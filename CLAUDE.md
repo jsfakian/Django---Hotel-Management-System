@@ -1,10 +1,10 @@
 # NEPHELE Hotel Management System — Claude Code Configuration
 
 ## Project Overview
-**Nephele** is a Django 4.2 REST API + web application for hotel management.
+**Nephele** is a Django 5.2 LTS REST API + web application for hotel management.
 It supports five user roles: Admin, Manager, Receptionist, Staff, Guest.
 
-- **Backend**: Django 4.2, Django REST Framework 3.14, PostgreSQL 15, Redis 7
+- **Backend**: Django 5.2, Django REST Framework 3.16, PostgreSQL 15, Redis 7
 - **Async tasks**: Celery 5.3 + Celery Beat (scheduled tasks via `django_celery_beat`)
 - **Auth**: JWT via `djangorestframework-simplejwt`
 - **API docs**: drf-spectacular (OpenAPI at `/api/v1/schema/`, Swagger UI at `/api/v1/docs/swagger/`)

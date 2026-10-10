@@ -5,7 +5,6 @@ Store pre-calculated dashboard metrics and analytics data for performance optimi
 """
 
 from django.db import models
-from django.contrib.postgres.fields import JSONField
 from properties.models import Property
 
 
