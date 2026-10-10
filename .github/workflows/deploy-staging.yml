@@ -187,10 +187,14 @@ jobs:
             echo "Missing GitHub Actions secrets: \`${missing[*]}\`"
             echo ""
             echo "Add them under **Settings → Secrets and variables → Actions**, then re-run."
-            echo "This host currently has no SSH listener on :22, so either:"
-            echo "1. Enable \`sshd\` and allow inbound SSH for Actions, or"
-            echo "2. Register a **self-hosted** runner and point this job at it, or"
-            echo "3. Keep deploying locally with \`make deploy\` / \`make prod-up\`."
+            echo ""
+            echo "SSH on centaur uses port **58889** (set \`STAGING_DEPLOY_PORT\` or rely on the workflow default)."
+            echo "Suggested values:"
+            echo "- \`STAGING_DEPLOY_HOST\` = \`centaur.med.uoc.gr\`"
+            echo "- \`STAGING_DEPLOY_PORT\` = \`58889\`"
+            echo "- \`STAGING_DEPLOY_USER\` = SSH user on the host"
+            echo "- \`STAGING_DEPLOY_PATH\` = repo path on the host"
+            echo "- \`STAGING_DEPLOY_KEY\` = private key authorized for that user"
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice::Staging deploy skipped — missing secrets: ${missing[*]}"
         else
@@ -204,15 +208,17 @@ jobs:
         DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
         DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
         DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+        DEPLOY_PORT: ${{ secrets.STAGING_DEPLOY_PORT }}
         DEPLOY_BRANCH: ${{ github.ref_name }}
       run: |
         set -euo pipefail
+        PORT="${DEPLOY_PORT:-58889}"
         mkdir -p ~/.ssh
         printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+        ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
-        ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+        ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") DEPLOY_BRANCH=$(printf %q "$DEPLOY_BRANCH") bash -s" << 'EOF'
         set -euo pipefail
         cd "$DEPLOY_PATH"

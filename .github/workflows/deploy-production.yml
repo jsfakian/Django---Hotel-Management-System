@@ -239,6 +239,9 @@ jobs:
           echo "  - PROD_DEPLOY_KEY: SSH private key for production server"
           echo "  - PROD_DEPLOY_HOST: Production server hostname"
           echo "  - PROD_ENV_FILE: Production .env.prod file contents"
+          echo "Optional:"
+          echo "  - PROD_DEPLOY_PORT: SSH port (default 58889 on centaur)"
+          echo "  - PROD_DEPLOY_USER / PROD_DEPLOY_PATH"
           exit 1
         fi
         echo "✓ All required secrets are configured"
@@ -279,14 +282,17 @@ jobs:
         DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
         DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
         DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT }}
       run: |
+        set -euo pipefail
+        PORT="${DEPLOY_PORT:-58889}"
         mkdir -p ~/.ssh
-        echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+        printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+        ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
         
         echo "Creating pre-deployment backup..."
-        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+        ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") bash -s" << 'EOF'
         set -euo pipefail
         cd "$DEPLOY_PATH"
@@ -300,21 +306,24 @@ jobs:
         DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
         DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
         DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT }}
         ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
         DEPLOY_REF: ${{ steps.ref.outputs.name }}
       run: |
+        set -euo pipefail
+        PORT="${DEPLOY_PORT:-58889}"
         mkdir -p ~/.ssh
-        echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+        printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+        ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
         # Ship .env.prod via scp (multiline secret — do not embed in remote argv)
         printf '%s\n' "$ENV_FILE" > /tmp/.env.prod
-        scp -i ~/.ssh/deploy_key /tmp/.env.prod \
+        scp -i ~/.ssh/deploy_key -P "$PORT" /tmp/.env.prod \
           "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/.env.prod"
         rm -f /tmp/.env.prod
 
-        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+        ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") DEPLOY_REF=$(printf %q "$DEPLOY_REF") bash -s" << 'EOF'
         set -euo pipefail
         cd "$DEPLOY_PATH"
@@ -441,20 +450,25 @@ jobs:
         DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
         DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
         DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+        DEPLOY_PORT: ${{ secrets.PROD_DEPLOY_PORT }}
       run: |
+        set -euo pipefail
+        PORT="${DEPLOY_PORT:-58889}"
         mkdir -p ~/.ssh
-        echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+        printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+        ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
         
         echo "⚠️ Deployment failed! Rolling back..."
-        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" << 'EOF'
+        ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+          "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") bash -s" << 'EOF'
+        set -euo pipefail
         cd "$DEPLOY_PATH"
         # Get last known good commit
         LAST_GOOD_COMMIT=$(git log --grep="deployment successful" -1 --format="%H" || git log -1 --format="%H")
         echo "Rolling back to: $LAST_GOOD_COMMIT"
-        git checkout $LAST_GOOD_COMMIT
-        docker-compose -f docker-compose.prod.yml down
-        docker-compose -f docker-compose.prod.yml up -d
+        git checkout "$LAST_GOOD_COMMIT"
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele down
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele up -d
         echo "Rollback complete"
         EOF
