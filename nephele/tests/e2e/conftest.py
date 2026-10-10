@@ -86,3 +86,11 @@ def do_login(page, base_url, username, password):
     # Avoid get_by_label("Password") — it also matches the "Show password" icon button.
     page.locator('input[type="password"]').fill(password)
     page.get_by_role("button", name="Sign In").click()
+    page.wait_for_function(
+        "() => !location.pathname.endsWith('/login') || "
+        "!!document.querySelector('.MuiAlert-root')",
+        timeout=15000,
+    )
+    alert = page.locator(".MuiAlert-root")
+    if alert.count() and alert.first.is_visible():
+        raise AssertionError(f"Login failed: {alert.first.inner_text()}")
