@@ -5,8 +5,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Nephele Home</title>
-    <link rel="icon" type="image/svg+xml" href="{% static '/images/favicon.svg' %}">
-    <link rel="stylesheet" type="text/css" href="{% static '/css/main.css' %}">
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
         integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
 </head>
@@ -15,7 +15,7 @@
         <main class="app-surface p-4 p-md-5">
             <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
                 <div>
-                    <img src="{% static '/images/nephele-logo.svg' %}" alt="NEPHELE Logo" class="mb-2" style="height: 38px; width: auto;">
+                    <img src="{% static 'images/nephele-logo.svg' %}" alt="NEPHELE Logo" class="mb-2" style="height: 38px; width: auto;">
                     <h2 class="mb-1">Welcome, {{ request.user.username }}</h2>
                     <small class="text-muted">Use the menu below to navigate the system quickly.</small>
                 </div>
