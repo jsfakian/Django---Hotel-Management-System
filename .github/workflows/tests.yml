@@ -54,7 +54,8 @@ jobs:
         DEBUG: 'True'
       run: |
         cd nephele
-        pytest --cov=. --cov-report=xml --cov-report=term-missing --junitxml=test-results.xml -v --tb=short
+        # Browser E2E (Playwright) needs a live stack; run via make test-e2e-browser locally.
+        pytest --ignore=tests/e2e --cov=. --cov-report=xml --cov-report=term-missing --junitxml=test-results.xml -v --tb=short
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
