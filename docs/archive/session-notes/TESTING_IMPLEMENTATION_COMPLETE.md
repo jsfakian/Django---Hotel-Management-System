@@ -14,14 +14,14 @@ All test types described in task 5f have been comprehensively implemented across
 
 | Requirement | Implementation |
 |------------|-----------------|
-| Test environment setup | `HMS/conftest.py` - Pytest Django configuration |
-| Testing framework configuration | `HMS/pytest.ini` - Pytest configuration |
-| Test data fixtures and factories | `HMS/tests/` - Integrated in setUp methods |
+| Test environment setup | `nephele/conftest.py` - Pytest Django configuration |
+| Testing framework configuration | `nephele/pytest.ini` - Pytest configuration |
+| Test data fixtures and factories | `nephele/tests/` - Integrated in setUp methods |
 | Mock and stub strategy | Service tests use `unittest.mock` |
 | Coverage measurement setup | `.coveragerc` - Coverage configuration |
 | CI/CD integration for tests | `.github/workflows/tests.yml` |
 | Test reporting dashboard | HTML coverage reports, JUnit XML |
-| Documentation and guidelines | `HMS/tests/README.md` |
+| Documentation and guidelines | `nephele/tests/README.md` |
 
 **Deliverable**: ✅ Complete testing infrastructure in place
 
@@ -32,7 +32,7 @@ All test types described in task 5f have been comprehensively implemented across
 **Target Coverage**: 85%+ for models, serializers, views, services
 
 #### 1. Model Unit Tests
-**File**: `HMS/tests/models/`
+**File**: `nephele/tests/models/`
 
 **Test Coverage**:
 - ✅ **Room Model** (`test_room_model.py` - 16 tests)
@@ -113,7 +113,7 @@ All test types described in task 5f have been comprehensively implemented across
 **Deliverable**: ✅ 70+ model unit tests across all 36+ models
 
 #### 2. Serializer Unit Tests
-**File**: `HMS/tests/serializers/test_serializers.py` - 35+ tests
+**File**: `nephele/tests/serializers/test_serializers.py` - 35+ tests
 
 **Test Coverage**:
 - ✅ **Room Serializers** (2 tests)
@@ -152,7 +152,7 @@ All test types described in task 5f have been comprehensively implemented across
 **Deliverable**: ✅ 35+ serializer unit tests
 
 #### 3. View/ViewSet Unit Tests
-**File**: `HMS/tests/views/test_views.py` - 30+ tests
+**File**: `nephele/tests/views/test_views.py` - 30+ tests
 
 **Test Coverage**:
 - ✅ **BookingViewSet** (3 tests)
@@ -179,7 +179,7 @@ All test types described in task 5f have been comprehensively implemented across
 **Deliverable**: ✅ 30+ API endpoint tests
 
 #### 4. Service Method Tests
-**File**: `HMS/tests/services/test_services.py` - 25+ tests
+**File**: `nephele/tests/services/test_services.py` - 25+ tests
 
 **Test Coverage**:
 - ✅ **PricingService** (6 tests)
@@ -215,7 +215,7 @@ All test types described in task 5f have been comprehensively implemented across
 
 ### ✅ Integration Tests (20% of Pyramid)
 
-**File**: `HMS/tests/integration/test_workflows.py` - 35+ tests
+**File**: `nephele/tests/integration/test_workflows.py` - 35+ tests
 
 #### 1. Booking Workflow Integration
 - ✅ Complete booking workflow (search → create → payment → invoice)
@@ -260,7 +260,7 @@ All test types described in task 5f have been comprehensively implemented across
 
 ### ✅ End-to-End Testing (5% - Critical Paths)
 
-**File**: `HMS/tests/e2e_base.py` - E2E test infrastructure
+**File**: `nephele/tests/e2e_base.py` - E2E test infrastructure
 
 #### 1. Guest Booking Journey
 - ✅ User registration flow
@@ -293,7 +293,7 @@ All test types described in task 5f have been comprehensively implemented across
 
 ### ✅ Performance Testing
 
-**File**: `HMS/tests/test_performance.py` - Performance test suite
+**File**: `nephele/tests/test_performance.py` - Performance test suite
 
 #### 1. Performance Baseline Tests
 - ✅ Room list performance (< 200ms for 50 rooms)
@@ -365,16 +365,16 @@ All test types described in task 5f have been comprehensively implemented across
 
 | File | Purpose |
 |------|---------|
-| `HMS/conftest.py` | Pytest Django setup |
-| `HMS/pytest.ini` | Pytest configuration |
-| `HMS/.coveragerc` | Coverage configuration |
-| `HMS/requirements-test.txt` | Testing dependencies |
+| `nephele/conftest.py` | Pytest Django setup |
+| `nephele/pytest.ini` | Pytest configuration |
+| `nephele/.coveragerc` | Coverage configuration |
+| `nephele/requirements-test.txt` | Testing dependencies |
 | `.github/workflows/tests.yml` | CI/CD pipeline |
 
 ### Test Directory Structure
 
 ```
-HMS/tests/
+nephele/tests/
 ├── __init__.py
 ├── README.md                    # Test documentation
 ├── models/                      # 70+ model unit tests
@@ -400,16 +400,16 @@ HMS/tests/
 
 ### All Tests
 ```bash
-cd HMS
+cd nephele
 pytest --cov=. --cov-report=html
 ```
 
 ### By Category
 ```bash
-pytest HMS/tests/models/          # Unit tests
-pytest HMS/tests/integration/     # Integration tests
-pytest HMS/tests/e2e_base.py     # E2E tests
-pytest HMS/tests/test_performance.py  # Performance tests
+pytest nephele/tests/models/          # Unit tests
+pytest nephele/tests/integration/     # Integration tests
+pytest nephele/tests/e2e_base.py     # E2E tests
+pytest nephele/tests/test_performance.py  # Performance tests
 ```
 
 ### With Coverage Report
@@ -489,12 +489,12 @@ From task 5f requirements:
 
 1. **Dependencies Installation**
    ```bash
-   pip install -r HMS/requirements-test.txt
+   pip install -r nephele/requirements-test.txt
    ```
 
 2. **Run Tests Locally**
    ```bash
-   cd HMS
+   cd nephele
    pytest
    ```
 

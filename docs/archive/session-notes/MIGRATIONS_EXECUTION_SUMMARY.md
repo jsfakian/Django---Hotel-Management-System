@@ -159,12 +159,12 @@ make create-admin
 | Makefile | Modified | Fixed migrate typo, added help text |
 | payments/migrations/0002_add_mydata_fields.py | New | Database migration (auto-generated) |
 | payments/forms.py | Modified | Added InvoiceForm with MyData checkbox |
-| HMS/web_views.py | Modified | Added MyData transmission logic |
-| HMS/settings.py | Modified | Added MyData configuration |
+| nephele/web_views.py | Modified | Added MyData transmission logic |
+| nephele/settings.py | Modified | Added MyData configuration |
 
 ## Migration File Details
 
-**Created**: `HMS/payments/migrations/0002_add_mydata_fields.py`
+**Created**: `nephele/payments/migrations/0002_add_mydata_fields.py`
 
 ```python
 class Migration(migrations.Migration):
@@ -232,13 +232,13 @@ hms-postgres:
 ### Create and Apply New Migration
 ```bash
 # 1. Modify model
-vi HMS/payments/models.py
+vi nephele/payments/models.py
 
 # 2. Create migration
 make makemigrations
 
 # 3. Review migration file
-ls -l HMS/payments/migrations/
+ls -l nephele/payments/migrations/
 
 # 4. Apply migration
 make migrate

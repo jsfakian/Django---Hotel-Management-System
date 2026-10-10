@@ -288,7 +288,7 @@ except Exception as e:
     print(f"✗ Email failed: {e}")
 
 # Step 3: Check Celery is running
-# Terminal 1: celery -A HMS worker --loglevel=info
+# Terminal 1: celery -A config worker --loglevel=info
 # Should show: "celery@hostname ready"
 
 # Step 4: Check task was queued
@@ -347,7 +347,7 @@ redis-cli ping
 tail -f /var/log/nephele/celery-worker.log
 
 # Step 3: Start with debug logging
-celery -A HMS worker --loglevel=debug
+celery -A config worker --loglevel=debug
 
 # Step 4: Check for import errors
 python -c "from channels.tasks import sync_availability_to_channel; print('OK')"
@@ -358,7 +358,7 @@ ps aux | grep celery
 
 # Step 6: Restart worker
 pkill -f "celery worker"
-celery -A HMS worker --concurrency=2 --loglevel=info &
+celery -A config worker --concurrency=2 --loglevel=info &
 ```
 
 ---
@@ -501,7 +501,7 @@ print(f"Can overbook: {user.can_manage_availability}")
 python manage.py collectstatic --noinput
 
 # Step 2: Check URL configuration
-# HMS/urls.py should include:
+# nephele/urls.py should include:
 # path('admin/', admin.site.urls),
 
 # Step 3: Check DEBUG = True for development
@@ -591,7 +591,7 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 
 # Step 3: Use max_tasks_per_child
-celery -A HMS worker --max-tasks-per-child=100
+celery -A config worker --max-tasks-per-child=100
 
 # Step 4: Check for connection leaks
 # In tasks.py:
@@ -607,7 +607,7 @@ def my_task():
 
 # Step 5: Restart worker periodically
 # Add cron job:
-# * * * * * pkill -f "celery worker" && sleep 2 && celery -A HMS worker &
+# * * * * * pkill -f "celery worker" && sleep 2 && celery -A config worker &
 
 # Step 6: Profile with memory_profiler
 pip install memory-profiler

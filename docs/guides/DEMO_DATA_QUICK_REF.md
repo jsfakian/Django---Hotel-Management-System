@@ -50,15 +50,15 @@ curl http://localhost:8000/api/v1/analytics/executive-metrics/
 
 | File | Purpose |
 |------|---------|
-| `HMS/fixtures/demo_data.json` | Data storage (reusable, version-controllable) |
-| `HMS/bookings/management/commands/load_demo_data.py` | Loading command |
+| `nephele/fixtures/demo_data.json` | Data storage (reusable, version-controllable) |
+| `nephele/bookings/management/commands/load_demo_data.py` | Loading command |
 | `DEMO_DATA_SETUP.md` | Comprehensive guide |
 | `DEMO_DATA_IMPLEMENTATION.md` | Implementation details |
 | `Makefile` | Updated with 3 new targets |
 
 ## Customization
 
-Edit `HMS/fixtures/demo_data.json` and add:
+Edit `nephele/fixtures/demo_data.json` and add:
 - More properties, rooms, guests
 - Additional bookings with different statuses
 - More pricing history for longer trends
@@ -70,10 +70,10 @@ Then reload: `make load-demo-data-fresh`
 
 ```bash
 # Validate JSON syntax
-python -m json.tool HMS/fixtures/demo_data.json
+python -m json.tool nephele/fixtures/demo_data.json
 
 # Check file exists
-ls -la HMS/fixtures/demo_data.json
+ls -la nephele/fixtures/demo_data.json
 
 # View full logs
 docker compose exec -T django python manage.py load_demo_data --clear

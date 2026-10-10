@@ -9,7 +9,7 @@
 
 ## What Was Implemented
 
-### 1. Pricing Service Module (`HMS/bookings/pricing_service.py`) - 400+ lines
+### 1. Pricing Service Module (`nephele/bookings/pricing_service.py`) - 400+ lines
 
 **PricingPredictor Class:**
 - Loads trained ML models from `task3-algorithms/models/pricing/`
@@ -44,7 +44,7 @@
 
 ---
 
-### 2. API Serializers (`HMS/bookings/pricing_serializers.py`) - 120+ lines
+### 2. API Serializers (`nephele/bookings/pricing_serializers.py`) - 120+ lines
 
 **Serializer Classes:**
 - `PricingFactorsSerializer` - Factor breakdown
@@ -64,7 +64,7 @@
 
 ---
 
-### 3. API Endpoints (`HMS/bookings/views.py`) - 350+ lines of new code
+### 3. API Endpoints (`nephele/bookings/views.py`) - 350+ lines of new code
 
 **4 New REST Endpoints:**
 
@@ -181,7 +181,7 @@ Response: {
 
 ---
 
-### 4. Extended PricingHistory Model (`HMS/bookings/models.py`)
+### 4. Extended PricingHistory Model (`nephele/bookings/models.py`)
 
 **11 New Fields Added:**
 
@@ -210,7 +210,7 @@ Decision Tracking:
 
 ---
 
-### 5. URL Routing (`HMS/bookings/urls.py`)
+### 5. URL Routing (`nephele/bookings/urls.py`)
 
 **New URL Patterns:**
 ```python
@@ -337,12 +337,12 @@ curl -X GET "http://localhost:8000/api/v1/bookings/pricing/predict/?room_id=1&da
 **Message:** "Phase 1: AI Pricing API Backend Implementation"
 
 **Files Included:**
-- HMS/bookings/pricing_service.py (NEW)
-- HMS/bookings/pricing_serializers.py (NEW)
-- HMS/bookings/views.py (MODIFIED - added 350+ lines)
-- HMS/bookings/urls.py (MODIFIED - added 4 paths)
-- HMS/bookings/models.py (MODIFIED - added 11 fields)
-- HMS/bookings/migrations/0003_*.py (NEW)
+- nephele/bookings/pricing_service.py (NEW)
+- nephele/bookings/pricing_serializers.py (NEW)
+- nephele/bookings/views.py (MODIFIED - added 350+ lines)
+- nephele/bookings/urls.py (MODIFIED - added 4 paths)
+- nephele/bookings/models.py (MODIFIED - added 11 fields)
+- nephele/bookings/migrations/0003_*.py (NEW)
 - PRICING_MODULE_FE_REDESIGN_PLAN.md (NEW)
 - AUTOMATIC_PAYMENT_CREATION_GUIDE.md (NEW)
 

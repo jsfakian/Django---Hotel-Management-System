@@ -146,13 +146,13 @@ docker-compose exec django pytest tests/
 ### Celery Management
 ```bash
 # Inspect active tasks
-docker-compose exec django celery -A HMS inspect active
+docker-compose exec django celery -A config inspect active
 
 # Inspect stats
-docker-compose exec django celery -A HMS inspect stats
+docker-compose exec django celery -A config inspect stats
 
 # Purge queue
-docker-compose exec django celery -A HMS purge
+docker-compose exec django celery -A config purge
 
 # View scheduled tasks
 docker-compose exec django python manage.py shell
@@ -280,7 +280,7 @@ docker-compose exec redis redis-cli ping
 docker-compose logs -f celery
 
 # Check task queue
-docker-compose exec django celery -A HMS inspect active_queues
+docker-compose exec django celery -A config inspect active_queues
 ```
 
 ### Out of Disk Space

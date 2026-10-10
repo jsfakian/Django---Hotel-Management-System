@@ -33,11 +33,11 @@ The intelligent hotel pricing system has been **fully implemented, tested, and v
 
 ### Files Created/Modified
 ```
-HMS/bookings/views.py          (PricingPredictView, PricingHistoryView)
-HMS/bookings/serializers.py    (PricingPredictionSerializer, etc.)
-HMS/bookings/pricing_service.py (PricingService with ML models)
-HMS/bookings/models.py         (PricingHistory model)
-HMS/bookings/urls.py          (API routing)
+nephele/bookings/views.py          (PricingPredictView, PricingHistoryView)
+nephele/bookings/serializers.py    (PricingPredictionSerializer, etc.)
+nephele/bookings/pricing_service.py (PricingService with ML models)
+nephele/bookings/models.py         (PricingHistory model)
+nephele/bookings/urls.py          (API routing)
 ```
 
 ### API Endpoints
@@ -365,7 +365,7 @@ coverage html  # Generates HTML report
 
 ```bash
 # Run system health check
-SECRET_KEY='test-key' python HMS/system_check.py
+SECRET_KEY='test-key' python nephele/system_check.py
 
 # Validates:
 ✓ Django settings configuration
@@ -455,7 +455,7 @@ TTL coverage             100%        Complete
 ## 📁 Project Structure
 
 ```
-HMS/
+nephele/
 ├── bookings/
 │   ├── models.py                    # PricingHistory, Room, etc.
 │   ├── views.py                     # Phase 1: REST API endpoints

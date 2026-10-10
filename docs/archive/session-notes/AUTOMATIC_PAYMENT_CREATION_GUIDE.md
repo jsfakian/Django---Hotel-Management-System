@@ -54,7 +54,7 @@ When a payment is auto-created, the system logs:
 
 ### Signal Handler: `auto_create_payment_on_booking_confirmation`
 
-**Location:** `HMS/payments/signals.py` - Lines 17-78
+**Location:** `nephele/payments/signals.py` - Lines 17-78
 
 **Triggers On:** `Booking` model `post_save` signal
 
@@ -242,7 +242,7 @@ Currently uses defaults:
 ### Future Enhancement: Make Configurable
 
 ```python
-# In HMS/settings.py
+# In nephele/settings.py
 AUTO_PAYMENT_CONFIG = {
     'DEFAULT_PAYMENT_METHOD': 'Credit Card',
     'CURRENCY': 'EUR',
@@ -323,11 +323,11 @@ Payment.objects.filter(booking=booking_id)[1:].delete()
 
 ## Code References
 
-- **Signal File:** [payments/signals.py](HMS/payments/signals.py)
-- **App Config:** [payments/apps.py](HMS/payments/apps.py)
+- **Signal File:** [payments/signals.py](nephele/payments/signals.py)
+- **App Config:** [payments/apps.py](nephele/payments/apps.py)
 - **Signal Registration:** `PaymentsConfig.ready()` method
-- **Payment Model:** [payments/models.py](HMS/payments/models.py#L39)
-- **Booking Model:** [room/models.py](HMS/room/models.py#L88)
+- **Payment Model:** [payments/models.py](nephele/payments/models.py#L39)
+- **Booking Model:** [room/models.py](nephele/room/models.py#L88)
 
 ---
 

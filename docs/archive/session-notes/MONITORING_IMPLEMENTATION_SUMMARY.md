@@ -134,12 +134,12 @@ monitoring/
 
 ### 7. Django Integration ✅
 
-**Updated `HMS/settings.py`**:
+**Updated `nephele/settings.py`**:
 - Added `django_prometheus` to INSTALLED_APPS
 - Added PrometheusBeforeMiddleware and PrometheusAfterMiddleware
 - Automatic metric collection for all HTTP requests
 
-**Updated `HMS/urls.py`**:
+**Updated `nephele/urls.py`**:
 - Added `/metrics/` endpoint for Prometheus scraping
 - Endpoint accessible at `http://localhost:8000/metrics/`
 
@@ -339,8 +339,8 @@ command:
 ### Modified
 - `docker-compose.yml` - Added 6 new services + volumes
 - `requirements.docker.txt` - Added prometheus packages
-- `HMS/HMS/settings.py` - Added django-prometheus integration
-- `HMS/HMS/urls.py` - Added /metrics/ endpoint
+- `nephele/nephele/settings.py` - Added django-prometheus integration
+- `nephele/nephele/urls.py` - Added /metrics/ endpoint
 
 ---
 

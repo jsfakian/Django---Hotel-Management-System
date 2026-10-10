@@ -10,7 +10,7 @@
 │                    TASK 3 - ML MODELS LAYER                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│  task3-algorithms/models/pricing/                                │
+│  ml/algorithms/models/pricing/                                   │
 │  ├── pricing_ensemble.pkl         (Meta-ensemble model)          │
 │  ├── pricing_gradient_boosting.pkl (XGBoost - primary)           │
 │  ├── pricing_neural_network.pkl    (Deep learning fallback)      │
@@ -217,7 +217,7 @@ NO-SHOW PREDICTION (new, nightly)
 
 ### Before (Gap)
 ```python
-# HMS/analytics/tasks.py
+# nephele/analytics/tasks.py
 @shared_task
 def calculate_revenue_metrics(property_id=None, metric_date=None):
     # ... calculations ...
@@ -235,7 +235,7 @@ def nightly_etl_pipeline():
 
 ### After (Integrated)
 ```python
-# HMS/analytics/tasks.py
+# nephele/analytics/tasks.py
 @shared_task
 def calculate_revenue_metrics(property_id=None, metric_date=None):
     from bookings.pricing_service import PricingAnalyzer

@@ -14,7 +14,7 @@ Django 4.2 REST API + React SPA for multi-property hotel operations. Supports Ad
 | Cache / broker | Redis 7 |
 | Async | Celery 5.3 + django-celery-beat |
 | Frontend | React 18, Vite 5, MUI 5, Redux Toolkit, Axios |
-| ML pricing | scikit-learn, XGBoost (`HMS/dynamic_pricing_model.pkl`) |
+| ML pricing | scikit-learn, XGBoost (`nephele/dynamic_pricing_model.pkl`) |
 | Monitoring | django-prometheus, Prometheus, Grafana, Alertmanager |
 | Deploy | Docker Compose, optional Terraform (AWS) + Kubernetes manifests |
 
@@ -54,39 +54,31 @@ make help    # full command list
 
 ```
 .
-├── HMS/                    # Django project (manage.py lives here)
-│   ├── HMS/                # settings, urls, celery, API viewsets
-│   ├── accounts/           # users, employees, guests, GDPR
-│   ├── analytics/          # BI, reports, forecasting
-│   ├── bookings/           # dynamic pricing, ML predictor, Celery pricing tasks
-│   ├── channels/           # OTA integration (Booking.com, Airbnb, Expedia, …)
-│   ├── contracts/          # travel agency contracts
-│   ├── hotel/              # legacy hotel ops models/views
-│   ├── inventory/          # centralized room availability
-│   ├── notifications/      # email / in-app notifications
-│   ├── payments/           # payments, invoices, MyData/AADE
-│   ├── properties/         # multi-property + travel agencies
-│   ├── room/               # rooms, bookings domain models
+├── nephele/                    # Django project (manage.py lives here)
+│   ├── config/                 # settings, urls, celery, API viewsets
+│   ├── accounts/ … room/   # domain apps
 │   ├── templates/          # server-rendered pages (legacy / portal)
 │   └── tests/              # pytest suite
 ├── frontend/               # React SPA (Vite)
+├── ml/                     # pricing/forecast training + experiment CSVs
+│   ├── algorithms/         # trainers, predictors, model artifacts
+│   └── data/               # small CSVs (large downloads gitignored)
+├── docs/
+│   ├── README.md           # documentation index
+│   ├── guides/             # ops & domain guides
+│   ├── manuals/            # end-user role manuals
+│   ├── deployment/         # deploy / backup runbooks
+│   └── archive/            # historical deliverables (not runbooks)
+├── deployment/             # prod runtime configs only (nginx, .env.prod.example)
+├── scripts/                # backup, health, validate_production, DB helpers
 ├── monitoring/             # Prometheus, Alertmanager, Grafana provisioning
 ├── terraform/              # AWS infrastructure
 ├── k8s/                    # Kubernetes manifests
-├── deployment/             # nginx, prod deployment guides
-├── scripts/                # backup / health / ops scripts
-├── manuals/                # end-user role manuals
-├── task3-algorithms/       # ML training / pricing models (Celery hooks)
-├── task3-data/             # small CSVs for pricing experiments
 ├── docker-compose.yml      # development stack
-├── docker-compose.prod.yml # production stack (nginx + Django + Celery)
+├── docker-compose.prod.yml # production stack
 ├── Makefile                # primary developer interface
-├── ARCHITECTURE.md         # system design
-├── CONTRIBUTING.md         # development & testing conventions
-└── docs/
-    ├── README.md           # documentation index
-    ├── guides/             # ops & domain guides
-    └── archive/            # historical deliverables (not runbooks)
+├── ARCHITECTURE.md
+└── CONTRIBUTING.md
 ```
 
 ## API overview
@@ -101,7 +93,7 @@ Base URL: `/api/v1/`
 | Analytics | `analytics/` |
 | Pricing | under `bookings/` (predict, history, scenario, models, …) |
 | GDPR | `gdpr/request-export/`, `gdpr/download-export/`, `gdpr/export-status/<task_id>/`, `gdpr/request-deletion/` |
-| Dashboard | `dashboard/stats/`, `trends/` |
+| Dashboard | `dashboard/stats/` |
 | Ops | `/health/`, `/health/db/`, `/health/cache/`, `/metrics/` |
 
 Auth for the SPA is JWT (Bearer). Session auth remains available for Django templates and admin.
@@ -110,7 +102,7 @@ Auth for the SPA is JWT (Bearer). Session auth remains available for Django temp
 
 Django Groups drive runtime roles: `admin`, `manager`, `receptionist`, `staff`, `guest`. The SPA routes each role to its dashboard (`frontend/src/App.jsx`). Public self-registration is for guests; employees are created by admins/managers.
 
-End-user manuals: [manuals/](manuals/README.md).
+End-user manuals: [docs/manuals/](docs/manuals/README.md).
 
 ## Common Make targets
 
@@ -143,7 +135,7 @@ Copy `.env.example` → `.env` for development. Important variables:
 | `STRIPE_*` | Optional card payments |
 | `SLACK_WEBHOOK_URL` | Alertmanager (compose) |
 
-Production templates: `.env.prod.example`, `deployment/.env.prod.example`. Frontend API base: `frontend/.env.development` (`VITE_API_BASE_URL=http://localhost:8000/api/v1`).
+Production templates: `.env.prod.example` (root) and `deployment/.env.prod.example`. Frontend API base: `frontend/.env.development` (`VITE_API_BASE_URL=http://localhost:8000/api/v1`). Deploy runbooks: `docs/deployment/`.
 
 ## Testing
 
@@ -154,7 +146,7 @@ make test-gdpr     # GDPR compliance
 make smoke         # hits OpenAPI schema
 ```
 
-Config: `HMS/pytest.ini`, settings `HMS/HMS/test_settings.py`, fixtures `HMS/conftest.py`. Markers: `unit`, `integration`, `e2e`, `performance`, `slow`, `functional`.
+Config: `nephele/pytest.ini`, settings `nephele/config/test_settings.py`, fixtures `nephele/conftest.py`. Markers: `unit`, `integration`, `e2e`, `performance`, `slow`, `functional`.
 
 ## Documentation map
 
@@ -165,10 +157,10 @@ Config: `HMS/pytest.ini`, settings `HMS/HMS/test_settings.py`, fixtures `HMS/con
 | [docs/README.md](docs/README.md) | Index of guides + archive |
 | [docs/guides/](docs/guides/) | MyData, monitoring, Docker, GDPR, … |
 | [CLAUDE.md](CLAUDE.md) | Agent/project conventions for AI-assisted work |
-| [manuals/](manuals/README.md) | Role-based user manuals |
+| [docs/manuals/](docs/manuals/README.md) | Role-based user manuals |
 | [deployment/](deployment/) | Production deploy & backup procedures |
 | [docs/archive/](docs/archive/) | Historical deliverables / phase notes (audit only) |
 
 ## License / origin
 
-Evolved from an open-source Django hotel management starter into the NEPHELE HMS product stack (API, SPA, ML pricing, compliance, and ops tooling). Older research artifacts live under `docs/archive/research/`.
+Evolved from an open-source Django hotel management starter into the Nephele product stack (API, SPA, ML pricing, compliance, and ops tooling). Older research artifacts live under `docs/archive/research/`.

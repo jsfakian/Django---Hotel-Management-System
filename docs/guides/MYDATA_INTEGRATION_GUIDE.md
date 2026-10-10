@@ -37,7 +37,7 @@ MYDATA_TRANSMISSION_RETRIES=3  # Number of retry attempts
 
 ### Django Settings
 
-Update `HMS/settings.py` with your configuration. Default values are shown below:
+Update `nephele/settings.py` with your configuration. Default values are shown below:
 
 ```python
 # MyData (AADE) Integration
@@ -334,7 +334,7 @@ Planned features for Phase 3:
 For issues or questions about MyData integration:
 
 1. Check this guide's Troubleshooting section
-2. Review Django logs: `HMS/logs/errors.log`
+2. Review Django logs: `nephele/logs/errors.log`
 3. Contact AADE support: https://www.aade.gr/contact
 4. Open an issue on the project repository
 

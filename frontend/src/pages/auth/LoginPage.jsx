@@ -67,7 +67,7 @@ export default function LoginPage() {
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <Hotel sx={{ fontSize: 48, color: 'primary.main' }} />
             <Typography variant="h5" fontWeight={700} color="primary.main">
-              NEPHELE HMS
+              Nephele
             </Typography>
             <Typography variant="body2" color="text.secondary" mt={0.5}>
               Sign in to your account

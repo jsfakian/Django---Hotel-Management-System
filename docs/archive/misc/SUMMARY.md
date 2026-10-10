@@ -180,7 +180,7 @@ print(f"Date range: {bookings['booking_date'].min()} to {bookings['booking_date'
 
 **Create data import management command:**
 ```bash
-# In HMS/bookings/management/commands/
+# In nephele/bookings/management/commands/
 python manage.py import_training_data --csv-dir task3-data/
 ```
 

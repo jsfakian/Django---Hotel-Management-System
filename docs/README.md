@@ -6,9 +6,11 @@
 | [../ARCHITECTURE.md](../ARCHITECTURE.md) | System design |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Development workflow |
 | [../CLAUDE.md](../CLAUDE.md) | AI-assisted conventions |
-| [../manuals/README.md](../manuals/README.md) | End-user role manuals |
+| [manuals/README.md](manuals/README.md) | End-user role manuals |
 | [guides/](guides/) | Operational & domain guides |
+| [deployment/](deployment/) | Deploy / backup runbooks |
 | [archive/](archive/) | Historical deliverables (not runbooks) |
+| [../ml/README.md](../ml/README.md) | ML training package layout |
 
 ## Guides (`docs/guides/`)
 
@@ -36,7 +38,8 @@ Also under `guides/`: logging, performance, load balancing, auto-scaling, troubl
 
 Live OpenAPI: http://localhost:8000/api/v1/docs/swagger/
 
-Production deploy / backup procedures: [../deployment/](../deployment/).
+Production configs (nginx, env template): [../deployment/](../deployment/).  
+Deploy runbooks: [deployment/](deployment/).
 
 ## Archive (`docs/archive/`)
 
@@ -52,5 +55,3 @@ Historical grant deliverables, phase/gap summaries, research PDFs, old planning 
 | `screenshots/` | Legacy UI screenshots |
 | `legacy-scripts/` | One-off verify/test scripts from repo root |
 | `misc/` | Extra task3 narrative docs |
-
-ML training code and small CSVs remain at repo root (`task3-algorithms/`, `task3-data/`) because Celery/pricing still reference those paths. Large `task3-data/real-data/` is not stored in git.

@@ -69,7 +69,7 @@ All view functions properly imported and formatted with Django decorators:
 
 **URL Structure:**
 ```
-File: HMS/urls.py
+File: nephele/urls.py
 ├── path('analytics/', include('analytics.web_urls'))     # Web dashboards
 ├── path('api/v1/', include('HMS.api_urls'))              # REST API
 
@@ -86,7 +86,7 @@ File: analytics/urls.py (REFACTORED)
 
 ### 4. HTML Templates (DjangoTemplates Loader)
 
-All templates present in `/HMS/templates/analytics/`:
+All templates present in `/nephele/templates/analytics/`:
 
 | Template | Size | Purpose |
 |----------|------|---------|
@@ -105,7 +105,7 @@ All templates present in `/HMS/templates/analytics/`:
 
 ### 5. Vue Components
 
-Both reusable components present in `/HMS/static/js/components/`:
+Both reusable components present in `/nephele/static/js/components/`:
 
 | Component | Size | Purpose |
 |-----------|------|---------|
@@ -120,7 +120,7 @@ Both reusable components present in `/HMS/static/js/components/`:
 
 ### 6. Navigation Integration
 
-**File:** `/HMS/templates/incs/nav.html`
+**File:** `/nephele/templates/incs/nav.html`
 
 ✓ "Analytics" navbar link added between "Dashboard" and "Business Intelligence"  
 ✓ "Analytics" dropdown menu item added  
@@ -184,22 +184,22 @@ Total: 13 viewsets with standard REST CRUD operations
 
 ### Files Created (8):
 ```
-✓ HMS/templates/analytics/dashboard.html
-✓ HMS/templates/analytics/executive_dashboard.html
-✓ HMS/templates/analytics/operational_dashboard.html
-✓ HMS/templates/analytics/revenue_analytics.html
-✓ HMS/templates/analytics/guest_analytics.html
-✓ HMS/static/js/components/AnalyticsChart.vue
-✓ HMS/static/js/components/MetricsGrid.vue
-✓ HMS/analytics/web_urls.py
+✓ nephele/templates/analytics/dashboard.html
+✓ nephele/templates/analytics/executive_dashboard.html
+✓ nephele/templates/analytics/operational_dashboard.html
+✓ nephele/templates/analytics/revenue_analytics.html
+✓ nephele/templates/analytics/guest_analytics.html
+✓ nephele/static/js/components/AnalyticsChart.vue
+✓ nephele/static/js/components/MetricsGrid.vue
+✓ nephele/analytics/web_urls.py
 ```
 
 ### Files Modified (4):
 ```
-✓ HMS/analytics/views.py              (added 5 view functions)
-✓ HMS/analytics/urls.py               (refactored for API-only)
-✓ HMS/HMS/urls.py                     (added analytics routing)
-✓ HMS/templates/incs/nav.html         (added Analytics links)
+✓ nephele/analytics/views.py              (added 5 view functions)
+✓ nephele/analytics/urls.py               (refactored for API-only)
+✓ nephele/nephele/urls.py                     (added analytics routing)
+✓ nephele/templates/incs/nav.html         (added Analytics links)
 ```
 
 ---
@@ -210,7 +210,7 @@ Total: 13 viewsets with standard REST CRUD operations
 
 **Web Views:**
 ```
-HMS.urls
+nephele.urls
   ├── analytics.web_urls
   │   ├── analytics.views.analytics_dashboard_view
   │   ├── analytics.views.executive_dashboard_view
@@ -410,7 +410,7 @@ All components of Section 5.3 (Business Intelligence & Reporting Architecture) f
 - **Ready for Production Deployment:** All dependencies satisfied
 
 **Next Steps:**
-1. Run development server: `cd HMS && python manage.py runserver`
+1. Run development server: `cd nephele && python manage.py runserver`
 2. Access dashboards: http://localhost:8000/analytics/
 3. Execute test plan (see Testing Checklist above)
 4. Deploy to staging/production when ready

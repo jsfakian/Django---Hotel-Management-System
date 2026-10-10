@@ -39,14 +39,14 @@ This document provides implementation guides, API specifications, and deployment
 - Saves trained models ready for Django integration
 
 #### Django Implementation (Task 4)
-✅ **Database Models** (in `HMS/analytics/models.py`)
+✅ **Database Models** (in `nephele/analytics/models.py`)
 - `OccupancyForecast` - Occupancy predictions
 - `RevenueForecast` - Revenue predictions
 - `CancellationPrediction` - Cancellation risk scores
 - `NoShowPrediction` - No-show risk scores
 - `ForecastingModelMetrics` - Model performance monitoring
 
-✅ **Serializers** (in `HMS/analytics/serializers.py`)
+✅ **Serializers** (in `nephele/analytics/serializers.py`)
 - `OccupancyForecastSerializer`
 - `RevenueForecastSerializer`
 - `CancellationPredictionSerializer`
@@ -54,7 +54,7 @@ This document provides implementation guides, API specifications, and deployment
 - `ForecastingModelMetricsSerializer`
 - Dashboard summary serializers for forecasting
 
-✅ **REST API ViewSets** (in `HMS/analytics/views.py`)
+✅ **REST API ViewSets** (in `nephele/analytics/views.py`)
 - `OccupancyForecastViewSet` - Query occupancy forecasts
 - `RevenueForecastViewSet` - Query revenue forecasts
 - `CancellationPredictionViewSet` - Query cancellation predictions
@@ -62,7 +62,7 @@ This document provides implementation guides, API specifications, and deployment
 - `ForecastingModelMetricsViewSet` - Monitor model health
 - Each with specialized endpoints (high-risk, next-30-days, health-check, etc.)
 
-✅ **URL Configuration** (in `HMS/analytics/urls.py`)
+✅ **URL Configuration** (in `nephele/analytics/urls.py`)
 - All forecasting endpoints registered with router
 - RESTful URLs for all forecast queries
 
@@ -90,8 +90,8 @@ pip install lightgbm
 
 #### Execute Training
 ```bash
-# Navigate to task3-algorithms directory
-cd /path/to/task3-algorithms
+# Navigate to ML algorithms directory
+cd /path/to/ml/algorithms
 
 # Run the complete forecasting pipeline
 python3 train_forecasting.py
@@ -160,7 +160,7 @@ python3 train_forecasting.py
 
 ### 2.2 Trained Models
 
-Models are saved in `task3-algorithms/forecast_models/`:
+Models are saved in `ml/algorithms/forecast_models/`:
 
 | File | Model | Size | Training Time |
 |------|-------|------|---------------|
@@ -210,7 +210,7 @@ Models are saved in `task3-algorithms/forecast_models/`:
 
 #### Create Migrations
 ```bash
-cd HMS
+cd nephele
 
 # Generate migration files for new models
 python manage.py makemigrations analytics
@@ -650,10 +650,10 @@ python train_forecasting.py
 ### Files Created/Modified
 
 **New Training Script:**
-- `task3-algorithms/train_forecasting.py` (950+ lines) - Complete ML training pipeline
+- `ml/algorithms/train_forecasting.py` (950+ lines) - Complete ML training pipeline
 
 **Django Models (analytics)**
-- `HMS/analytics/models.py` - Added 5 new forecasting models (500+ lines)
+- `nephele/analytics/models.py` - Added 5 new forecasting models (500+ lines)
   - OccupancyForecast
   - RevenueForecast
   - CancellationPrediction
@@ -661,7 +661,7 @@ python train_forecasting.py
   - ForecastingModelMetrics
 
 **Django Serializers (analytics)**
-- `HMS/analytics/serializers.py` - Added 8 new serializers (350+ lines)
+- `nephele/analytics/serializers.py` - Added 8 new serializers (350+ lines)
   - OccupancyForecastSerializer
   - RevenueForecastSerializer
   - CancellationPredictionSerializer
@@ -671,7 +671,7 @@ python train_forecasting.py
   - ForecastingAlertSerializer
 
 **Django Views (analytics)**
-- `HMS/analytics/views.py` - Added 5 forecasting viewsets (450+ lines)
+- `nephele/analytics/views.py` - Added 5 forecasting viewsets (450+ lines)
   - OccupancyForecastViewSet
   - RevenueForecastViewSet
   - CancellationPredictionViewSet
@@ -679,7 +679,7 @@ python train_forecasting.py
   - ForecastingModelMetricsViewSet
 
 **Django URLs (analytics)**
-- `HMS/analytics/urls.py` - Updated with forecasting routes
+- `nephele/analytics/urls.py` - Updated with forecasting routes
 
 **Deliverables Documentation:**
 - `DELIVERABLES-Task3-ResearchCompletion.md` - Updated with comprehensive forecasting research (2,000+ lines)

@@ -1,6 +1,6 @@
 {
   "dashboard": {
-    "title": "HMS - Database Performance",
+    "title": "Nephele - Database Performance",
     "tags": ["hms", "database", "postgres"],
     "timezone": "browser",
     "panels": [
@@ -123,7 +123,7 @@
       "from": "now-6h",
       "to": "now"
     },
-    "uid": "hms-database-performance",
+    "uid": "nephele-database-performance",
     "version": 1
   }
 }

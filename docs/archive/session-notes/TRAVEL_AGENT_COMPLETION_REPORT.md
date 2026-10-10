@@ -106,27 +106,27 @@ Status:         Ready to test
    - Ready to run
 
 ### Existing Files Modified:
-1. **HMS/accounts/models.py**
+1. **nephele/accounts/models.py**
    - Added TravelAgentProfile model (lines 229-280)
    - With unique constraints and indexes
 
-2. **HMS/room/models.py**
+2. **nephele/room/models.py**
    - Updated Booking model (lines 86-164)
    - Added travel_agency ForeignKey
    - Added booking_source field
 
-3. **HMS/HMS/web_views.py**
+3. **nephele/nephele/web_views.py**
    - Added access control functions (lines 18-70)
    - Updated module_portal() (lines 670-697)
    - Updated module_crud_page() (lines 718-761)
 
-4. **HMS/templates/module-crud.html**
+4. **nephele/templates/module-crud.html**
    - Added agency quick-link (lines 67-71)
 
-5. **HMS/templates/incs/nav.html**
+5. **nephele/templates/incs/nav.html**
    - Added Travel Agencies menu item
 
-6. **HMS/HMS/settings.py**
+6. **nephele/nephele/settings.py**
    - PostgreSQL as default database
 
 ### Database Migration:

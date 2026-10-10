@@ -1,4 +1,4 @@
-Run code quality checks and formatting for the HMS project. Usage: /lint [action]
+Run code quality checks and formatting for the Nephele project. Usage: /lint [action]
 
 Actions:
 - (none) or `check` → run `make lint` (flake8 + pylint, report issues without fixing)

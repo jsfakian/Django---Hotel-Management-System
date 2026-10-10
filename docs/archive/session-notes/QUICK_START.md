@@ -4,7 +4,7 @@
 
 ### 1. Apply Migrations
 ```bash
-cd HMS
+cd nephele
 python manage.py migrate
 ```
 
@@ -193,7 +193,7 @@ DEFAULT_FROM_EMAIL = 'your-email@gmail.com'
 ## 🗂️ Project Structure
 
 ```
-HMS/
+nephele/
 ├── properties/              # NEW: Property management
 │   ├── models.py
 │   ├── views.py
@@ -220,7 +220,7 @@ HMS/
 ├── room/                    # ENHANCED: Property link added
 │   ├── models.py
 │   └── ...
-└── HMS/
+└── nephele/
     ├── settings.py          # UPDATED: New apps registered
     ├── urls.py              # UPDATED: New URLs included
     └── ...

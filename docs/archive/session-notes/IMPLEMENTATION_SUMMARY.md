@@ -404,8 +404,8 @@ Based on your design documents, the system now includes:
 - `accounts/context_processors.py` - Template context
 
 ### Modified Files:
-- `HMS/settings.py` - Added new apps, middleware, context processor
-- `HMS/urls.py` - Added new URL includes
+- `nephele/settings.py` - Added new apps, middleware, context processor
+- `nephele/urls.py` - Added new URL includes
 - `room/models.py` - Added property foreign key
 
 ### Total New Lines of Code: ~3,500+ lines

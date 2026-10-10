@@ -1,6 +1,6 @@
 {
   "dashboard": {
-    "title": "HMS - System Overview",
+    "title": "Nephele - System Overview",
     "tags": ["hms", "system", "overview"],
     "timezone": "browser",
     "panels": [
@@ -110,7 +110,7 @@
       "to": "now"
     },
     "timepicker": {},
-    "uid": "hms-system-overview",
+    "uid": "nephele-system-overview",
     "version": 1
   }
 }

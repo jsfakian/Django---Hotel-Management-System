@@ -1,6 +1,6 @@
 {
   "dashboard": {
-    "title": "HMS - Celery Task Queue",
+    "title": "Nephele - Celery Task Queue",
     "tags": ["hms", "celery", "tasks"],
     "timezone": "browser",
     "panels": [
@@ -106,7 +106,7 @@
       "from": "now-6h",
       "to": "now"
     },
-    "uid": "hms-celery-tasks",
+    "uid": "nephele-celery-tasks",
     "version": 1
   }
 }

@@ -34,7 +34,7 @@ Added an **unchecked-by-default checkbox** to invoice creation/update forms that
 | File | What Changed |
 |------|--------------|
 | `payments/forms.py` | Added `InvoiceForm` with checkbox field |
-| `HMS/web_views.py` | Added InvoiceForm import + MyData transmission logic |
+| `nephele/web_views.py` | Added InvoiceForm import + MyData transmission logic |
 | `payments/migrations/0002_add_mydata_fields.py` | Auto-created migration (ready to run) |
 
 ### Checkbox Behavior
@@ -162,7 +162,7 @@ export MYDATA_PASSWORD=password        # Optional: AADE password
 [payments/forms.py#InvoiceForm](payments/forms.py)
 
 ### Web View Integration
-[HMS/web_views.py#module_crud_page](HMS/web_views.py)
+[nephele/web_views.py#module_crud_page](nephele/web_views.py)
 
 ### MyData Service
 [payments/mydata_service.py](payments/mydata_service.py)

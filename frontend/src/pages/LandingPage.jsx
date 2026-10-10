@@ -18,7 +18,7 @@ export default function LandingPage() {
       <AppBar position="static" elevation={0}>
         <Toolbar>
           <Hotel sx={{ mr: 1 }} />
-          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>NEPHELE HMS</Typography>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>Nephele</Typography>
           {isLoggedIn ? (
             <Button color="inherit" onClick={() => navigate('/')}>Go to Dashboard</Button>
           ) : (
@@ -30,7 +30,7 @@ export default function LandingPage() {
       <Box sx={{ bgcolor: 'primary.dark', color: 'white', py: { xs: 8, md: 12 }, textAlign: 'center' }}>
         <Container maxWidth="md">
           <Hotel sx={{ fontSize: 72, mb: 2, opacity: 0.9 }} />
-          <Typography variant="h3" fontWeight={700} gutterBottom>Welcome to NEPHELE HMS</Typography>
+          <Typography variant="h3" fontWeight={700} gutterBottom>Welcome to Nephele</Typography>
           <Typography variant="h6" sx={{ mb: 4, opacity: 0.85 }}>Comprehensive Hotel Management System for modern hospitality businesses</Typography>
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
             {isLoggedIn ? (
@@ -64,7 +64,7 @@ export default function LandingPage() {
       </Container>
 
       <Box sx={{ bgcolor: 'grey.100', py: 3, textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary">© {new Date().getFullYear()} NEPHELE HMS. All rights reserved.</Typography>
+        <Typography variant="body2" color="text.secondary">© {new Date().getFullYear()} Nephele. All rights reserved.</Typography>
       </Box>
     </Box>
   )

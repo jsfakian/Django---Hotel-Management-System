@@ -89,7 +89,7 @@ make help
 
 ### Create Migration for Invoices
 ```bash
-# 1. Modify invoice model in HMS/payments/models.py
+# 1. Modify invoice model in nephele/payments/models.py
 # 2. Create migration
 make makemigrations
 
@@ -163,7 +163,7 @@ docker compose exec django python manage.py migrate app_name 0002
 When you modify the Invoice model:
 
 ```python
-# 1. Make model changes in HMS/payments/models.py
+# 1. Make model changes in nephele/payments/models.py
 class Invoice(models.Model):
     # ... add new fields here ...
     mydata_new_field = models.CharField(...)
@@ -177,7 +177,7 @@ $ make migrate
 # Updates database with new field
 
 # 4. Update forms (if needed)
-# HMS/payments/forms.py - add field to InvoiceForm
+# nephele/payments/forms.py - add field to InvoiceForm
 
 # 5. Test in browser
 # Go to /portal/invoices/create/ to verify

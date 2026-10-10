@@ -129,7 +129,7 @@ The GDPR Data Export implementation provides complete support for Data Subject R
 └───────────────────┬─────────────────────────────────────┘
                     │
 ┌───────────────────▼─────────────────────────────────────┐
-│              Service Layer (HMS/accounts/)              │
+│              Service Layer (nephele/accounts/)              │
 ├─────────────────────────────────────────────────────────┤
 │  GDPRExportService                                      │
 │  ├─ export_all_data()     → Dict                        │
@@ -155,7 +155,7 @@ The GDPR Data Export implementation provides complete support for Data Subject R
 ### File Structure
 
 ```
-HMS/
+nephele/
 ├── accounts/
 │   ├── services/
 │   │   ├── __init__.py
@@ -168,7 +168,7 @@ HMS/
 │   ├── tests_gdpr.py                # Comprehensive tests
 │   └── models.py
 │
-├── HMS/
+├── nephele/
 │   ├── api_urls.py                  # GDPR routes added
 │   └── urls.py
 ```
@@ -811,17 +811,17 @@ ls -lh exports/user_123_*.zip
 
 **All GDPR tests:**
 ```bash
-pytest HMS/accounts/tests_gdpr.py -v
+pytest nephele/accounts/tests_gdpr.py -v
 ```
 
 **Specific test class:**
 ```bash
-pytest HMS/accounts/tests_gdpr.py::GDPRExportServiceTests -v
+pytest nephele/accounts/tests_gdpr.py::GDPRExportServiceTests -v
 ```
 
 **With coverage:**
 ```bash
-pytest HMS/accounts/tests_gdpr.py --cov=accounts --cov-report=html
+pytest nephele/accounts/tests_gdpr.py --cov=accounts --cov-report=html
 ```
 
 ### Test Coverage
@@ -994,7 +994,7 @@ response = client.post('/api/v1/gdpr/request-export/', {
 ```
 Issue: Celery task stuck in PENDING state
 Solution: Check Celery worker is running
-  celery -A HMS worker -l info
+  celery -A config worker -l info
 ```
 
 **2. Email Not Sent**

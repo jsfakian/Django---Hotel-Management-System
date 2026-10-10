@@ -8,7 +8,7 @@
 - Task 2 market research deliverable
 - Task 3 research/algorithms/data deliverables
 - Task 4 system architecture deliverable
-- Django implementation in `HMS/`
+- Django implementation in `nephele/`
 
 ---
 
@@ -97,15 +97,15 @@
 - Symptom: `foreign key mismatch - bookings_competitorprice referencing room_room` when running tests.
 - Root cause: `bookings` app had no migrations; tables were sync-created against current model assumptions, conflicting with historical `room` migration schema state.
 - **Fix:** Added explicit migrations package and initial migration for `bookings`:
-  - `HMS/bookings/migrations/__init__.py`
-  - `HMS/bookings/migrations/0001_initial.py`
+  - `nephele/bookings/migrations/__init__.py`
+  - `nephele/bookings/migrations/0001_initial.py`
 - Result: analytics tests now create test DB and execute successfully.
 
 2. **Missing core API exposure for user-domain entities**
 - Gap: Task 4/requirements require user + guest profile management APIs, but central router did not expose them.
 - **Fix:** Added and registered:
   - `UserViewSet`, `GuestViewSet`, `EmployeeViewSet`
-  - Router mounts in `HMS/HMS/api_urls.py`
+  - Router mounts in `nephele/nephele/api_urls.py`
 
 3. **Analytics/reporting execution stability**
 - Previously fixed and retained in this pass:

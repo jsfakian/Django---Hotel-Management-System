@@ -31,15 +31,15 @@ hms/
 ENV/
 
 # Django
-HMS/db.sqlite3
-HMS/db_*.sqlite3
+nephele/db.sqlite3
+nephele/db_*.sqlite3
 *.sqlite3
-HMS/staticfiles/
-HMS/media/
-HMS/logs/
-HMS/exports/*.zip
-HMS/exports/*.json
-!HMS/exports/.gitkeep
+nephele/staticfiles/
+nephele/media/
+nephele/logs/
+nephele/exports/*.zip
+nephele/exports/*.json
+!nephele/exports/.gitkeep
 
 # Node / frontend
 frontend/node_modules/
@@ -49,9 +49,10 @@ frontend/dist/**
 npm-debug.log*
 yarn-error.log*
 
-# ML / large local datasets (models under task3-algorithms/models may be committed intentionally)
-task3-data/real-data/
-!task3-data/real-data/README.md
+# ML / large local datasets (trained pickles under ml/algorithms/models may be committed)
+ml/data/real-data/
+ml/data/real_data/
+!ml/data/real-data/README.md
 real-data/
 
 # IDE / OS / tooling

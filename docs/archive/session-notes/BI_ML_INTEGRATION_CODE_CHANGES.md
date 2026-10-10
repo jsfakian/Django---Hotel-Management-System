@@ -4,7 +4,7 @@
 
 ---
 
-## 1. File: HMS/analytics/tasks.py
+## 1. File: nephele/analytics/tasks.py
 
 ### Changes Made:
 **Added 4 new forecasting task functions (815 lines of new code)**
@@ -167,7 +167,7 @@ predict_noshow_task.delay()
 ## Code Statistics
 
 ### Files Modified: 2
-- `HMS/analytics/tasks.py` - **+815 lines** (forecasting tasks)
+- `nephele/analytics/tasks.py` - **+815 lines** (forecasting tasks)
 - `DELIVERABLES-Task4-SystemArchitecture.md` - **+800 lines** (ML integration section)
 
 ### New Files: 1
@@ -218,9 +218,9 @@ predict_noshow_task.delay()
 
 ### Verification Completed
 ```
-✓ HMS/analytics/tasks.py     - Syntax OK
-✓ HMS/analytics/models.py    - Syntax OK
-✓ HMS/bookings/pricing_service.py - Syntax OK
+✓ nephele/analytics/tasks.py     - Syntax OK
+✓ nephele/analytics/models.py    - Syntax OK
+✓ nephele/bookings/pricing_service.py - Syntax OK
 ✓ Task 3 PricingAnalyzer loads models successfully
 ✓ ORM models ready (created via earlier migrations)
 ✓ Error handling logs success/failure
@@ -281,7 +281,7 @@ ml_price = recommendation['ensemble_prediction']
 ✅ Uses existing timezone utilities
 
 ### Rollback Plan
-- Revert changes to `/HMS/analytics/tasks.py`
+- Revert changes to `/nephele/analytics/tasks.py`
 - Remove new forecasting section from DELIVERABLES doc
 - Nightly ETL will skip forecast tasks gracefully
 - Existing analytics continue to work

@@ -23,7 +23,7 @@ A comprehensive, reusable demo data system has been successfully implemented for
 ## What Was Delivered
 
 ### 1. Management Command
-**File**: `HMS/bookings/management/commands/load_demo_data.py`
+**File**: `nephele/bookings/management/commands/load_demo_data.py`
 
 Features:
 - Atomic transactions (all-or-nothing loading)
@@ -36,7 +36,7 @@ Features:
 Lines of Code: 283 (well-documented, production-quality)
 
 ### 2. Demo Data Fixture
-**File**: `HMS/fixtures/demo_data.json`
+**File**: `nephele/fixtures/demo_data.json`
 
 Structure:
 ```json
@@ -305,7 +305,7 @@ All entities visible and editable at:
 
 ```
 Django---Hotel-Management-System/
-├── HMS/
+├── nephele/
 │   ├── fixtures/
 │   │   └── demo_data.json                          [NEW - 15KB]
 │   ├── bookings/
@@ -355,13 +355,13 @@ make load-demo-data
 ### For CI/CD Pipelines
 ```bash
 # Include in automated testing
-python manage.py load_demo_data --fixtures-dir=HMS/fixtures
+python manage.py load_demo_data --fixtures-dir=nephele/fixtures
 ```
 
 ## Customization Examples
 
 ### Add New Property
-Edit `HMS/fixtures/demo_data.json`:
+Edit `nephele/fixtures/demo_data.json`:
 ```json
 {
   "properties": [
@@ -436,7 +436,7 @@ Add more date points for better forecasting models:
 
 **Issue**: JSON validation fails
 ```bash
-Solution: python -m json.tool HMS/fixtures/demo_data.json
+Solution: python -m json.tool nephele/fixtures/demo_data.json
 ```
 
 **Issue**: Import errors
@@ -451,7 +451,7 @@ Solution: make load-demo-data-fresh
 
 **Issue**: Data not appearing
 ```bash
-Solution: Check file location: HMS/fixtures/demo_data.json (relative to manage.py)
+Solution: Check file location: nephele/fixtures/demo_data.json (relative to manage.py)
 ```
 
 See `DEMO_DATA_SETUP.md` for comprehensive troubleshooting.
@@ -474,7 +474,7 @@ See `DEMO_DATA_SETUP.md` for comprehensive troubleshooting.
 1. **Immediate**: Run `make load-demo-data`
 2. **Verify**: Visit `http://localhost:8000/admin` and explore
 3. **Test**: Call API endpoints and verify data
-4. **Customize**: Edit `HMS/fixtures/demo_data.json` for specific needs
+4. **Customize**: Edit `nephele/fixtures/demo_data.json` for specific needs
 5. **Deploy**: Use `make load-demo-data` in your deployment pipeline
 
 ## Related Documentation

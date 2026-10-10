@@ -1,5 +1,5 @@
 #!/bin/bash
-# Backup Automation Setup for NEPHELE HMS
+# Backup Automation Setup for Nephele
 # Sets up automated daily backups with cron scheduling and monitoring
 
 set -e
@@ -123,7 +123,7 @@ log "  - backup-monthly.sh (runs monthly, 365-day retention)"
 info "Add the following to your crontab (sudo crontab -e):"
 echo ""
 echo "=================================================="
-echo "# NEPHELE HMS Database Backups"
+echo "# Nephele Database Backups"
 echo "# Daily backup at 2:00 AM"
 echo "0 2 * * * cd $PROJECT_DIR && bash $SCRIPT_DIR/backup-daily.sh"
 echo ""

@@ -8,7 +8,7 @@
 
 ```bash
 # Navigate to Django project
-cd HMS
+cd nephele
 
 # Create migrations (already done)
 python manage.py makemigrations channels inventory

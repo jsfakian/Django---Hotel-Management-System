@@ -64,40 +64,40 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r HMS/requirements-test.txt
+        pip install -r nephele/requirements-test.txt
     
     - name: Set up Django settings
       env:
-        DJANGO_SETTINGS_MODULE: HMS.settings
+        DJANGO_SETTINGS_MODULE: config.settings
         DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
         SECRET_KEY: test-secret-key-for-ci
         ALLOWED_HOSTS: localhost,127.0.0.1
         DEBUG: 'False'
       run: |
-        export DJANGO_SETTINGS_MODULE=HMS.settings
-        cd HMS
+        export DJANGO_SETTINGS_MODULE=config.settings
+        cd nephele
         python manage.py migrate
     
     - name: Run linting
       continue-on-error: true
       run: |
-        flake8 HMS --max-line-length=100 --exclude=migrations,__pycache__,.venv
-        pylint HMS --disable=all --enable=E,F --exit-zero || true
+        flake8 nephele --max-line-length=100 --exclude=migrations,__pycache__,.venv
+        pylint nephele --disable=all --enable=E,F --exit-zero || true
     
     - name: Run tests with coverage
       env:
-        DJANGO_SETTINGS_MODULE: HMS.settings
+        DJANGO_SETTINGS_MODULE: config.settings
         DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
         SECRET_KEY: test-secret-key-for-ci
         ALLOWED_HOSTS: localhost,127.0.0.1
       run: |
-        cd HMS
+        cd nephele
         pytest --cov=. --cov-report=xml --cov-report=html --junitxml=test-results.xml -v
     
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
       with:
-        file: ./HMS/coverage.xml
+        file: ./nephele/coverage.xml
         fail_ci_if_error: false
         verbose: true
     
@@ -106,14 +106,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.python-version }}
-        path: HMS/test-results.xml
+        path: nephele/test-results.xml
     
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report-${{ matrix.python-version }}
-        path: HMS/htmlcov/
+        path: nephele/htmlcov/
 
   performance:
     runs-on: ubuntu-latest
@@ -132,16 +132,16 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r HMS/requirements-test.txt
+        pip install -r nephele/requirements-test.txt
     
     - name: Run performance tests
       continue-on-error: true
       env:
-        DJANGO_SETTINGS_MODULE: HMS.settings
+        DJANGO_SETTINGS_MODULE: config.settings
         SECRET_KEY: test-secret-key-for-ci
       run: |
-        cd HMS
-        pytest HMS/tests/test_performance.py -v --tb=short
+        cd nephele
+        pytest tests/test_performance.py -v --tb=short
     
     - name: Run load tests
       continue-on-error: true
@@ -170,7 +170,7 @@ jobs:
     - name: Run Bandit security checks
       continue-on-error: true
       run: |
-        bandit -r HMS -ll -f json -o bandit-report.json || true
+        bandit -r nephele -ll -f json -o bandit-report.json || true
     
     - name: Check dependencies for vulnerabilities
       continue-on-error: true
@@ -217,20 +217,20 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r HMS/requirements-test.txt
+        pip install -r nephele/requirements-test.txt
     
     - name: Run integration tests only
       env:
-        DJANGO_SETTINGS_MODULE: HMS.settings
+        DJANGO_SETTINGS_MODULE: config.settings
         DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
         SECRET_KEY: test-secret-key-for-ci
       run: |
-        cd HMS
-        pytest HMS/tests/integration/ -v --tb=short
+        cd nephele
+        pytest tests/integration/ -v --tb=short
     
     - name: Upload integration test results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: integration-test-results
-        path: HMS/test-results.xml
+        path: nephele/test-results.xml

@@ -4,7 +4,7 @@
 #                KUBECONFIG pointing at your cluster.
 set -euo pipefail
 
-DJANGO_REGISTRY="${DJANGO_REGISTRY:-hms-django}"    # override: DJANGO_REGISTRY=myregistry.io/hms-django
+DJANGO_REGISTRY="${DJANGO_REGISTRY:-nephele-django}"    # override: DJANGO_REGISTRY=myregistry.io/nephele-django
 FRONTEND_REGISTRY="${FRONTEND_REGISTRY:-hms-frontend}"  # override: FRONTEND_REGISTRY=myregistry.io/hms-frontend
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 NAMESPACE="hms"

@@ -24,7 +24,7 @@ services:
       DEBUG: 'True'
       CELERY_TASK_ALWAYS_EAGER: 'False'
     # Allow viewing celery logs during development
-    command: celery -A HMS worker -l debug
+    command: celery -A config worker -l debug
 
   celery-beat:
     # Keep beat in development for testing scheduled tasks

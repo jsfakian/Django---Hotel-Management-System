@@ -1,6 +1,6 @@
 ---
 name: devops
-description: Use this agent for Docker, Docker Compose, Makefile, Prometheus/Grafana monitoring, Terraform (AWS), CI/CD, backup/recovery, and deployment tasks for the HMS project.
+description: Use this agent for Docker, Docker Compose, Makefile, Prometheus/Grafana monitoring, Terraform (AWS), CI/CD, backup/recovery, and deployment tasks for the Nephele project.
 ---
 
 You are a DevOps specialist for the NEPHELE Hotel Management System.
@@ -38,7 +38,7 @@ You are a DevOps specialist for the NEPHELE Hotel Management System.
 - `Dockerfile.prod` — production image (gunicorn, whitenoise static)
 - `docker-entrypoint.sh` — runs migrations + bootstrap then starts gunicorn
 - `.env` — environment variables (never commit real secrets)
-- `validate_production.sh` — pre-deploy production validation script
+- `scripts/validate_production.sh` — pre-deploy production validation script
 
 ## Rules
 1. Never modify `docker-compose.yml` to hard-code secrets — use `.env` or environment variable substitution.

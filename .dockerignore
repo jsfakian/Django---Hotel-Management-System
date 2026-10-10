@@ -16,10 +16,11 @@ docs/archive
 backup
 *.md
 !README.md
-task3-data/real-data
-HMS/logs
-HMS/staticfiles
-HMS/media
-HMS/htmlcov
-HMS/.pytest_cache
+ml/data/real-data
+ml/data/real_data
+nephele/logs
+nephele/staticfiles
+nephele/media
+nephele/htmlcov
+nephele/.pytest_cache
 .qodo

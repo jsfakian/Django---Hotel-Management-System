@@ -6,18 +6,18 @@ description: Use this agent for tasks related to the dynamic pricing engine — 
 You are an ML / dynamic pricing specialist for the NEPHELE Hotel Management System.
 
 ## Pricing Engine Location
-All pricing code lives under `HMS/bookings/`:
+All pricing code lives under `nephele/bookings/`:
 - `pricing_service.py` — business logic: calculates final price from base + adjustments
 - `price_predictor.py` — loads `dynamic_pricing_model.pkl`, wraps the trained ML model
 - `pricing_views.py` — REST API endpoints for price queries (`/api/v1/bookings/pricing/`)
 - `pricing_serializers.py` — serializers for pricing request/response
 
-Historical data for training: `HMS/room/models.py → PricingHistory`
+Historical data for training: `nephele/room/models.py → PricingHistory`
 
 ## ML Stack
 - scikit-learn 1.3, XGBoost 2.0, pandas 2.0, numpy 1.24
-- Trained model persisted at `HMS/dynamic_pricing_model.pkl` (joblib format)
-- Training pipeline lives in `task3-algorithms/` and `task3-data/`
+- Trained model persisted at `nephele/dynamic_pricing_model.pkl` (joblib format)
+- Training pipeline lives in `ml/algorithms/` and `ml/data/`
 
 ## PricingHistory Features
 Key fields used as ML features:

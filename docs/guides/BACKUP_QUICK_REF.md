@@ -67,7 +67,7 @@ make backup-test       # Test restore (dry-run)
 ✓ Backup scripts: scripts/backup*.sh, scripts/restore*.sh
 ✓ Backups stored: backup/daily/, backup/weekly/, backup/monthly/
 ✓ Logs: backup/logs/backup.log, restore.log
-✓ Guide: deployment/DATABASE_BACKUP_GUIDE.md
+✓ Guide: docs/deployment/DATABASE_BACKUP_GUIDE.md
 ✓ Automation setup: scripts/setup-backup-automation.sh
 ```
 
@@ -250,7 +250,7 @@ make backup-test        # Test restore
 
 ## For Detailed Information
 
-📖 **Read:** [deployment/DATABASE_BACKUP_GUIDE.md](../deployment/DATABASE_BACKUP_GUIDE.md)
+📖 **Read:** [docs/deployment/DATABASE_BACKUP_GUIDE.md](../deployment/DATABASE_BACKUP_GUIDE.md)
 - 2,500+ lines of comprehensive documentation
 - 5 different restore scenarios
 - Troubleshooting guide for 10+ issues

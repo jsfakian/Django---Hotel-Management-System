@@ -59,7 +59,7 @@
 ### Key Deliverables
 
 1. **DELIVERABLES-Task5-Design-Development.md** - Comprehensive Phase 2 framework
-2. **Django source code** - /HMS/ directory with all apps
+2. **Django source code** - /nephele/ directory with all apps
 3. **Database migrations** - Version-controlled schema
 4. **API documentation** - OpenAPI/Swagger at /api/docs/
 5. **Docker configuration** - Multi-container setup
@@ -314,11 +314,11 @@ Month 19 └─ Production Deployment
 
 ### For Task 5a Team (Completed)
 ✅ Review [DELIVERABLES-Task5-Design-Development.md](../DELIVERABLES-Task5-Design-Development.md)  
-✅ Development environment ready at /HMS/  
+✅ Development environment ready at /nephele/  
 
 ### For Task 5b Team
 1. Read [task-5b-backend-models.md](task-5b-backend-models.md)
-2. Review existing models in /HMS/
+2. Review existing models in /nephele/
 3. Understand existing serializers
 4. Plan ViewSet implementation
 5. Prepare to build CRUD endpoints

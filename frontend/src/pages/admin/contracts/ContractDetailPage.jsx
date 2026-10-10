@@ -6,7 +6,7 @@ import AppLayout from '../../../components/layout/AppLayout'
 import LoadingSpinner from '../../../components/common/LoadingSpinner'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import { useGetContractQuery, useSignContractMutation } from '../../../features/contracts/contractsApi'
-import { downloadFile } from '../../../services/downloadFile'
+import { downloadFile, siteOrigin } from '../../../services/downloadFile'
 
 const STATUS_COLORS = { draft: 'warning', active: 'success', expired: 'default', terminated: 'error' }
 
@@ -31,7 +31,7 @@ export default function ContractDetailPage() {
   const handlePdf = async () => {
     setPdfLoading(true)
     try {
-      await downloadFile(`/contracts/${id}/pdf/`, `contract-${id}.pdf`)
+      await downloadFile(`${siteOrigin()}/contracts/${id}/pdf/`, `contract-${id}.pdf`)
     } catch {
       setMsg('PDF download failed.')
     } finally {

@@ -46,13 +46,13 @@ COPY --from=builder /root/.local /home/appuser/.local
 COPY --chown=appuser:appuser . /app/
 
 # Create necessary directories
-RUN mkdir -p /app/HMS/static /app/HMS/media /app/logs /app/backup && \
+RUN mkdir -p /app/nephele/static /app/nephele/media /app/logs /app/backup && \
     chown -R appuser:appuser /app
 
 # Set PATH to use local pip installations
 ENV PATH=/home/appuser/.local/bin:$PATH
 
-WORKDIR /app/HMS
+WORKDIR /app/nephele
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
@@ -65,4 +65,4 @@ USER appuser
 EXPOSE 8000
 
 # Default command (can be overridden by docker-compose)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "sync", "--worker-tmp-dir", "/dev/shm", "--max-requests", "1000", "--max-requests-jitter", "50", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-", "HMS.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "--worker-class", "sync", "--worker-tmp-dir", "/dev/shm", "--max-requests", "1000", "--max-requests-jitter", "50", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-", "config.wsgi:application"]

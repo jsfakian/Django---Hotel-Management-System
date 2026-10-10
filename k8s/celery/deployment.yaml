@@ -17,8 +17,8 @@ spec:
         - name: celery
           image: hms-django:latest
           imagePullPolicy: IfNotPresent
-          command: ["celery", "-A", "HMS", "worker", "-l", "info"]
-          workingDir: /app/HMS
+          command: ["celery", "-A", "nephele", "worker", "-l", "info"]
+          workingDir: /app/nephele
           envFrom:
             - configMapRef:
                 name: hms-config
@@ -32,7 +32,7 @@ spec:
               command:
                 - celery
                 - -A
-                - HMS
+                - config
                 - inspect
                 - ping
                 - -d

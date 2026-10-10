@@ -50,7 +50,7 @@ redis-cli info server
 ### 1. Update settings.py
 
 ```python
-# HMS/settings.py
+# nephele/settings.py
 
 # Celery Configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
@@ -99,15 +99,15 @@ CELERY_BEAT_SCHEDULE = {
 ### 2. Create celery.py (if not exists)
 
 ```python
-# HMS/celery.py
+# nephele/celery.py
 
 import os
 from celery import Celery
 
 # Set default Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'HMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
-app = Celery('HMS')
+app = Celery('nephele')
 
 # Load configuration from Django settings, all config keys should have a `CELERY_` prefix.
 app.config_from_object('django.conf:settings', namespace='CELERY')
@@ -123,7 +123,7 @@ def debug_task(self):
 ### 3. Update manage.py or __init__.py
 
 ```python
-# HMS/__init__.py
+# nephele/__init__.py
 
 from .celery import app as celery_app
 
@@ -136,20 +136,20 @@ __all__ = ('celery_app',)
 
 **Terminal 1 - Celery Worker:**
 ```bash
-cd HMS
-python manage.py celery -A HMS worker --loglevel=info
+cd nephele
+python manage.py celery -A config worker --loglevel=info
 ```
 
 **Terminal 2 - Celery Beat (Scheduler):**
 ```bash
-cd HMS
-python manage.py celery -A HMS beat --loglevel=info
+cd nephele
+python manage.py celery -A config beat --loglevel=info
 ```
 
 **Terminal 3 - Flower (Monitoring):**
 ```bash
-cd HMS
-flower -A HMS --port=5555 --broker=redis://localhost:6379/0
+cd nephele
+flower -A config --port=5555 --broker=redis://localhost:6379/0
 ```
 
 Access Flower at: http://localhost:5555
@@ -169,8 +169,8 @@ After=network.target
 Type=forking
 User=nephele
 Group=nephele
-WorkingDirectory=/home/nephele/Django---Hotel-Management-System/HMS
-ExecStart=/home/nephele/venv/bin/celery -A HMS worker \
+WorkingDirectory=/home/nephele/Django---Hotel-Management-System/nephele
+ExecStart=/home/nephele/venv/bin/celery -A config worker \
           --logfile=/var/log/nephele/celery-worker.log \
           --pidfile=/var/run/nephele/celery-worker.pid \
           --concurrency=4 \
@@ -196,8 +196,8 @@ After=network.target
 Type=simple
 User=nephele
 Group=nephele
-WorkingDirectory=/home/nephele/Django---Hotel-Management-System/HMS
-ExecStart=/home/nephele/venv/bin/celery -A HMS beat \
+WorkingDirectory=/home/nephele/Django---Hotel-Management-System/nephele
+ExecStart=/home/nephele/venv/bin/celery -A config beat \
           --logfile=/var/log/nephele/celery-beat.log \
           --pidfile=/var/run/nephele/celery-beat.pid \
           --scheduler django_celery_beat.schedulers:DatabaseScheduler
@@ -323,14 +323,14 @@ redis-server
 **Solution:**
 ```bash
 # Check worker logs
-celery -A HMS worker --loglevel=debug
+celery -A config worker --loglevel=debug
 
 # Verify queue exists
 redis-cli LLEN celery
 
 # Restart worker
 pkill -f "celery worker"
-celery -A HMS worker --loglevel=info
+celery -A config worker --loglevel=info
 ```
 
 ### Issue: "Task stuck in PENDING state"
@@ -372,12 +372,12 @@ redis-cli CONFIG SET maxmemory-policy allkeys-lru
 
 Multi-process (prefork) for CPU-bound tasks:
 ```bash
-celery -A HMS worker --pool=prefork --concurrency=4
+celery -A config worker --pool=prefork --concurrency=4
 ```
 
 Gevent for I/O-bound tasks:
 ```bash
-celery -A HMS worker --pool=gevent --concurrency=100
+celery -A config worker --pool=gevent --concurrency=100
 ```
 
 ### Priority Queues
@@ -393,10 +393,10 @@ CELERY_TASK_ROUTES = {
 Run separate workers:
 ```bash
 # High priority worker
-celery -A HMS worker -Q high_priority --concurrency=2
+celery -A config worker -Q high_priority --concurrency=2
 
 # Normal priority worker
-celery -A HMS worker -Q normal --concurrency=4
+celery -A config worker -Q normal --concurrency=4
 ```
 
 ### Result Backend Cleanup

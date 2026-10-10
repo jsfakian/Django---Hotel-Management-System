@@ -19,7 +19,7 @@ if os.path.exists(env_file):
                 os.environ[key] = value
 
 # Set Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'HMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nephele.settings')
 
 # Setup Django
 django.setup()
@@ -160,7 +160,7 @@ print("\n" + "=" * 80)
 print(" VERIFICATION COMPLETE - NEPHELE Analytics Ready for Testing")
 print("=" * 80)
 print("\nNext Steps:")
-print("1. Run: cd HMS && python manage.py runserver")
+print("1. Run: cd nephele && python manage.py runserver")
 print("2. Navigate to: http://localhost:8000/analytics/")
 print("3. Test endpoints:")
 print("   - http://localhost:8000/analytics/executive/")

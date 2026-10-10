@@ -92,7 +92,7 @@ docker compose exec django python manage.py load_demo_data --clear
 ## Data File Structure
 
 ### Location
-`HMS/fixtures/demo_data.json`
+`nephele/fixtures/demo_data.json`
 
 ### Schema
 
@@ -126,7 +126,7 @@ Examples:
 ## Customizing Demo Data
 
 ### 1. Edit the Fixture File
-`HMS/fixtures/demo_data.json`
+`nephele/fixtures/demo_data.json`
 
 - Add more properties, rooms, guests, bookings
 - Adjust prices, rates, and occupancy percentages
@@ -274,14 +274,14 @@ SELECT COUNT(*) FROM analytics.dashboard_executive_metrics;
 ## Troubleshooting
 
 ### Error: "Demo data file not found"
-Ensure the file exists at: `HMS/fixtures/demo_data.json`
+Ensure the file exists at: `nephele/fixtures/demo_data.json`
 
 ```bash
 # Check file
-ls -la HMS/fixtures/demo_data.json
+ls -la nephele/fixtures/demo_data.json
 
 # Verify JSON syntax
-python -m json.tool HMS/fixtures/demo_data.json
+python -m json.tool nephele/fixtures/demo_data.json
 ```
 
 ### Error: "Property does not exist"

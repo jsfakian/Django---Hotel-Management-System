@@ -1,4 +1,4 @@
-Manage the HMS Docker Compose development stack. Usage: /stack [action]
+Manage the Nephele Docker Compose development stack. Usage: /stack [action]
 
 Actions:
 - `up` → `make up` — start all services (django, postgres, redis, celery, monitoring)

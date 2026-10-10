@@ -34,7 +34,7 @@ spec:
           image: hms-django:latest
           imagePullPolicy: IfNotPresent
           command: ["python", "manage.py", "migrate", "--noinput"]
-          workingDir: /app/HMS
+          workingDir: /app/nephele
           envFrom:
             - configMapRef:
                 name: hms-config
@@ -73,9 +73,9 @@ spec:
               memory: 1Gi
           volumeMounts:
             - name: static
-              mountPath: /app/HMS/static
+              mountPath: /app/nephele/static
             - name: media
-              mountPath: /app/HMS/media
+              mountPath: /app/nephele/media
       volumes:
         - name: static
           emptyDir: {}

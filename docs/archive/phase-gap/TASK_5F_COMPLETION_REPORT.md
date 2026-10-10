@@ -27,11 +27,11 @@ Successfully implemented and validated comprehensive test suite for Hotel Manage
 10. ⚠️ tests/test_performance.py (15+ tests, requires optimization)
 
 ### Test Configuration Setup
-1. ✅ HMS/pytest.ini - Pytest configuration with markers and coverage settings
-2. ✅ HMS/.coveragerc - Coverage.py config targeting 80%+ precision
-3. ✅ HMS/requirements-test.txt - All testing dependencies
-4. ✅ HMS/test_settings.py - Django test configuration (SQLite in-memory)
-5. ✅ HMS/conftest.py - Pytest-Django setup and fixtures
+1. ✅ nephele/pytest.ini - Pytest configuration with markers and coverage settings
+2. ✅ nephele/.coveragerc - Coverage.py config targeting 80%+ precision
+3. ✅ nephele/requirements-test.txt - All testing dependencies
+4. ✅ nephele/test_settings.py - Django test configuration (SQLite in-memory)
+5. ✅ nephele/conftest.py - Pytest-Django setup and fixtures
 6. ✅ .github/workflows/tests.yml - GitHub Actions CI/CD pipeline
 7. ✅ Makefile - 25+ test execution rules
 
@@ -87,7 +87,7 @@ docker compose exec django pytest tests/ --cov=. --cov-report=html -v
 ### Database Configuration Challenge
 **Problem**: Original tests configured for PostgreSQL service not available locally
 **Solution**: 
-- Created `HMS/test_settings.py` using SQLite in-memory database
+- Created `nephele/test_settings.py` using SQLite in-memory database
 - Allows tests to run without Docker or external services
 - Tests run in 3-5 seconds
 
@@ -181,17 +181,17 @@ GitHub Actions workflow (`.github/workflows/tests.yml`):
 - tests/integration/test_workflows.py
 
 ### Configuration Files (7)
-- HMS/pytest.ini
-- HMS/.coveragerc
-- HMS/test_settings.py
-- HMS/conftest.py
-- HMS/requirements-test.txt
+- nephele/pytest.ini
+- nephele/.coveragerc
+- nephele/test_settings.py
+- nephele/conftest.py
+- nephele/requirements-test.txt
 - .github/workflows/tests.yml
 - Makefile (enhanced with 25+ test rules)
 
 ### Documentation (2)
 - TEST_EXECUTION_SUMMARY.md
-- HMS/tests/README.md
+- nephele/tests/README.md
 
 ## Validation Checklist
 

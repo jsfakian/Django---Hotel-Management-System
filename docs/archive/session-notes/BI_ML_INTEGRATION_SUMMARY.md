@@ -181,7 +181,7 @@ agency_bookings = active_bookings.filter(
 
 ## Updated Nightly ETL Pipeline
 
-**File:** `HMS/analytics/tasks.py` → `nightly_etl_pipeline()`
+**File:** `nephele/analytics/tasks.py` → `nightly_etl_pipeline()`
 
 **Previous Flow:**
 1. Calculate executive metrics ✓
@@ -453,9 +453,9 @@ All risk predictions normalized to [0.0, 1.0]:
 - **Analytics API:** [DELIVERABLES-Task4-SystemArchitecture.md](DELIVERABLES-Task4-SystemArchitecture.md) Section 3.2
 - **Pricing Models:** [DELIVERABLES-Task3-ResearchCompletion.md](DELIVERABLES-Task3-ResearchCompletion.md) Section 3
 - **Implementation Files:**
-  - `HMS/analytics/tasks.py` - All forecasting tasks
-  - `HMS/bookings/pricing_service.py` - ML pricing integration
-  - `HMS/analytics/models.py` - Forecast data models
+  - `nephele/analytics/tasks.py` - All forecasting tasks
+  - `nephele/bookings/pricing_service.py` - ML pricing integration
+  - `nephele/analytics/models.py` - Forecast data models
 
 ---
 

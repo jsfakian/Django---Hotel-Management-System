@@ -316,7 +316,7 @@ docker compose logs -f
 
 ```
 Django---Hotel-Management-System/
-├── HMS/                          # Django project root
+├── nephele/                          # Django project root
 │   ├── manage.py
 │   ├── settings.py              # Django configuration
 │   ├── urls.py                  # URL routing

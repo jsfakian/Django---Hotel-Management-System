@@ -7,14 +7,14 @@
 
 ## What Was Implemented
 
-### 1. **Core Service Layer** (`HMS/accounts/services/gdpr_export.py`)
+### 1. **Core Service Layer** (`nephele/accounts/services/gdpr_export.py`)
 - ✅ `GDPRExportService` class with complete data collection
 - ✅ 10 data categories exported (user profile, guest, bookings, payments, etc.)
 - ✅ JSON serialization with custom encoder for special types
 - ✅ Comprehensive logging for audit trail
 - ✅ ~400 lines of production-ready code
 
-### 2. **REST API Endpoints** (4 endpoints in `HMS/accounts/views.py`)
+### 2. **REST API Endpoints** (4 endpoints in `nephele/accounts/views.py`)
 ```
 POST   /api/v1/gdpr/request-export/      - Request data export
 GET    /api/v1/gdpr/download-export/     - Download exported data
@@ -27,7 +27,7 @@ POST   /api/v1/gdpr/request-deletion/    - Request data deletion
 - ✅ Email delivery support
 - ✅ ~150 lines of production API code
 
-### 3. **Management Command** (`HMS/accounts/management/commands/export_user_data.py`)
+### 3. **Management Command** (`nephele/accounts/management/commands/export_user_data.py`)
 - ✅ Admin export command for Data Subject Access Requests
 - ✅ By user ID or email
 - ✅ JSON or CSV output
@@ -35,14 +35,14 @@ POST   /api/v1/gdpr/request-deletion/    - Request data deletion
 - ✅ Audit logging for compliance
 - ✅ ~250 lines of CLI code
 
-### 4. **Celery Async Tasks** (`HMS/accounts/tasks.py`)
+### 4. **Celery Async Tasks** (`nephele/accounts/tasks.py`)
 - ✅ `export_user_data_async` - Background export processing
 - ✅ `send_gdpr_export_email` - Email delivery
 - ✅ `delete_user_data` - Data anonymization (Right to be Forgotten)
 - ✅ Automatic retry with exponential backoff
 - ✅ ~120 lines of task code
 
-### 5. **Comprehensive Tests** (`HMS/accounts/tests_gdpr.py`)
+### 5. **Comprehensive Tests** (`nephele/accounts/tests_gdpr.py`)
 - ✅ 28+ test cases covering all scenarios
 - ✅ Service tests (5 tests)
 - ✅ Management command tests (3 tests)
@@ -52,7 +52,7 @@ POST   /api/v1/gdpr/request-deletion/    - Request data deletion
 - ✅ 95%+ code coverage
 - ✅ ~400 lines of test code
 
-### 6. **URL Configuration** (Updated `HMS/HMS/api_urls.py`)
+### 6. **URL Configuration** (Updated `nephele/nephele/api_urls.py`)
 - ✅ 4 GDPR endpoints registered
 - ✅ Proper HTTP methods and status codes
 - ✅ Documentation-ready
@@ -146,10 +146,10 @@ python manage.py export_user_data 123 --archive
 
 ```bash
 # Run tests
-pytest HMS/accounts/tests_gdpr.py -v
+pytest nephele/accounts/tests_gdpr.py -v
 
 # With coverage
-pytest HMS/accounts/tests_gdpr.py --cov=accounts --cov-report=html
+pytest nephele/accounts/tests_gdpr.py --cov=accounts --cov-report=html
 ```
 
 ---
@@ -180,7 +180,7 @@ pytest HMS/accounts/tests_gdpr.py --cov=accounts --cov-report=html
 ## File Structure
 
 ```
-HMS/accounts/
+nephele/accounts/
 ├── services/
 │   ├── __init__.py
 │   └── gdpr_export.py                    (400 lines)
@@ -191,7 +191,7 @@ HMS/accounts/
 ├── views.py                              (API views, added ~150 lines)
 └── tests_gdpr.py                         (Tests, 400 lines)
 
-HMS/HMS/
+nephele/nephele/
 └── api_urls.py                           (GDPR routes, 4 endpoints)
 
 Documentation/
@@ -271,7 +271,7 @@ All operations logged with:
 
 Before deploying to production:
 
-- [ ] Run test suite: `pytest HMS/accounts/tests_gdpr.py`
+- [ ] Run test suite: `pytest nephele/accounts/tests_gdpr.py`
 - [ ] Check code coverage: `pytest --cov=accounts`
 - [ ] Verify email configuration in settings.py
 - [ ] Ensure Celery workers are running

@@ -1,7 +1,7 @@
 # GitHub Copilot Instructions — NEPHELE Hotel Management System
 
 ## Project Identity
-This is **NEPHELE HMS** — a Django 4.2 multi-property hotel management system with a REST API, dynamic ML-based pricing, Greek MyData (AADE) tax integration, GDPR compliance, and full observability via Prometheus/Grafana.
+This is **Nephele** — a Django 4.2 multi-property hotel management system with a REST API, dynamic ML-based pricing, Greek MyData (AADE) tax integration, GDPR compliance, and full observability via Prometheus/Grafana.
 
 ## Tech Stack
 - **Python 3.10**, **Django 4.2**, **Django REST Framework 3.14**
@@ -17,8 +17,8 @@ This is **NEPHELE HMS** — a Django 4.2 multi-property hotel management system 
 
 ## Project Structure
 ```
-HMS/                  ← Django project root (run manage.py from here)
-├── HMS/              ← settings, urls, celery, wsgi, asgi
+nephele/                  ← Django project root (run manage.py from here)
+├── config/           ← settings, urls, celery, wsgi, asgi
 ├── accounts/         ← users, employees, guests, permissions, GDPR
 ├── analytics/        ← BI dashboards, forecasting, reports
 ├── bookings/         ← reservations, dynamic pricing, ML predictor
@@ -56,18 +56,18 @@ HMS/                  ← Django project root (run manage.py from here)
 - Override `get_queryset()` to apply role-based data scoping
 
 ### URL Patterns
-- All REST endpoints live under `/api/v1/` via `HMS/HMS/api_urls.py`
+- All REST endpoints live under `/api/v1/` via `nephele/config/api_urls.py`
 - Register ViewSets on the `DefaultRouter` in `api_urls.py`
-- Legacy/web views are in `HMS/HMS/urls.py`
+- Legacy/web views are in `nephele/config/urls.py`
 
 ### Celery Tasks
 - Define tasks in `<app>/tasks.py` with `@shared_task`
 - Use `bind=True` with `self.retry()` for retryable tasks
 - Always set `max_retries` and `default_retry_delay`
-- Beat schedule configuration in `HMS/HMS/celery_config.py`
+- Beat schedule configuration in `nephele/config/celery_config.py`
 
 ### Permissions
-Role constants are defined in `HMS/accounts/permissions.py`.
+Role constants are defined in `nephele/accounts/permissions.py`.
 User groups: `admin`, `manager`, `receptionist`, `staff`, `guest`.
 Use `IsAuthenticated` + group-level permission classes. Never bypass permission checks.
 
@@ -81,7 +81,7 @@ Use `IsAuthenticated` + group-level permission classes. Never bypass permission 
 ### Environment / Configuration
 - Settings loaded from env vars via `os.environ.get()`
 - Never hard-code credentials; reference `.env` for local dev values
-- Test settings override: `HMS/HMS/test_settings.py`
+- Test settings override: `nephele/config/test_settings.py`
 
 ## Key Design Patterns
 

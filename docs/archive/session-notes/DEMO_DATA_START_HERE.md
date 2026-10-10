@@ -12,10 +12,10 @@ A complete, reusable demo data system with **4 hotels, 8 guests, 8 bookings, and
 
 ### New Files (6)
 ```
-✅ HMS/fixtures/demo_data.json
+✅ nephele/fixtures/demo_data.json
    └─ 22 KB | 65 demo records | JSON format (version-controllable)
 
-✅ HMS/bookings/management/commands/load_demo_data.py
+✅ nephele/bookings/management/commands/load_demo_data.py
    └─ 14 KB | 283 lines | Production-quality command
 
 ✅ DEMO_DATA_QUICK_REF.md
@@ -205,7 +205,7 @@ curl http://localhost:8000/api/v1/analytics/executive-metrics/
 
 ```
 Django---Hotel-Management-System/
-├── HMS/
+├── nephele/
 │   ├── fixtures/
 │   │   └── demo_data.json (22 KB)
 │   └── bookings/management/commands/
@@ -239,7 +239,7 @@ make load-demo-data
 - Demonstrate forecasting
 
 ### For Customization
-1. Edit `HMS/fixtures/demo_data.json`
+1. Edit `nephele/fixtures/demo_data.json`
 2. Add your specific scenarios
 3. Run `make load-demo-data-fresh`
 

@@ -192,8 +192,8 @@ DEFAULT_FROM_EMAIL = 'noreply@nephele.io'
   - [ ] settings.py updated with Celery config
   - [ ] CELERY_BROKER_URL set to Redis
   - [ ] CELERY_RESULT_BACKEND set to Redis
-  - [ ] celery.py file created in HMS/
-  - [ ] HMS/__init__.py imports celery_app
+  - [ ] celery.py file created in nephele/
+  - [ ] nephele/__init__.py imports celery_app
 
 - [ ] **Celery Workers**
   - [ ] Worker 1: `celery -A HMS worker -Q channel_sync --concurrency=2`

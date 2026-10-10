@@ -53,7 +53,7 @@ class InvoiceForm(forms.ModelForm):
 - ✅ Includes all standard invoice fields with proper widgets
 
 ### 3. Web Views Enhanced
-**File**: `HMS/web_views.py`
+**File**: `nephele/web_views.py`
 
 #### New Imports
 ```python
@@ -152,7 +152,7 @@ If validation fails, checkbox is ignored and helpful message tells user why.
 ## Database Migration Status
 
 **Migration Status**: Ready to apply
-**Location**: `HMS/payments/migrations/0002_add_mydata_fields.py`
+**Location**: `nephele/payments/migrations/0002_add_mydata_fields.py`
 **Dependencies**: 
 - accounts/0003_travelagentprofile
 - payments/0001_initial
@@ -238,7 +238,7 @@ python manage.py migrate payments
 | File | Changes | Lines |
 |------|---------|-------|
 | `payments/forms.py` | Added InvoiceForm | +38 |
-| `HMS/web_views.py` | Imports + form selection + MyData handling | +52 |
+| `nephele/web_views.py` | Imports + form selection + MyData handling | +52 |
 | **New Files** | | |
 | `payments/migrations/0002_add_mydata_fields.py` | Migration | Auto-generated |
 

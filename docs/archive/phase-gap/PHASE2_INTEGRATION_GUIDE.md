@@ -11,7 +11,7 @@
 
 ### 1. Include Vue.js & Chart.js in Your Template
 
-Add these to your `HMS/templates/base.html` or module template:
+Add these to your `nephele/templates/base.html` or module template:
 
 ```html
 <!-- Vue.js 3.x -->
@@ -26,7 +26,7 @@ Add these to your `HMS/templates/base.html` or module template:
 
 ### 2. Create the Pricing Analysis Template
 
-Create `HMS/templates/manager/pricing-analysis.html`:
+Create `nephele/templates/manager/pricing-analysis.html`:
 
 ```html
 {% extends "base.html" %}
@@ -67,7 +67,7 @@ Create `HMS/templates/manager/pricing-analysis.html`:
 
 ### 3. Add Route in Django
 
-Update `HMS/urls.py`:
+Update `nephele/urls.py`:
 
 ```python
 urlpatterns = [
@@ -80,7 +80,7 @@ urlpatterns = [
 
 ### 4. Create View
 
-Add to `HMS/views.py`:
+Add to `nephele/views.py`:
 
 ```python
 from django.shortcuts import render

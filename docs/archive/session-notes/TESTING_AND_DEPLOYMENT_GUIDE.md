@@ -111,7 +111,7 @@ psql -U username -d hotel_management -c "SELECT 1"
 
 ```bash
 # 1. Navigate to project
-cd HMS
+cd nephele
 
 # 2. Install dependencies (if not already installed)
 pip install -r ../requirements.txt
@@ -193,7 +193,7 @@ TEST CATEGORIES:
 
 ```bash
 # Run comprehensive system check
-SECRET_KEY='test-key' python HMS/system_check.py
+SECRET_KEY='test-key' python nephele/system_check.py
 
 # Output includes:
 # ✓ Database connectivity
@@ -498,7 +498,7 @@ Before deploying to production, verify:
 ### Key Files to Review
 
 ```
-HMS/bookings/
+nephele/bookings/
 ├── views.py           # API endpoints (Phase 1)
 ├── serializers.py     # Data serialization
 ├── pricing_service.py # AI pricing logic
@@ -508,10 +508,10 @@ HMS/bookings/
 ├── admin.py          # Admin interface (Phase 3)
 └── models.py         # Database models
 
-HMS/templates/pricing/
+nephele/templates/pricing/
 └── analysis.html     # Vue.js dashboard
 
-HMS/static/js/components/
+nephele/static/js/components/
 └── PricingAnalysis.vue  # Main component (9 total)
 
 notifications/

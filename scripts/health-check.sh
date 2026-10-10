@@ -1,5 +1,5 @@
 #!/bin/bash
-# Health Check Script for NEPHELE HMS
+# Health Check Script for Nephele
 # Verifies that all services are running and healthy
 
 set -e
@@ -26,7 +26,7 @@ warning() {
     echo -e "${YELLOW}[!]${NC} $1"
 }
 
-echo "=== NEPHELE HMS Health Check ==="
+echo "=== Nephele Health Check ==="
 echo "Service URL: $SERVICE_URL"
 echo ""
 

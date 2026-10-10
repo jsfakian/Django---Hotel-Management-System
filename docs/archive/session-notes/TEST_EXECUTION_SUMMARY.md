@@ -68,7 +68,7 @@ Comprehensive test suite implementation for HMS (Hotel Management System) has be
 
 ### Database Configuration (Fixed)
 ✅ **Problem Resolved**: Original test configuration required PostgreSQL service not available
-✅ **Solution**: Created `HMS/test_settings.py` using in-memory SQLite for fast, dependency-free testing
+✅ **Solution**: Created `nephele/test_settings.py` using in-memory SQLite for fast, dependency-free testing
 - Database: SQLite in-memory (`:memory:`)
 - Atomic requests enabled
 - No migrations required (direct table creation)

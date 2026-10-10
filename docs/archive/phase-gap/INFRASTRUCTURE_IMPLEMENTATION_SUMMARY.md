@@ -98,7 +98,7 @@ Default retention: 30 days (configurable)
 ---
 
 ### ✅ Task 4: Health Check System
-**Files:** `HMS/health.py`, `HMS/urls.py` (updated), `scripts/health-check.sh`
+**Files:** `nephele/health.py`, `nephele/urls.py` (updated), `scripts/health-check.sh`
 
 **Implemented Endpoints:**
 
@@ -399,8 +399,8 @@ Step-by-step instructions with command examples throughout.
 
 ### Modified Files (2)
 ```
-✓ HMS/health.py                     (+80 lines)  - Enhanced health checks
-✓ HMS/urls.py                       (+3 lines)   - New health endpoints
+✓ nephele/health.py                     (+80 lines)  - Enhanced health checks
+✓ nephele/urls.py                       (+3 lines)   - New health endpoints
 ```
 
 ### New Workflows (2)

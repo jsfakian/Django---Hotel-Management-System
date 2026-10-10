@@ -27,7 +27,7 @@ The system has **trained 5 sophisticated AI pricing models** (Linear Regression,
 
 ### 1.1 Current Backend Implementation
 
-**Located:** `/HMS/inventory/models.py` and `/HMS/bookings/models.py`
+**Located:** `/nephele/inventory/models.py` and `/nephele/bookings/models.py`
 
 **Current Data Captured:**
 ```python
@@ -78,7 +78,7 @@ The system has **trained 5 sophisticated AI pricing models** (Linear Regression,
 
 ### 1.3 Current Frontend Display
 
-**Location:** `/HMS/templates/module-crud.html` (generic CRUD form)
+**Location:** `/nephele/templates/module-crud.html` (generic CRUD form)
 
 **What Users See:**
 ```
@@ -409,7 +409,7 @@ POST /api/v1/pricing/scenario
 
 **5.1.1 Create Pricing Prediction API Endpoint**
 
-**File:** `HMS/bookings/views.py` (add to BookingsViewSet)
+**File:** `nephele/bookings/views.py` (add to BookingsViewSet)
 
 ```python
 from task3-algorithms.predict import PricingPredictor
@@ -543,7 +543,7 @@ class PricingScenarioViewSet(viewsets.ViewSet):
 
 **5.2.1 Create Pricing Analysis Vue Component**
 
-**File:** `HMS/static/js/components/PricingAnalysis.vue`
+**File:** `nephele/static/js/components/PricingAnalysis.vue`
 
 ```vue
 <template>
@@ -659,7 +659,7 @@ export default {
 
 **5.3.1 Update Management Template**
 
-**File:** `HMS/templates/module-crud.html` (add conditional for pricing module)
+**File:** `nephele/templates/module-crud.html` (add conditional for pricing module)
 
 ```html
 {% if module_key == 'inventory' %}
@@ -671,7 +671,7 @@ export default {
 
 **5.3.2 Create Pricing Management Template**
 
-**File:** `HMS/templates/manager/pricing-analysis.html`
+**File:** `nephele/templates/manager/pricing-analysis.html`
 
 ```html
 <div class="pricing-module-container">
@@ -736,7 +736,7 @@ class PricingHistory(models.Model):
 #### ✅ Models Have Data Fields (Stored But Unused)
 
 ```python
-# HMS/bookings/models.py - PricingHistory
+# nephele/bookings/models.py - PricingHistory
 class PricingHistory(models.Model):
     room = ForeignKey('room.Room', ...)
     date = DateField(db_index=True)
@@ -756,7 +756,7 @@ class PricingHistory(models.Model):
     model_version = CharField(max_length=50, blank=True)  # e.g., "v2.3"
     confidence_score = DecimalField(max_digits=5, decimal_places=2)  # e.g., 0.92
 
-# HMS/inventory/models.py - RoomAvailability
+# nephele/inventory/models.py - RoomAvailability
 class RoomAvailability(models.Model):
     room = ForeignKey('room.Room', ...)
     date = DateField()
@@ -781,7 +781,7 @@ class RoomAvailability(models.Model):
 #### ✅ Trained Models Exist (Never Imported/Used)
 
 ```python
-# HMS/task3-algorithms/predict.py EXISTS but never called from Django!
+# nephele/task3-algorithms/predict.py EXISTS but never called from Django!
 
 class PricingPredictor:
     """Load and use trained pricing models"""
@@ -820,7 +820,7 @@ class PricingPredictor:
 #### ❌ Missing API Endpoints
 
 ```python
-# Currently in HMS/bookings/views.py and HMS/inventory/views.py
+# Currently in nephele/bookings/views.py and nephele/inventory/views.py
 # There are NO endpoints that:
 
 # ❌ Call PricingPredictor.predict_price()
@@ -844,7 +844,7 @@ class RoomAvailabilityViewSet(viewsets.ViewSet):
 #### ❌ Views Don't Call AI Model
 
 ```python
-# HMS/HMS/web_views.py - module_crud_page() function
+# nephele/nephele/web_views.py - module_crud_page() function
 # When user views/edits inventory pricing:
 
 def module_crud_page(request, module_key, action, pk=None):

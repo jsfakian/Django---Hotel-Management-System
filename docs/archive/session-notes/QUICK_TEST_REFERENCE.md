@@ -4,65 +4,65 @@
 
 ```bash
 # All tests
-cd HMS && python -m pytest tests/ -v
+cd nephele && python -m pytest tests/ -v
 
 # All tests with coverage
-cd HMS && python -m pytest tests/ --cov=. --cov-report=html -v
+cd nephele && python -m pytest tests/ --cov=. --cov-report=html -v
 
 # Core tests only (exclude pricing & performance)
-cd HMS && python -m pytest tests/models/ tests/serializers/ tests/views/ tests/services/ tests/integration/ -v
+cd nephele && python -m pytest tests/models/ tests/serializers/ tests/views/ tests/services/ tests/integration/ -v
 
 # Specific test file
-cd HMS && python -m pytest tests/models/test_booking_model.py -v
+cd nephele && python -m pytest tests/models/test_booking_model.py -v
 
 # Specific test
-cd HMS && python -m pytest tests/models/test_booking_model.py::BookingModelTests::test_booking_creation_with_valid_data -v
+cd nephele && python -m pytest tests/models/test_booking_model.py::BookingModelTests::test_booking_creation_with_valid_data -v
 ```
 
 ## By Test Category
 
 ### Unit Tests
 ```bash
-cd HMS && python -m pytest tests/models/ tests/serializers/ tests/services/ -v
+cd nephele && python -m pytest tests/models/ tests/serializers/ tests/services/ -v
 ```
 
 ### Integration Tests  
 ```bash
-cd HMS && python -m pytest tests/integration/ -v
+cd nephele && python -m pytest tests/integration/ -v
 ```
 
 ### API/View Tests
 ```bash
-cd HMS && python -m pytest tests/views/ -v
+cd nephele && python -m pytest tests/views/ -v
 ```
 
 ### Performance Tests
 ```bash
-cd HMS && python -m pytest tests/test_performance.py -v
+cd nephele && python -m pytest tests/test_performance.py -v
 ```
 
 ## With Coverage
 
 ```bash
 # Overall coverage
-cd HMS && python -m pytest tests/ --cov=. --cov-report=term-missing --cov-report=html -v
+cd nephele && python -m pytest tests/ --cov=. --cov-report=term-missing --cov-report=html -v
 
 # View HTML report
-open HMS/htmlcov/index.html  # macOS
-xdg-open HMS/htmlcov/index.html  # Linux
+open nephele/htmlcov/index.html  # macOS
+xdg-open nephele/htmlcov/index.html  # Linux
 ```
 
 ## Test Statistics
 
 ```bash
 # Count passing/failing
-cd HMS && python -m pytest tests/ -q
+cd nephele && python -m pytest tests/ -q
 
 # Collect only (show all discoverable tests)
-cd HMS && python -m pytest tests/ --collect-only -q
+cd nephele && python -m pytest tests/ --collect-only -q
 
 # Run with timing
-cd HMS && python -m pytest tests/ -v --durations=10
+cd nephele && python -m pytest tests/ -v --durations=10
 ```
 
 ## Troubleshooting
@@ -70,11 +70,11 @@ cd HMS && python -m pytest tests/ -v --durations=10
 ### Tests won't run - "No module named pytest"
 ```bash
 # Ensure using the venv Python
-cd HMS && /path/to/.venv/bin/python -m pytest tests/ -v
+cd nephele && /path/to/.venv/bin/python -m pytest tests/ -v
 ```
 
 ### Database errors - "could not connect to postgres"
-✓ Already configured! Tests use SQLite in-memory database (HMS/test_settings.py)
+✓ Already configured! Tests use SQLite in-memory database (nephele/test_settings.py)
 
 ### Import errors - "No module named 'requests'"
 ```bash
@@ -85,17 +85,17 @@ pip install requests celery redis
 ### Specific test failing
 ```bash
 # Run with extended traceback
-cd HMS && python -m pytest tests/path/to/test.py::TestClass::test_method -vv --tb=long
+cd nephele && python -m pytest tests/path/to/test.py::TestClass::test_method -vv --tb=long
 ```
 
 ## Configuration Files
 
 | File | Purpose |
 |------|---------|
-| `HMS/pytest.ini` | Pytest configuration (markers, paths, coverage) |
-| `HMS/conftest.py` | Django test setup, fixtures |
-| `HMS/test_settings.py` | Django settings for tests (SQLite) |
-| `HMS/.coveragerc` | Coverage.py configuration |
+| `nephele/pytest.ini` | Pytest configuration (markers, paths, coverage) |
+| `nephele/conftest.py` | Django test setup, fixtures |
+| `nephele/test_settings.py` | Django settings for tests (SQLite) |
+| `nephele/.coveragerc` | Coverage.py configuration |
 | `.github/workflows/tests.yml` | CI/CD pipeline (GitHub Actions) |
 
 ## Expected Output

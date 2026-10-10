@@ -66,7 +66,7 @@ Added Section 5.3.7 "Automated Reporting & Scheduling" to `DELIVERABLES-Task4-Sy
 
 ### 2. Django Models Implementation
 
-Created 3 new models in `HMS/analytics/models.py`:
+Created 3 new models in `nephele/analytics/models.py`:
 
 #### ScheduledReport
 Stores scheduled report configurations with:
@@ -94,7 +94,7 @@ Email delivery tracking with:
 
 ### 3. Django Views & API Endpoints
 
-Created 2 ViewSets in `HMS/analytics/views.py`:
+Created 2 ViewSets in `nephele/analytics/views.py`:
 
 #### ScheduledReportViewSet
 Full CRUD operations plus:
@@ -108,7 +108,7 @@ Read-only with enhanced features:
 
 ### 4. API Serializers
 
-Created 6 serializers in `HMS/analytics/serializers.py`:
+Created 6 serializers in `nephele/analytics/serializers.py`:
 
 - `ScheduledReportSerializer` - Full report config with nested executions
 - `ScheduledReportCreateUpdateSerializer` - Simplified for POST/PUT operations
@@ -119,7 +119,7 @@ Created 6 serializers in `HMS/analytics/serializers.py`:
 
 ### 5. Celery Tasks
 
-Implemented 6 async tasks in `HMS/analytics/tasks.py`:
+Implemented 6 async tasks in `nephele/analytics/tasks.py`:
 
 1. **generate_scheduled_report** - Main report generation orchestrator
    - Creates execution record
@@ -159,7 +159,7 @@ Helper functions for:
 
 ### 6. Django Admin Interface
 
-Created 4 admin classes in `HMS/analytics/admin.py`:
+Created 4 admin classes in `nephele/analytics/admin.py`:
 
 - **ScheduledReportAdmin** - Manage report schedules
   - Fieldsets for configuration, schedule, recipients, content, status
@@ -179,13 +179,13 @@ Created 4 admin classes in `HMS/analytics/admin.py`:
 
 ### 7. URL Routing
 
-Updated `HMS/analytics/urls.py`:
+Updated `nephele/analytics/urls.py`:
 - Registered `scheduled-reports` router endpoint
 - Registered `report-executions` router endpoint
 
 ### 8. Database Migrations
 
-Created `HMS/analytics/migrations/0001_initial.py`:
+Created `nephele/analytics/migrations/0001_initial.py`:
 - 24 database operations creating all tables and indexes
 - Proper foreign key relationships
 - Performance indexes on common queries
@@ -314,15 +314,15 @@ Potential improvements for Phase 3:
 ## Files Modified/Created
 
 ### New Files:
-- `HMS/analytics/migrations/0001_initial.py` - Database schema (updated)
+- `nephele/analytics/migrations/0001_initial.py` - Database schema (updated)
 
 ### Modified Files:
-- `HMS/analytics/models.py` - Added 3 new models
-- `HMS/analytics/serializers.py` - Added 6 new serializers
-- `HMS/analytics/views.py` - Added 2 new ViewSets
-- `HMS/analytics/urls.py` - Registered new endpoints
-- `HMS/analytics/admin.py` - Added 4 new admin classes
-- `HMS/analytics/tasks.py` - Added 6 new Celery tasks
+- `nephele/analytics/models.py` - Added 3 new models
+- `nephele/analytics/serializers.py` - Added 6 new serializers
+- `nephele/analytics/views.py` - Added 2 new ViewSets
+- `nephele/analytics/urls.py` - Registered new endpoints
+- `nephele/analytics/admin.py` - Added 4 new admin classes
+- `nephele/analytics/tasks.py` - Added 6 new Celery tasks
 - `DELIVERABLES-Task4-SystemArchitecture.md` - Added section 5.3.7
 
 ### Documentation:

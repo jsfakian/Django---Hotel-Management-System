@@ -342,10 +342,10 @@ Print this QR code on invoices for tax authority scanning.
 ### Check Logs
 ```bash
 # View error logs
-tail -f HMS/logs/errors.log | grep -i mydata
+tail -f nephele/logs/errors.log | grep -i mydata
 
 # View transaction logs
-tail -f HMS/logs/transaction.log
+tail -f nephele/logs/transaction.log
 ```
 
 ### Test Configuration

@@ -88,7 +88,7 @@ Additional improvements:
 
 ```
 FIXED ISSUES:
-├── HMS/settings.py
+├── nephele/settings.py
 │   └── Removed: phonenumber_field from INSTALLED_APPS
 ├── accounts/models.py
 │   └── Removed: phonenumber_field imports

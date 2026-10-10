@@ -62,27 +62,27 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install -r HMS/requirements-test.txt
+        pip install -r nephele/requirements-test.txt
 
     - name: Run Django checks (deployment mode)
       env:
-        DJANGO_SETTINGS_MODULE: HMS.settings
+        DJANGO_SETTINGS_MODULE: config.settings
         SECRET_KEY: test-secret-key
         DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
         DEBUG: 'False'
         ALLOWED_HOSTS: production.example.com
       run: |
-        cd HMS
+        cd nephele
         python manage.py check --deploy
 
     - name: Run full test suite with coverage
       env:
-        DJANGO_SETTINGS_MODULE: HMS.settings
+        DJANGO_SETTINGS_MODULE: config.settings
         SECRET_KEY: test-secret-key
         DATABASE_URL: postgresql://hms:hms_password@localhost:5432/test_hms
         DEBUG: 'False'
       run: |
-        cd HMS
+        cd nephele
         pytest --cov=. --cov-report=xml --cov-report=term-missing:skip-covered -v
         # Check coverage threshold (80%)
         coverage report --fail-under=80
@@ -90,7 +90,7 @@ jobs:
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
       with:
-        file: ./HMS/coverage.xml
+        file: ./nephele/coverage.xml
         fail_ci_if_error: true
 
   # ============================================================================
@@ -112,8 +112,8 @@ jobs:
 
     - name: Run Bandit security scan
       run: |
-        bandit -r HMS -f json -o bandit-report.json
-        bandit -r HMS -f txt
+        bandit -r nephele -f json -o bandit-report.json
+        bandit -r nephele -f txt
 
     - name: Check dependencies for vulnerabilities
       run: |
@@ -122,7 +122,7 @@ jobs:
 
     - name: Run Semgrep security checks
       run: |
-        semgrep --config=p/security-audit HMS/ || true
+        semgrep --config=p/security-audit nephele/ || true
 
     - name: SAST - Check for hardcoded secrets
       uses: truffleHQ/trufflehog@main

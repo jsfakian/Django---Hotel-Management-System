@@ -6,7 +6,7 @@ import AppLayout from '../../../components/layout/AppLayout'
 import LoadingSpinner from '../../../components/common/LoadingSpinner'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import { useGetInvoiceQuery, useTransmitInvoiceToMydataMutation } from '../../../features/payments/paymentsApi'
-import { downloadFile } from '../../../services/downloadFile'
+import { downloadFile, siteOrigin } from '../../../services/downloadFile'
 
 const STATUS_COLORS = { draft: 'default', sent: 'info', paid: 'success', overdue: 'error', cancelled: 'warning' }
 
@@ -27,7 +27,10 @@ export default function InvoiceDetailPage() {
   const handlePdf = async () => {
     setPdfLoading(true)
     try {
-      await downloadFile(`/payments/invoices/${id}/pdf/`, `invoice-${invoice.invoice_number || id}.pdf`)
+      await downloadFile(
+        `${siteOrigin()}/payments/invoices/${id}/pdf/`,
+        `invoice-${invoice.invoice_number || id}.pdf`
+      )
     } catch {
       setMsg({ type: 'error', text: 'PDF download failed.' })
     } finally {

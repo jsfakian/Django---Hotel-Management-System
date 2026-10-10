@@ -23,7 +23,7 @@ Phase 2 delivers a complete, production-ready Vue.js frontend for the AI pricing
 ## Directory Structure
 
 ```
-HMS/static/js/
+nephele/static/js/
 ├── components/
 │   ├── PricingAnalysis.vue (main orchestrator - 305 lines)
 │   ├── PricingStatusCard.vue (overview - 135 lines)
@@ -471,7 +471,7 @@ All features are implemented with frontend-only code and work with existing Phas
 
 ### 3.1 Template Integration
 ```html
-<!-- HMS/templates/manager/pricing-analysis.html -->
+<!-- nephele/templates/manager/pricing-analysis.html -->
 <div id="pricing-analysis-app"></div>
 
 <script>
@@ -542,7 +542,7 @@ new Vue({
 ## Git Commit
 
 ```bash
-git add HMS/static/js/components/ HMS/static/js/services/
+git add nephele/static/js/components/ nephele/static/js/services/
 git commit -m "Phase 2: Complete Vue.js Frontend (9 Components + API Service)"
 ```
 

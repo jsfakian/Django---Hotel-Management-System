@@ -140,10 +140,10 @@ This deliverable documents the comprehensive Phase 2 Design & Development framew
 ```
 
 #### Key Files Implemented
-- `HMS/manage.py` - Django management command interface
-- `HMS/HMS/settings.py` - Environment-aware configuration (368 lines)
-- `HMS/HMS/urls.py` - Routing configuration for all apps
-- `HMS/HMS/wsgi.py` - WSGI application entry point
+- `nephele/manage.py` - Django management command interface
+- `nephele/nephele/settings.py` - Environment-aware configuration (368 lines)
+- `nephele/nephele/urls.py` - Routing configuration for all apps
+- `nephele/nephele/wsgi.py` - WSGI application entry point
 - `docker-compose.yml` - Multi-container orchestration
 - `Dockerfile` - Container image definition
 - `requirements.txt` - Pinned dependencies (40+ packages)
@@ -975,7 +975,7 @@ Comprehensive production infrastructure and operations framework has been fully 
 
 #### 1.8.6 Enhanced Health Check Endpoints
 
-**HMS/health.py & HMS/urls.py: Monitoring Integration (Enhanced)**
+**nephele/health.py & nephele/urls.py: Monitoring Integration (Enhanced)**
 
 ```python
 ✅ Endpoint 1: GET /health/
@@ -1222,14 +1222,14 @@ Quick reference documentation including:
 ### 3.1 Django Project Structure
 
 ```
-HMS/
+nephele/
 ├── manage.py                           # Django CLI
 ├── requirements.txt                    # Python dependencies  (40+ packages)
 ├── docker-compose.yml                  # Multi-container setup
 ├── docker-compose.override.yml         # Environment overrides
 ├── Dockerfile                          # Container image
 │
-├── HMS/                                # Project configuration
+├── nephele/                                # Project configuration
 │   ├── __init__.py
 │   ├── settings.py                     # Django settings (368 lines)
 │   ├── urls.py                         # API routing (/api/v1/)
@@ -1890,7 +1890,7 @@ Task 5 - Backend & Frontend Development (12 months)
 6. **task-5a-backend-core.md** - Original requirements specification
 
 ### Source Code Deliverables
-1. **Django Project** - /HMS/ directory with all apps
+1. **Django Project** - /nephele/ directory with all apps
 2. **Database Migrations** - All models tracked in version control
 3. **API Serializers** - 45+ serializers with validation
 4. **Test Fixtures** - conftest.py with reusable test components
@@ -1898,7 +1898,7 @@ Task 5 - Backend & Frontend Development (12 months)
 6. **Requirements** - requirements.txt with pinned versions
 
 ### Configuration Deliverables
-1. **Settings Package** - HMS/settings.py with all configurations
+1. **Settings Package** - nephele/settings.py with all configurations
 2. **Environment Templates** - .env.example for setup
 3. **Logging Configuration** - Structured logging setup
 4. **Security Settings** - HTTPS, CORS, authentication config
@@ -2236,7 +2236,7 @@ Documentation/
 └── IMPLEMENTATION_COMPLETE.md                # ✅ Overview
 
 Source Code/
-├── HMS/                                   # ✅ Django Project
+├── nephele/                                   # ✅ Django Project
 │   ├── accounts/                          # Users & Auth
 │   ├── properties/                        # Properties
 │   ├── room/                              # Rooms & Bookings
@@ -2569,8 +2569,8 @@ Documentation:
 
 ### Key Configuration Files
 ```
-HMS/HMS/settings.py             # Main Django configuration
-HMS/requirements.txt            # Python dependencies
+nephele/nephele/settings.py             # Main Django configuration
+nephele/requirements.txt            # Python dependencies
 docker-compose.yml              # Multi-container setup
 .env.example                    # Environment template
 conftest.py                     # Pytest fixtures

@@ -18,8 +18,8 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 # Setup Django
-sys.path.insert(0, '/app/HMS')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'HMS.settings')
+sys.path.insert(0, '/app/nephele')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nephele.settings')
 django.setup()
 
 from django.contrib.auth.models import User
@@ -214,7 +214,7 @@ class TravelAgentSystemTests:
     def test_unauthorized_property_detection(self):
         """Test 8: System correctly identifies unauthorized properties"""
         try:
-            from HMS.web_views import _can_access_property
+            from nephele.web_views import _can_access_property
             
             user = User.objects.get(username='travel_agent_john')
             

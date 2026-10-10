@@ -49,7 +49,7 @@ export default function GuestDashboard() {
             Welcome back, {user?.username || 'Guest'}!
           </Typography>
           <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.5 }}>
-            Here is a summary of your upcoming stays at NEPHELE HMS.
+            Here is a summary of your upcoming stays at Nephele.
           </Typography>
         </CardContent>
       </Card>

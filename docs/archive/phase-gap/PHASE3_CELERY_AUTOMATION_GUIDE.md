@@ -420,7 +420,7 @@ def test_generate_pricing_report():
 ### Queue Configuration
 
 ```python
-# HMS/settings.py
+# nephele/settings.py
 CELERY_QUEUES = [
     {
         'name': 'pricing',

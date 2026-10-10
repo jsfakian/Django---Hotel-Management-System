@@ -4,9 +4,9 @@ Date: 2026-02-20
 
 ## Scope
 
-Align the live Django schema in `HMS/db.sqlite3` with:
+Align the live Django schema in `nephele/db.sqlite3` with:
 - `task4_design_schema.sql`
-- current Django models in `HMS/*/models.py`
+- current Django models in `nephele/*/models.py`
 
 ## Current Baseline (Verified)
 
@@ -53,7 +53,7 @@ Use a two-track plan:
 Fastest, lowest-risk path to a coherent schema if legacy data does not need to be preserved.
 
 1) Backup DB
-- Copy `HMS/db.sqlite3` to `HMS/db.sqlite3.bak-2026-02-20`.
+- Copy `nephele/db.sqlite3` to `nephele/db.sqlite3.bak-2026-02-20`.
 
 2) Implement missing forward migrations before running migrate
 - Add `accounts` schema-alignment migration (new file `accounts/migrations/0002_schema_alignment.py`) to:
@@ -68,7 +68,7 @@ Fastest, lowest-risk path to a coherent schema if legacy data does not need to b
   - Option 2: set `PricingHistory.Meta.db_table = 'pricing_history'` and migrate/rename
 
 3) Apply full migration graph from clean DB
-- Delete `HMS/db.sqlite3`
+- Delete `nephele/db.sqlite3`
 - Run migrations in normal order via `python manage.py migrate`
 
 4) Seed minimal reference data

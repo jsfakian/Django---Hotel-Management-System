@@ -8,7 +8,7 @@
 ## 📋 Project Structure
 
 ```
-HMS/
+nephele/
 ├── channels/              # OTA Integration App
 │   ├── models.py         # Channel, ChannelBooking
 │   ├── views.py          # API endpoints for channels
@@ -40,7 +40,7 @@ HMS/
 ```bash
 # 1. Navigate to project
 cd /home/jsfakian/Documents/src/Django---Hotel-Management-System
-cd HMS
+cd nephele
 
 # 2. Create virtual environment (one time)
 python -m venv venv
@@ -524,7 +524,7 @@ redis-cli DEL channel_sync
 
 ```
 /home/jsfakian/Documents/src/Django---Hotel-Management-System/
-├── HMS/
+├── nephele/
 │   ├── settings.py          ← UPDATE HERE for config
 │   ├── celery.py            ← Celery configuration
 │   ├── urls.py              ← Main URL routing

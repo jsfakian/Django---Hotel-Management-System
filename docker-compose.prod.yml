@@ -1,6 +1,6 @@
 version: '3.9'
 
-# Production Docker Compose Configuration for NEPHELE HMS
+# Production Docker Compose Configuration for Nephele
 # Optimized for security, performance, and reliability
 # Usage: docker-compose -f docker-compose.prod.yml up -d
 
@@ -10,7 +10,7 @@ services:
   # ============================================================================
   postgres:
     image: postgres:15-alpine
-    container_name: hms-postgres-prod
+    container_name: nephele-postgres-prod
     restart: unless-stopped
     env_file:
       - .env.prod
@@ -30,7 +30,7 @@ services:
       - postgres_data_prod:/var/lib/postgresql/data
       - ./backup:/backup  # For database backups
     networks:
-      - hms-network-prod
+      - nephele-network-prod
     # Resource limits for production
     deploy:
       resources:
@@ -52,7 +52,7 @@ services:
   # ============================================================================
   redis:
     image: redis:7-alpine
-    container_name: hms-redis-prod
+    container_name: nephele-redis-prod
     restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-1gb} --maxmemory-policy allkeys-lru
     ports:
@@ -66,7 +66,7 @@ services:
     volumes:
       - redis_data_prod:/data
     networks:
-      - hms-network-prod
+      - nephele-network-prod
     deploy:
       resources:
         limits:
@@ -90,7 +90,7 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     image: hms-django-prod:latest
-    container_name: hms-django-prod
+    container_name: nephele-django-prod
     restart: unless-stopped
     depends_on:
       postgres:
@@ -110,7 +110,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       CELERY_TASK_ALWAYS_EAGER: "False"
-      DJANGO_SETTINGS_MODULE: HMS.settings
+      DJANGO_SETTINGS_MODULE: config.settings
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       SECURE_SSL_REDIRECT: "True"
       SESSION_COOKIE_SECURE: "True"
@@ -118,8 +118,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - static_volume_prod:/app/HMS/staticfiles
-      - media_volume_prod:/app/HMS/media
+      - static_volume_prod:/app/nephele/staticfiles
+      - media_volume_prod:/app/nephele/media
       - logs_volume_prod:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
@@ -128,7 +128,7 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - hms-network-prod
+      - nephele-network-prod
     deploy:
       resources:
         limits:
@@ -161,7 +161,7 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     image: hms-django-prod:latest
-    container_name: hms-celery-prod
+    container_name: nephele-celery-prod
     restart: unless-stopped
     depends_on:
       postgres:
@@ -181,12 +181,12 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       CELERY_TASK_ALWAYS_EAGER: "False"
-      DJANGO_SETTINGS_MODULE: HMS.settings
-    command: celery -A HMS worker -l info --concurrency=4 --max-tasks-per-child=1000
+      DJANGO_SETTINGS_MODULE: config.settings
+    command: celery -A config worker -l info --concurrency=4 --max-tasks-per-child=1000
     volumes:
       - logs_volume_prod:/app/logs
     networks:
-      - hms-network-prod
+      - nephele-network-prod
     deploy:
       resources:
         limits:
@@ -216,7 +216,7 @@ services:
       context: .
       dockerfile: Dockerfile.prod
     image: hms-django-prod:latest
-    container_name: hms-celery-beat-prod
+    container_name: nephele-celery-beat-prod
     restart: unless-stopped
     depends_on:
       postgres:
@@ -235,13 +235,13 @@ services:
       DB_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-      DJANGO_SETTINGS_MODULE: HMS.settings
-    command: celery -A HMS beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      DJANGO_SETTINGS_MODULE: config.settings
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - logs_volume_prod:/app/logs
       - celery_beat_data:/app/celery-beat
     networks:
-      - hms-network-prod
+      - nephele-network-prod
     deploy:
       resources:
         limits:
@@ -268,7 +268,7 @@ services:
   # ============================================================================
   nginx:
     image: nginx:alpine
-    container_name: hms-nginx-prod
+    container_name: nephele-nginx-prod
     restart: unless-stopped
     ports:
       - "80:80"
@@ -283,7 +283,7 @@ services:
     depends_on:
       - django
     networks:
-      - hms-network-prod
+      - nephele-network-prod
     deploy:
       resources:
         limits:
@@ -322,7 +322,7 @@ volumes:
 # Networks (Isolated production network)
 # ============================================================================
 networks:
-  hms-network-prod:
+  nephele-network-prod:
     driver: bridge
     ipam:
       config:

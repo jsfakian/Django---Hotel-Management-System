@@ -56,10 +56,10 @@
 ## 📊 FILES CREATED/MODIFIED
 
 ### Configuration Files (4)
-- ✅ `HMS/settings.py` - Comprehensive REST API settings
-- ✅ `HMS/exceptions.py` - Custom exception handler
-- ✅ `HMS/api_urls.py` - API routing structure
-- ✅ `HMS/urls.py` - Updated main URLs
+- ✅ `nephele/settings.py` - Comprehensive REST API settings
+- ✅ `nephele/exceptions.py` - Custom exception handler
+- ✅ `nephele/api_urls.py` - API routing structure
+- ✅ `nephele/urls.py` - Updated main URLs
 
 ### Database Models (7 apps, 36 models)
 - ✅ `accounts/models.py` - User, Role, Guest, Employee, Task
@@ -346,7 +346,7 @@ const API_BASE_URL = 'http://localhost:8000/api/v1/';
 
 ### Start Development:
 ```bash
-cd HMS
+cd nephele
 python manage.py runserver
 ```
 
@@ -356,8 +356,8 @@ http://localhost:8000/api/v1/docs/swagger/
 ```
 
 ### Key Files:
-- Settings: `HMS/settings.py`
-- API Routes: `HMS/api_urls.py`
+- Settings: `nephele/settings.py`
+- API Routes: `nephele/api_urls.py`
 - Models: `*/models.py`
 - Serializers: `*/serializers.py`
 

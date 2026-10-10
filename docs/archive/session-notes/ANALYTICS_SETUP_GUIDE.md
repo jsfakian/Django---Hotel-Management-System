@@ -99,7 +99,7 @@ OK
 
 Edit the Celery beat configuration to run the nightly ETL pipeline.
 
-In `HMS/celery.py` or your Celery beat configuration:
+In `nephele/celery.py` or your Celery beat configuration:
 
 ```python
 from celery.schedules import crontab
@@ -351,7 +351,7 @@ else:
 ## Troubleshooting
 
 ### Issue: "analytics app not found"
-**Solution:** Ensure `'analytics'` is in `INSTALLED_APPS` in `HMS/settings.py`
+**Solution:** Ensure `'analytics'` is in `INSTALLED_APPS` in `nephele/settings.py`
 
 ### Issue: Migration errors
 **Solution:** 

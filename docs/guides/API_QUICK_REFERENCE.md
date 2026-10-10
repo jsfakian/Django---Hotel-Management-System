@@ -1,4 +1,4 @@
-# NEPHELE HMS - REST API Quick Reference Guide
+# Nephele - REST API Quick Reference Guide
 
 **Generated:** February 19, 2026  
 **API Version:** v1  
@@ -26,7 +26,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000
 
 ### 3. Run Migrations
 ```bash
-cd HMS
+cd nephele
 python manage.py migrate
 ```
 
@@ -256,7 +256,7 @@ pytest --cov=. --cov-report=html
 
 ### Test a Specific App
 ```bash
-pytest HMS.tests
+pytest tests
 ```
 
 ### Test Configuration
@@ -317,7 +317,7 @@ pytest HMS.tests
 ### Issue: CORS Error When Calling API from Frontend
 **Solution:**
 ```python
-# Check HMS/settings.py - ensure frontend URL in CORS_ALLOWED_ORIGINS:
+# Check nephele/settings.py - ensure frontend URL in CORS_ALLOWED_ORIGINS:
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',  # React dev server
     'http://localhost:8000',

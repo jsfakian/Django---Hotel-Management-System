@@ -16,14 +16,14 @@ Phase 3 successfully implements automated daily pricing intelligence and manager
 
 ## Key Components Implemented
 
-### 1. Celery Automation Tasks (`HMS/bookings/tasks.py`)
+### 1. Celery Automation Tasks (`nephele/bookings/tasks.py`)
 - ✅ `auto_price_all_rooms()` - Daily pricing predictions (10 pricing tasks)
 - ✅ `alert_low_confidence()` - Manager notifications for risky predictions
 - ✅ `generate_pricing_report()` - Weekly/monthly analytics
 - ✅ `cleanup_old_predictions()` - Database maintenance (90-day retention)
 - ✅ `train_task3_models()` - Weekly ML model retraining
 
-### 2. Django Admin Interface (`HMS/bookings/admin.py`)
+### 2. Django Admin Interface (`nephele/bookings/admin.py`)
 - ✅ Advanced pricing history filtering (confidence, season, model, date range)
 - ✅ Color-coded confidence indicators (green/yellow/orange/red)
 - ✅ Bulk price acceptance/rejection actions
@@ -32,13 +32,13 @@ Phase 3 successfully implements automated daily pricing intelligence and manager
 - ✅ Factor breakdown visualization
 - ✅ Manager dashboard with summary statistics
 
-### 3. Celery Beat Schedule (`HMS/HMS/settings.py`)
+### 3. Celery Beat Schedule (`nephele/nephele/settings.py`)
 - ✅ Daily auto-pricing at 00:00 UTC
 - ✅ Weekly report generation
 - ✅ Cleanup task scheduling
 - ✅ Priority-based task routing (pricing > notifications > reports > cleanup)
 
-### 4. Notification System (`HMS/notifications/pricing_alerts.py`)
+### 4. Notification System (`nephele/notifications/pricing_alerts.py`)
 - ✅ PricingAlert model with severity levels
 - ✅ PricingAlertPreference model (user preferences)
 - ✅ PricingAlertLog for audit trails
@@ -46,7 +46,7 @@ Phase 3 successfully implements automated daily pricing intelligence and manager
 - ✅ Quiet hours support
 - ✅ Admin interface for alert management
 
-### 5. URL Routing (`HMS/bookings/urls.py`)
+### 5. URL Routing (`nephele/bookings/urls.py`)
 - ✅ GET `/pricing/<room_id>/` - View pricing analysis dashboard
 - ✅ GET `/pricing/<room_id>/<date>/` - View pricing for specific date
 - ✅ GET `/api/pricing/summary/` - Get pricing health metrics
@@ -169,21 +169,21 @@ Response:
 ## Files Modified/Created
 
 ### New Files
-- `HMS/bookings/admin.py` - Admin interface for pricing
-- `HMS/bookings/pricing_views.py` - Web views for analytics
-- `HMS/bookings/pricing_service.py` - AI pricing logic
-- `HMS/notifications/pricing_alerts.py` - Alert system
-- `HMS/HMS/celery_config.py` - Celery configuration
-- `HMS/templates/pricing/analysis.html` - Dashboard template
-- `HMS/static/js/components/PricingAnalysis.vue` - Vue.js app
+- `nephele/bookings/admin.py` - Admin interface for pricing
+- `nephele/bookings/pricing_views.py` - Web views for analytics
+- `nephele/bookings/pricing_service.py` - AI pricing logic
+- `nephele/notifications/pricing_alerts.py` - Alert system
+- `nephele/nephele/celery_config.py` - Celery configuration
+- `nephele/templates/pricing/analysis.html` - Dashboard template
+- `nephele/static/js/components/PricingAnalysis.vue` - Vue.js app
 - `PHASE3_CELERY_AUTOMATION_GUIDE.md` - Deployment guide
 
 ### Modified Files
-- `HMS/bookings/tasks.py` - Added Phase 3 Celery tasks
-- `HMS/bookings/urls.py` - Added pricing routes
-- `HMS/HMS/settings.py` - Added Celery Beat schedule
-- `HMS/bookings/models.py` - PricingHistory model already exists
-- `HMS/bookings/views.py` - Pricing view functions
+- `nephele/bookings/tasks.py` - Added Phase 3 Celery tasks
+- `nephele/bookings/urls.py` - Added pricing routes
+- `nephele/nephele/settings.py` - Added Celery Beat schedule
+- `nephele/bookings/models.py` - PricingHistory model already exists
+- `nephele/bookings/views.py` - Pricing view functions
 
 ## Testing Checklist
 

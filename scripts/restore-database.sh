@@ -1,197 +1,91 @@
-#!/bin/bash
-# Database Restore Script for NEPHELE HMS
-# Restore PostgreSQL database from backup
+#!/usr/bin/env bash
+# Restore PostgreSQL from a backup created by backup-database.sh.
+#
+# Usage:
+#   ./scripts/restore-database.sh backup/daily/nephele_full_YYYYMMDD_HHMMSS.sql.gz
+#   CONFIRM=yes ./scripts/restore-database.sh path/to/backup.sql.gz
+#
+set -euo pipefail
 
-set -e  # Exit on error
-
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-BACKUP_DIR="${PROJECT_DIR}/backup"
-ENV_FILE="${PROJECT_DIR}/.env.prod"
+ENV_FILE="${ENV_FILE:-$PROJECT_DIR/.env.prod}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE="${COMPOSE:-docker compose}"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'  # No Color
+NC='\033[0m'
 
-# Logging
-log() {
-    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
+log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $*"; }
+warn() { echo -e "${YELLOW}[WARNING]${NC} $*"; }
+die() { echo -e "${RED}[ERROR]${NC} $*" >&2; exit 1; }
+
+BACKUP_FILE="${1:-}"
+[[ -n "$BACKUP_FILE" ]] || {
+  echo "Usage: $0 <backup-file.sql|.sql.gz>"
+  echo "Available:"
+  ls -lht "$PROJECT_DIR"/backup/daily/nephele_full_*.sql* 2>/dev/null | head -10 || true
+  ls -lht "$PROJECT_DIR"/backup/nephele_full_*.sql* 2>/dev/null | head -10 || true
+  exit 1
+}
+[[ -f "$BACKUP_FILE" ]] || die "Backup not found: $BACKUP_FILE"
+[[ -f "$ENV_FILE" ]] || die "Environment file not found: $ENV_FILE"
+
+# shellcheck disable=SC1090
+set -a; source "$ENV_FILE"; set +a
+
+DB_NAME="${POSTGRES_DB:-${DB_NAME:-}}"
+DB_USER="${POSTGRES_USER:-${DB_USER:-}}"
+DB_PASSWORD="${POSTGRES_PASSWORD:-${DB_PASSWORD:-}}"
+[[ -n "$DB_NAME" && -n "$DB_USER" && -n "$DB_PASSWORD" ]] \
+  || die "Need POSTGRES_DB/USER/PASSWORD (or DB_*) in $ENV_FILE"
+
+if [[ "${CONFIRM:-}" != "yes" ]]; then
+  warn "This will REPLACE all data in database '$DB_NAME'."
+  read -r -p "Type 'yes' to continue: " reply
+  [[ "$reply" == "yes" ]] || { log "Cancelled"; exit 1; }
+  read -r -p "Type the database name '$DB_NAME' to confirm: " reply
+  [[ "$reply" == "$DB_NAME" ]] || die "Name mismatch; cancelled"
+fi
+
+TEMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TEMP_DIR"' EXIT
+RESTORE_SQL="$TEMP_DIR/backup.sql"
+
+if [[ "$BACKUP_FILE" == *.sql.gz ]]; then
+  log "Decompressing…"
+  gunzip -c "$BACKUP_FILE" > "$RESTORE_SQL"
+elif [[ "$BACKUP_FILE" == *.sql ]]; then
+  cp "$BACKUP_FILE" "$RESTORE_SQL"
+else
+  die "Unsupported backup format (use .sql or .sql.gz)"
+fi
+
+postgres_running() {
+  (cd "$PROJECT_DIR" && $COMPOSE -f "$COMPOSE_FILE" ps --status running --services 2>/dev/null | grep -qx postgres)
 }
 
-error() {
-    echo -e "${RED}[ERROR $(date +'%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
+psql_docker() {
+  (cd "$PROJECT_DIR" && $COMPOSE -f "$COMPOSE_FILE" exec -T \
+    -e PGPASSWORD="$DB_PASSWORD" \
+    postgres \
+    psql -U "$DB_USER" -d "$1")
 }
 
-warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
+log "=== Restore started → $DB_NAME ==="
 
-info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-# Load environment variables
-if [ ! -f "$ENV_FILE" ]; then
-    error "Environment file not found: $ENV_FILE"
-    exit 1
+if postgres_running; then
+  log "Restoring via Docker Compose ($COMPOSE_FILE)"
+  # Dump uses --clean/--if-exists so apply into the existing DB
+  psql_docker "$DB_NAME" < "$RESTORE_SQL"
+else
+  command -v psql >/dev/null || die "psql not found and postgres container is not running"
+  DB_HOST="${DB_HOST:-localhost}"
+  DB_PORT="${DB_PORT:-${POSTGRES_HOST_PORT:-5432}}"
+  log "Restoring via host psql → ${DB_HOST}:${DB_PORT}"
+  PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" < "$RESTORE_SQL"
 fi
 
-set -a
-source "$ENV_FILE"
-set +a
-
-# Validate required environment variables
-required_vars=("DB_NAME" "DB_USER" "DB_PASSWORD" "DB_HOST")
-for var in "${required_vars[@]}"; do
-    if [ -z "${!var}" ]; then
-        error "Required environment variable not set: $var"
-        exit 1
-    fi
-done
-
-# Check if backup file is provided
-if [ -z "$1" ]; then
-    error "Usage: $0 <backup-file>"
-    echo "Available backups in $BACKUP_DIR:"
-    ls -lht "$BACKUP_DIR"/hms_*.sql* 2>/dev/null | head -10 || echo "No backups found"
-    exit 1
-fi
-
-BACKUP_FILE="$1"
-
-# Verify backup file exists
-if [ ! -f "$BACKUP_FILE" ]; then
-    error "Backup file not found: $BACKUP_FILE"
-    exit 1
-fi
-
-log "=== Database Restore Started ==="
-log "Backup file: $BACKUP_FILE"
-log "Target database: $DB_NAME"
-log "Target host: $DB_HOST"
-
-# Confirm before restoring
-warning "This will DELETE all data in database '$DB_NAME' and restore from backup."
-read -p "Are you sure you want to continue? Type 'yes' to confirm: " -r
-if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
-    log "Restore cancelled"
-    exit 1
-fi
-
-warning "Last chance to cancel. This action cannot be undone!"
-read -p "Type the database name '$DB_NAME' to confirm: " -r
-if [[ ! $REPLY == "$DB_NAME" ]]; then
-    error "Database name mismatch. Restore cancelled."
-    exit 1
-fi
-
-{
-    log "Connecting to database server..."
-    
-    # Check database connection
-    PGPASSWORD="$DB_PASSWORD" psql \
-        -h "$DB_HOST" \
-        -p "${DB_PORT:-5432}" \
-        -U "$DB_USER" \
-        -d postgres \
-        -c "SELECT 1" > /dev/null 2>&1 || {
-        error "Cannot connect to database server!"
-        exit 1
-    }
-    log "Database connection successful"
-
-    # Check if backup needs decompression
-    RESTORE_FILE="$BACKUP_FILE"
-    TEMP_DIR=$(mktemp -d)
-    trap "rm -rf $TEMP_DIR" EXIT
-
-    if [[ "$BACKUP_FILE" == *.sql.gz ]]; then
-        log "Decompressing backup file..."
-        RESTORE_FILE="$TEMP_DIR/backup.sql"
-        gunzip -c "$BACKUP_FILE" > "$RESTORE_FILE"
-        log "Backup decompressed"
-    elif [[ "$BACKUP_FILE" == *.sql.gpg ]]; then
-        log "Decrypting backup file..."
-        if ! command -v gpg &> /dev/null; then
-            error "GPG not found, cannot decrypt backup"
-            exit 1
-        fi
-        RESTORE_FILE="$TEMP_DIR/backup.sql"
-        gpg --decrypt "$BACKUP_FILE" > "$RESTORE_FILE"
-        log "Backup decrypted"
-    fi
-
-    # Drop existing connections to the database
-    log "Terminating existing connections to $DB_NAME..."
-    PGPASSWORD="$DB_PASSWORD" psql \
-        -h "$DB_HOST" \
-        -p "${DB_PORT:-5432}" \
-        -U "$DB_USER" \
-        -d postgres \
-        -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '$DB_NAME' AND pid <> pg_backend_pid();" \
-        > /dev/null 2>&1 || true
-
-    # Drop and recreate database
-    log "Dropping existing database $DB_NAME..."
-    PGPASSWORD="$DB_PASSWORD" psql \
-        -h "$DB_HOST" \
-        -p "${DB_PORT:-5432}" \
-        -U "$DB_USER" \
-        -d postgres \
-        -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" \
-        > /dev/null 2>&1 || true
-
-    log "Creating new database $DB_NAME..."
-    PGPASSWORD="$DB_PASSWORD" psql \
-        -h "$DB_HOST" \
-        -p "${DB_PORT:-5432}" \
-        -U "$DB_USER" \
-        -d postgres \
-        -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";" \
-        > /dev/null 2>&1 || {
-        error "Failed to create database"
-        exit 1
-    }
-
-    # Restore database from backup
-    log "Restoring database from backup... This may take a while..."
-    PGPASSWORD="$DB_PASSWORD" psql \
-        -h "$DB_HOST" \
-        -p "${DB_PORT:-5432}" \
-        -U "$DB_USER" \
-        -d "$DB_NAME" \
-        < "$RESTORE_FILE" || {
-        error "Database restore failed!"
-        exit 1
-    }
-
-    log "=== Database Restore Completed Successfully ==="
-    log "Database: $DB_NAME"
-    log "Restored from: $BACKUP_FILE"
-    log "Restored at: $(date)"
-
-    # Verify restore integrity
-    log "Verifying restore integrity..."
-    TABLE_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql \
-        -h "$DB_HOST" \
-        -p "${DB_PORT:-5432}" \
-        -U "$DB_USER" \
-        -d "$DB_NAME" \
-        -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';")
-    
-    log "Restored tables count: $TABLE_COUNT"
-
-    if [ "$TABLE_COUNT" -eq 0 ]; then
-        warning "No tables found in restored database. Restore may have failed."
-    else
-        log "✓ Restore verification passed"
-    fi
-
-} 2>&1
-
-log "=== Restore Process Complete ==="
-
-exit 0
+log "=== Restore complete from $BACKUP_FILE ==="

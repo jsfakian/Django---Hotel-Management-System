@@ -140,7 +140,7 @@
 ---
 
 #### **Gap #9: API Rate Limiting**
-- **Files:** `HMS/HMS/settings.py`, `HMS/bookings/views.py`
+- **Files:** `nephele/nephele/settings.py`, `nephele/bookings/views.py`
 - **Priority:** 9/10
 - **Impact:** Vulnerable to abuse
 - **Effort:** 1 day

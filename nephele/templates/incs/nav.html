@@ -1,0 +1,75 @@
+{% load static %}
+<!--Admin Navbar-->
+<nav class="navbar navbar-expand-lg nephele-navbar py-2" role="navigation">
+    <div class="container align-items-center">
+        <a href="{% url 'home' %}" class="navbar-brand d-flex align-items-center">
+            <img src="{% static '/images/nephele-mark.svg' %}" alt="NEPHELE Mark" class="brand-logo mr-2">
+            <div class="brand-text d-none d-md-block">
+                <div class="brand-title">Nephele</div>
+                <small class="brand-sub">Hotel Management System • {{ role|title }} Portal</small>
+            </div>
+        </a>
+        <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbarTags" aria-controls="navbarTags" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon" aria-hidden="true"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarTags">
+            <ul class="navbar-nav ml-auto align-items-lg-center">
+                <li class="nav-item mr-lg-3 user-chip px-3 py-2 mb-2 mb-lg-0">
+                    <span class="font-weight-bold">{{ request.user.first_name }} {{ request.user.last_name }}</span>
+                </li>
+
+                <li class="nav-item p-2">
+                    <a href="/home/" class="nav-link">Dashboard</a>
+                </li>
+                <li class="nav-item p-2">
+                    <a href="/analytics/" class="nav-link">Analytics</a>
+                </li>
+                <li class="nav-item p-2">
+                    <a href="/portal/business-intelligence/" class="nav-link">BI</a>
+                </li>
+
+                <li class="nav-item dropdown p-2 menu-dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Menu
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
+
+
+                        <!--Dropdpwn items are changed by role-->
+
+                        <a class="dropdown-item" href="/home/">Dashboard</a>
+                        <a class="dropdown-item" href="/analytics/">Analytics</a>
+                        <a class="dropdown-item" href="/portal/users/">Users</a>
+                        <a class="dropdown-item" href="/portal/rooms/">Rooms</a>
+                        <a class="dropdown-item" href="/portal/bookings/">Bookings</a>
+                        <a class="dropdown-item" href="/portal/guests/">Guests</a>
+                        <a class="dropdown-item" href="/portal/properties/">Properties</a>
+                        <a class="dropdown-item" href="/portal/travel-agencies/">Travel Agencies</a>
+                        <a class="dropdown-item" href="/portal/payments/">Payments</a>
+                        <a class="dropdown-item" href="/portal/invoices/">Invoices</a>
+                        <a class="dropdown-item" href="/portal/contracts/">Contracts</a>
+                        <a class="dropdown-item" href="/portal/pricing/">Pricing</a>
+                        <a class="dropdown-item" href="/portal/tasks/">Tasks</a>
+                        <a class="dropdown-item" href="/portal/notifications/">Notifications</a>
+                        <a class="dropdown-item" href="/portal/business-intelligence/">Business Intelligence</a>
+                        <a class="dropdown-item" href="/portal/forecast/">Forecast</a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="/payments/history/">Payments (Web)</a>
+                        <a class="dropdown-item" href="/admin/">Django Admin</a>
+
+                    </div>
+                </li>
+
+
+                <li class="nav-item mr-3 p-2">
+                    <a href="/portal/forecast/" class="nav-link">Forecast</a>
+                </li>
+                <li class="nav-item p-2 ">
+                    <a href="/logout/" class="nav-link text-warning font-weight-bold">Log Out</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

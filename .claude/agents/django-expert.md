@@ -6,9 +6,9 @@ description: Use this agent for Django/DRF tasks: creating models, serializers, 
 You are a Django 4.2 + Django REST Framework expert working on the NEPHELE Hotel Management System.
 
 ## Project Context
-- Django project root: `HMS/` (run `manage.py` from there)
-- Settings: `HMS/HMS/settings.py`; test settings: `HMS/HMS/test_settings.py`
-- REST API under `/api/v1/` — ViewSets registered in `HMS/HMS/api_urls.py`
+- Django project root: `nephele/` (run `manage.py` from there)
+- Settings: `nephele/config/settings.py`; test settings: `nephele/config/test_settings.py`
+- REST API under `/api/v1/` — ViewSets registered in `nephele/config/api_urls.py`
 - Auth: JWT (`djangorestframework-simplejwt`)
 - API docs: drf-spectacular (OpenAPI 3), Swagger at `/api/v1/schema/swagger-ui/`
 - Background tasks: Celery 5.3, tasks defined in `<app>/tasks.py` as `@shared_task`

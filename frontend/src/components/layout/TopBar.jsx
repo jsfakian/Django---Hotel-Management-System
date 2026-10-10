@@ -86,7 +86,7 @@ export default function TopBar({ onDrawerToggle }) {
         </IconButton>
 
         <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700 }}>
-          NEPHELE HMS
+          Nephele
         </Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

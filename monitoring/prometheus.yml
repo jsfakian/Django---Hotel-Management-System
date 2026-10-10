@@ -2,7 +2,7 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    monitor: 'hms-monitoring'
+    monitor: 'nephele-monitoring'
     environment: '${ENVIRONMENT:-development}'
 
 # Alertmanager configuration
@@ -32,7 +32,7 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
-        replacement: 'hms-django'
+        replacement: 'nephele-django'
 
   # PostgreSQL (via postgres_exporter)
   - job_name: 'postgres'
@@ -41,7 +41,7 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
-        replacement: 'hms-postgres'
+        replacement: 'nephele-postgres'
 
   # Redis (via redis_exporter)
   - job_name: 'redis'
@@ -50,7 +50,7 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
-        replacement: 'hms-redis'
+        replacement: 'nephele-redis'
 
   # Celery Worker Metrics (via django-prometheus)
   - job_name: 'celery'
@@ -61,7 +61,7 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
-        replacement: 'hms-celery'
+        replacement: 'nephele-celery'
 
   # Node Exporter (system metrics)
   - job_name: 'node'
@@ -79,4 +79,4 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
-        replacement: 'hms-grafana'
+        replacement: 'nephele-grafana'

@@ -26,7 +26,7 @@ export const channelsApi = api.injectEndpoints({
       invalidatesTags: [{ type: 'Property', id: 'CHANNEL_LIST' }],
     }),
     syncChannelAvailability: builder.mutation({
-      query: (id) => ({ url: `/channels/${id}/sync_availability/`, method: 'POST' }),
+      query: (id) => ({ url: `/channels/${id}/availability/sync/`, method: 'POST' }),
       invalidatesTags: (result, error, id) => [{ type: 'Property', id: `channel-${id}` }],
     }),
   }),

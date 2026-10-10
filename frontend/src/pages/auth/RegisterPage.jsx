@@ -34,7 +34,7 @@ export default function RegisterPage() {
         <CardContent sx={{ p: 4 }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <Hotel sx={{ fontSize: 48, color: 'primary.main' }} />
-            <Typography variant="h5" fontWeight={700} color="primary.main">NEPHELE HMS</Typography>
+            <Typography variant="h5" fontWeight={700} color="primary.main">Nephele</Typography>
             <Typography variant="body2" color="text.secondary" mt={0.5}>Create your guest account</Typography>
           </Box>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

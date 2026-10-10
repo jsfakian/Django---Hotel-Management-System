@@ -3,7 +3,7 @@ version: '3.9'
 services:
   redis:
     image: redis:7-alpine
-    container_name: hms-redis
+    container_name: nephele-redis
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6380}:6379"
@@ -15,11 +15,11 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - hms-network
+      - nephele-network
 
   postgres:
     image: postgres:15-alpine
-    container_name: hms-postgres
+    container_name: nephele-postgres
     restart: unless-stopped
     env_file:
       - .env
@@ -37,13 +37,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - hms-network
+      - nephele-network
 
   django:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: hms-django
+    container_name: nephele-django
     restart: unless-stopped
     depends_on:
       postgres:
@@ -71,8 +71,8 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-      - static_volume:/app/HMS/static
-      - media_volume:/app/HMS/media
+      - static_volume:/app/nephele/static
+      - media_volume:/app/nephele/media
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 10s
@@ -80,14 +80,14 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - hms-network
+      - nephele-network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: builder
-    container_name: hms-frontend
+    container_name: nephele-frontend
     restart: unless-stopped
     depends_on:
       django:
@@ -101,13 +101,13 @@ services:
       VITE_API_BASE_URL: http://localhost:8000/api/v1
     command: npm run dev
     networks:
-      - hms-network
+      - nephele-network
 
   celery:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: hms-celery
+    container_name: nephele-celery
     restart: unless-stopped
     depends_on:
       - redis
@@ -129,15 +129,15 @@ services:
       CELERY_TASK_ALWAYS_EAGER: ${CELERY_TASK_ALWAYS_EAGER:-False}
     volumes:
       - .:/app
-    command: celery -A HMS worker -l info
+    command: celery -A config worker -l info
     networks:
-      - hms-network
+      - nephele-network
 
   celery-beat:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: hms-celery-beat
+    container_name: nephele-celery-beat
     restart: unless-stopped
     depends_on:
       - redis
@@ -158,14 +158,14 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     volumes:
       - .:/app
-    command: celery -A HMS beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     networks:
-      - hms-network
+      - nephele-network
 
   # Prometheus Server
   prometheus:
     image: prom/prometheus:latest
-    container_name: hms-prometheus
+    container_name: nephele-prometheus
     restart: unless-stopped
     ports:
       - "9090:9090"
@@ -187,7 +187,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - hms-network
+      - nephele-network
     depends_on:
       - django
       - postgres
@@ -196,7 +196,7 @@ services:
   # Alertmanager
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: hms-alertmanager
+    container_name: nephele-alertmanager
     restart: unless-stopped
     ports:
       - "9093:9093"
@@ -216,12 +216,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - hms-network
+      - nephele-network
 
   # PostgreSQL Exporter
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
-    container_name: hms-postgres-exporter
+    container_name: nephele-postgres-exporter
     restart: unless-stopped
     ports:
       - "9187:9187"
@@ -233,14 +233,14 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - hms-network
+      - nephele-network
     depends_on:
       - postgres
 
   # Redis Exporter
   redis-exporter:
     image: oliver006/redis_exporter:latest
-    container_name: hms-redis-exporter
+    container_name: nephele-redis-exporter
     restart: unless-stopped
     ports:
       - "9121:9121"
@@ -252,14 +252,14 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - hms-network
+      - nephele-network
     depends_on:
       - redis
 
   # Node Exporter for System Metrics
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: hms-node-exporter
+    container_name: nephele-node-exporter
     restart: unless-stopped
     ports:
       - "9100:9100"
@@ -278,12 +278,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - hms-network
+      - nephele-network
 
   # Grafana
   grafana:
     image: grafana/grafana:latest
-    container_name: hms-grafana
+    container_name: nephele-grafana
     restart: unless-stopped
     ports:
       - "3001:3000"
@@ -303,7 +303,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - hms-network
+      - nephele-network
     depends_on:
       - prometheus
 
@@ -317,5 +317,5 @@ volumes:
   grafana_data:
 
 networks:
-  hms-network:
+  nephele-network:
     driver: bridge

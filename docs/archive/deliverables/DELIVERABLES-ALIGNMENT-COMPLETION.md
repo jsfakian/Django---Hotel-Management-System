@@ -187,7 +187,7 @@ Successfully aligned the NEPHELE Hotel Management System backend and frontend wi
 ## Implementation Summary by Component
 
 ### 1. Django Configuration
-**File:** `HMS/settings.py`
+**File:** `nephele/settings.py`
 - REST Framework with JWT auth
 - CORS middleware
 - Comprehensive logging
@@ -214,13 +214,13 @@ Successfully aligned the NEPHELE Hotel Management System backend and frontend wi
 - Validation logic ready
 
 ### 4. Exception Handling
-**File:** `HMS/exceptions.py`
+**File:** `nephele/exceptions.py`
 - Custom exception handler
 - Standardized error responses
 - Error logging integration
 
 ### 5. API URL Routing
-**Files:** `HMS/urls.py`, `HMS/api_urls.py`
+**Files:** `nephele/urls.py`, `nephele/api_urls.py`
 - REST API base route `/api/v1/`
 - JWT authentication endpoints
 - Swagger/OpenAPI documentation
@@ -249,10 +249,10 @@ Successfully aligned the NEPHELE Hotel Management System backend and frontend wi
 ## Files Modified/Created
 
 ### Core Configuration
-- ✅ `HMS/settings.py` - Updated for REST API
-- ✅ `HMS/exceptions.py` - New exception handler
-- ✅ `HMS/api_urls.py` - New API routing
-- ✅ `HMS/urls.py` - Updated to include API routes
+- ✅ `nephele/settings.py` - Updated for REST API
+- ✅ `nephele/exceptions.py` - New exception handler
+- ✅ `nephele/api_urls.py` - New API routing
+- ✅ `nephele/urls.py` - Updated to include API routes
 
 ### Models (Database Schema)
 - ✅ `accounts/models.py` - Role, Guest, Employee, Task (updated)

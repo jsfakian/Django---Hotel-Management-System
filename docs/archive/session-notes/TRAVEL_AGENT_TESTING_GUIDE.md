@@ -286,10 +286,10 @@ for notif in notifications:
 
 ## Key Implementation Files
 
-- **Models:** [HMS/accounts/models.py](HMS/accounts/models.py#L229-L280) - TravelAgentProfile
-- **Views:** [HMS/HMS/web_views.py](HMS/HMS/web_views.py#L18-L761) - Access control functions
-- **Templates:** [HMS/templates/module-crud.html](HMS/templates/module-crud.html#L67-L71) - Agency quick link
-- **Navigation:** [HMS/templates/incs/nav.html](HMS/templates/incs/nav.html) - Menu item
+- **Models:** [nephele/accounts/models.py](nephele/accounts/models.py#L229-L280) - TravelAgentProfile
+- **Views:** [nephele/nephele/web_views.py](nephele/nephele/web_views.py#L18-L761) - Access control functions
+- **Templates:** [nephele/templates/module-crud.html](nephele/templates/module-crud.html#L67-L71) - Agency quick link
+- **Navigation:** [nephele/templates/incs/nav.html](nephele/templates/incs/nav.html) - Menu item
 
 ---
 

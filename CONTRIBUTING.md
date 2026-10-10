@@ -1,4 +1,4 @@
-# Contributing to NEPHELE HMS
+# Contributing to Nephele
 
 ## Development workflow
 
@@ -35,7 +35,7 @@ make ci-test
 Local Django without Docker (optional):
 
 ```bash
-cd HMS
+cd nephele
 python manage.py <command>
 ```
 
@@ -53,7 +53,7 @@ Use the project virtualenv (`.venv`) when running pytest on the host; the Makefi
 | Models | Docstrings only when the name is not enough |
 | Tests | pytest + pytest-django; factory-boy factories; mark with `@pytest.mark.unit` etc. |
 
-Django project root for imports and `manage.py` is **`HMS/`**.
+Django project root for imports and `manage.py` is **`nephele/`**.
 
 ## App boundaries
 

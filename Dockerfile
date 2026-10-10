@@ -23,9 +23,9 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 COPY . /app/
 
 # Create necessary directories
-RUN mkdir -p /app/HMS/static /app/HMS/media /app/logs
+RUN mkdir -p /app/nephele/static /app/nephele/media /app/logs
 
-WORKDIR /app/HMS
+WORKDIR /app/nephele
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /app/

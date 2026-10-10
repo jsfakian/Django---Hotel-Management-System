@@ -16,7 +16,7 @@ if os.path.exists(env_file):
                 key, value = line.strip().split('=', 1)
                 os.environ[key] = value
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'HMS.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nephele.settings')
 django.setup()
 
 from django.urls import get_resolver

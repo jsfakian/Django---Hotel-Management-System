@@ -51,7 +51,7 @@ Successfully implemented a multi-tenant travel agent booking system with:
 ### Core Models
 
 #### 1. TravelAgentProfile
-**File:** [HMS/accounts/models.py](HMS/accounts/models.py#L229-L280)
+**File:** [nephele/accounts/models.py](nephele/accounts/models.py#L229-L280)
 
 ```python
 class TravelAgentProfile(models.Model):
@@ -75,7 +75,7 @@ class TravelAgentProfile(models.Model):
 - Ordered by `(travel_agency, user)` for list display
 
 #### 2. Contract Model
-**File:** [HMS/contracts/models.py](HMS/contracts/models.py)
+**File:** [nephele/contracts/models.py](nephele/contracts/models.py)
 
 ```python
 class Contract(models.Model):
@@ -92,7 +92,7 @@ class Contract(models.Model):
 ```
 
 #### 3. Booking Model (Updated)
-**File:** [HMS/room/models.py](HMS/room/models.py#L86-L164)
+**File:** [nephele/room/models.py](nephele/room/models.py#L86-L164)
 
 ```python
 class Booking(models.Model):
@@ -122,7 +122,7 @@ class Booking(models.Model):
 ```
 
 #### 4. Notification Model
-**File:** [HMS/notifications/models.py](HMS/notifications/models.py#L55-L90)
+**File:** [nephele/notifications/models.py](nephele/notifications/models.py#L55-L90)
 
 ```python
 class Notification(models.Model):
@@ -147,7 +147,7 @@ class Notification(models.Model):
 ## Access Control Implementation
 
 ### Utility Functions
-**File:** [HMS/HMS/web_views.py](HMS/HMS/web_views.py#L18-L70)
+**File:** [nephele/nephele/web_views.py](nephele/nephele/web_views.py#L18-L70)
 
 #### `_is_travel_agent(user)`
 Checks if user belongs to 'travel_agent' group.
@@ -205,7 +205,7 @@ def _create_booking_notification(booking, created_by_travel_agent):
 ### View Modifications
 
 #### `module_portal()` - Booking list filtering
-**File:** [HMS/HMS/web_views.py](HMS/HMS/web_views.py#L670-L697)
+**File:** [nephele/nephele/web_views.py](nephele/nephele/web_views.py#L670-L697)
 
 Travel agents see only bookings from contract-accessible properties:
 ```python
@@ -216,7 +216,7 @@ if _is_travel_agent(request.user):
 ```
 
 #### `module_crud_page()` - Booking creation validation
-**File:** [HMS/HMS/web_views.py](HMS/HMS/web_views.py#L718-L761)
+**File:** [nephele/nephele/web_views.py](nephele/nephele/web_views.py#L718-L761)
 
 ```python
 # For travel agents creating bookings:
@@ -243,7 +243,7 @@ if _is_travel_agent(request.user):
 ## Frontend Implementation
 
 ### Template: Travel Agency Quick Link
-**File:** [HMS/templates/module-crud.html](HMS/templates/module-crud.html#L67-L71)
+**File:** [nephele/templates/module-crud.html](nephele/templates/module-crud.html#L67-L71)
 
 Displays link next to travel_agency field in booking forms:
 ```html
@@ -255,7 +255,7 @@ Displays link next to travel_agency field in booking forms:
 ```
 
 ### Navigation Menu Update
-**File:** [HMS/templates/incs/nav.html](HMS/templates/incs/nav.html)
+**File:** [nephele/templates/incs/nav.html](nephele/templates/incs/nav.html)
 
 Added "Travel Agencies" menu item for quick access to agency management.
 

@@ -20,7 +20,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 ### 1. Vue Components Created
 
 #### `AnalyticsChart.vue`
-- **Location:** `HMS/static/js/components/AnalyticsChart.vue`  
+- **Location:** `nephele/static/js/components/AnalyticsChart.vue`  
 - **Purpose:** Reusable chart component for displaying time-series and categorical data  
 - **Features:**
   - Supports multiple chart types: line, bar, doughnut, pie
@@ -29,7 +29,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
   - Customizable options and styling
 
 #### `MetricsGrid.vue`
-- **Location:** `HMS/static/js/components/MetricsGrid.vue`  
+- **Location:** `nephele/static/js/components/MetricsGrid.vue`  
 - **Purpose:** Display KPI metrics in card grid layout  
 - **Features:**
   - Formats values as currency, percentage, or numbers
@@ -40,7 +40,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 ### 2. HTML Dashboard Templates
 
 #### Main Analytics Dashboard
-- **File:** `HMS/templates/analytics/dashboard.html`  
+- **File:** `nephele/templates/analytics/dashboard.html`  
 - **Route:** `/analytics/`  
 - **Features:**
   - Property selector dropdown
@@ -50,7 +50,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
   - Real-time metric loading via API
 
 #### Executive Dashboard
-- **File:** `HMS/templates/analytics/executive_dashboard.html`  
+- **File:** `nephele/templates/analytics/executive_dashboard.html`  
 - **Route:** `/analytics/executive/`  
 - **Displays:**
   - 4 KPI cards: Total Revenue, ADR, Occupancy Rate, RevPAR
@@ -68,7 +68,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 - Loading spinner during data fetch
 
 #### Operational Dashboard
-- **File:** `HMS/templates/analytics/operational_dashboard.html`  
+- **File:** `nephele/templates/analytics/operational_dashboard.html`  
 - **Route:** `/analytics/operational/`  
 - **Displays:**
   - 6 status cards: Occupied, Vacant, Cleaning, Maintenance, Blocked, Total
@@ -87,7 +87,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 - Auto-updating occupancy percentage
 
 #### Revenue Analytics Dashboard
-- **File:** `HMS/templates/analytics/revenue_analytics.html`  
+- **File:** `nephele/templates/analytics/revenue_analytics.html`  
 - **Route:** `/analytics/revenue/`  
 - **Displays:**
   - 3 KPI cards: Total Revenue, ADR, RevPAR
@@ -106,7 +106,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 - Trend analysis
 
 #### Guest Analytics Dashboard
-- **File:** `HMS/templates/analytics/guest_analytics.html`  
+- **File:** `nephele/templates/analytics/guest_analytics.html`  
 - **Route:** `/analytics/guests/`  
 - **Displays:**
   - 4 overview KPIs: Total Guests, New Guests, Retention Rate, Avg Rating
@@ -128,7 +128,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 
 ### 3. Navigation Updates
 
-- **File:** `HMS/templates/incs/nav.html`  
+- **File:** `nephele/templates/incs/nav.html`  
 - **Changes:**
   - Added "Analytics" link between "Dashboard" and "BI" in main navbar
   - Added "Analytics" to dropdown menu navigation
@@ -137,12 +137,12 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 ### 4. URL Routing
 
 #### Main URLs
-- **File:** `HMS/HMS/urls.py`  
+- **File:** `nephele/nephele/urls.py`  
 - **Added:** `path('analytics/', include('analytics.web_urls'))`
 - **Serves:** Analytics web views at `/analytics/`
 
 #### Web Views URLs
-- **File:** `HMS/analytics/web_urls.py` (NEW)  
+- **File:** `nephele/analytics/web_urls.py` (NEW)  
 - **Routes:**
   - `/analytics/` → Main dashboard
   - `/analytics/executive/` → Executive dashboard
@@ -151,9 +151,9 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
   - `/analytics/guests/` → Guest analytics
 
 #### API URLs
-- **File:** `HMS/analytics/urls.py` (updated)  
+- **File:** `nephele/analytics/urls.py` (updated)  
 - **Routes:** REST API endpoints for data fetching
-- **Included from:** `HMS/HMS/api_urls.py` at `/api/v1/analytics/`
+- **Included from:** `nephele/nephele/api_urls.py` at `/api/v1/analytics/`
 - **Endpoints:**
   - `GET /api/v1/analytics/executive-dashboard/`
   - `GET /api/v1/analytics/operational-dashboard/current/`
@@ -163,7 +163,7 @@ Implemented complete frontend for Section 5.3 (Business Intelligence & Reporting
 
 ### 5. View Functions
 
-- **File:** `HMS/analytics/views.py` (appended)  
+- **File:** `nephele/analytics/views.py` (appended)  
 - **Functions Added:**
   ```python
   - analytics_dashboard_view()      # Main dashboard page
@@ -306,24 +306,24 @@ Template Charts & Tables Update
 
 ### Created (New)
 ```
-HMS/static/js/components/AnalyticsChart.vue
-HMS/static/js/components/MetricsGrid.vue
-HMS/templates/analytics/dashboard.html
-HMS/templates/analytics/executive_dashboard.html
-HMS/templates/analytics/operational_dashboard.html
-HMS/templates/analytics/revenue_analytics.html
-HMS/templates/analytics/guest_analytics.html
-HMS/analytics/web_urls.py
+nephele/static/js/components/AnalyticsChart.vue
+nephele/static/js/components/MetricsGrid.vue
+nephele/templates/analytics/dashboard.html
+nephele/templates/analytics/executive_dashboard.html
+nephele/templates/analytics/operational_dashboard.html
+nephele/templates/analytics/revenue_analytics.html
+nephele/templates/analytics/guest_analytics.html
+nephele/analytics/web_urls.py
 ANALYTICS_FRONTEND_IMPLEMENTATION.md (this file)
 ```
 
 ### Modified
 ```
-HMS/analytics/views.py (added 5 view functions)
-HMS/analytics/urls.py (updated for API-only routing)
-HMS/HMS/urls.py (added analytics.web_urls include)
-HMS/HMS/settings.py (no changes needed - analytics app already added)
-HMS/templates/incs/nav.html (added Analytics nav link)
+nephele/analytics/views.py (added 5 view functions)
+nephele/analytics/urls.py (updated for API-only routing)
+nephele/nephele/urls.py (added analytics.web_urls include)
+nephele/nephele/settings.py (no changes needed - analytics app already added)
+nephele/templates/incs/nav.html (added Analytics nav link)
 ```
 
 ---

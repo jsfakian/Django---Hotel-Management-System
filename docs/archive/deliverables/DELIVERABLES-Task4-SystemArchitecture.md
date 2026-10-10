@@ -71,7 +71,7 @@ Comprehensive audit was performed against:
 - Task 2 market research deliverable (`DELIVERABLES-Task2-MarketResearch.md`)
 - Task 3 research deliverable (`DELIVERABLES-Task3-ResearchCompletion.md`)
 - Task 4 architecture scope and API/data/security claims
-- Current Django implementation under `HMS/`
+- Current Django implementation under `nephele/`
 
 #### A. Deliverable-to-Implementation Coverage (Task 1/2/3 → Task 4/Django)
 
@@ -155,11 +155,11 @@ Comprehensive travel agent functionality has been implemented to enable multi-te
   - Improved form UX for travel agent workflow
 
 **Files Modified:**
-- `HMS/accounts/models.py`: Added TravelAgentProfile model
-- `HMS/room/models.py`: Added travel_agency FK and booking_source field
-- `HMS/HMS/web_views.py`: Added access control functions and view filtering
-- `HMS/templates/module-crud.html`: Added quick-link button
-- `HMS/templates/incs/nav.html`: Added menu item
+- `nephele/accounts/models.py`: Added TravelAgentProfile model
+- `nephele/room/models.py`: Added travel_agency FK and booking_source field
+- `nephele/nephele/web_views.py`: Added access control functions and view filtering
+- `nephele/templates/module-crud.html`: Added quick-link button
+- `nephele/templates/incs/nav.html`: Added menu item
 - **Migration**: `accounts/migrations/0003_travelagentprofile.py` (successfully applied)
 
 **Status: ✅ PRODUCTION READY**
@@ -187,7 +187,7 @@ Critical issue resolved in invoice creation flow:
   - To: `if not self.total_amount and self.amount is not None: self.total_amount = self.amount + (self.tax_amount or 0)`
   - Handles null values gracefully and prevents type errors
 
-3. **Files Modified**: `HMS/payments/models.py` - Invoice.__init__ method
+3. **Files Modified**: `nephele/payments/models.py` - Invoice.__init__ method
 4. **Status**: ✅ RESOLVED - Tested in production containers
 
 ---
@@ -219,7 +219,7 @@ Comprehensive module for transmitting invoices to Greek tax authority (MyData/AA
   - Help text explains automatic transmission on creation
   - All standard invoice fields with proper widgets
 
-4. **Web View Integration** (`HMS/web_views.py`)
+4. **Web View Integration** (`nephele/web_views.py`)
   - Auto-detect invoice module and use `InvoiceForm`
   - On form submit: Check if MyData checkbox is enabled
   - If checked: Validate invoice and transmit to MyData
@@ -281,8 +281,8 @@ Comprehensive module for transmitting invoices to Greek tax authority (MyData/AA
 - `payments/forms.py` - New InvoiceForm with MyData checkbox
 - `payments/views.py` - 4 new API endpoints for MyData
 - `payments/urls.py` - 4 new URL routes
-- `HMS/web_views.py` - InvoiceForm usage, MyData transmission logic on create/update
-- `HMS/settings.py` - MyData configuration section
+- `nephele/web_views.py` - InvoiceForm usage, MyData transmission logic on create/update
+- `nephele/settings.py` - MyData configuration section
 - `Makefile` - Fixed migrate rule, added makemigrations
 
 **Key Features:**
@@ -452,7 +452,7 @@ Comprehensive implementation of automatic payment transaction creation when book
 
 Comprehensive alignment of Django business intelligence module with Task 4 system architecture specifications and Task 3 machine learning models. The analytics system now leverages trained ML models for predictive analytics and dynamic pricing optimization:
 
-1. **ML Forecasting Tasks Implementation** (`HMS/analytics/tasks.py`)
+1. **ML Forecasting Tasks Implementation** (`nephele/analytics/tasks.py`)
   - `forecast_occupancy_task()` - 30-day occupancy predictions using historical seasonality
   - `forecast_revenue_task()` - Revenue forecasts leveraging Task 3 pricing models
   - `predict_cancellations_task()` - Booking cancellation risk scoring
@@ -559,7 +559,7 @@ Comprehensive alignment of Django business intelligence module with Task 4 syste
 - `BI_ML_INTEGRATION_SUMMARY.md` - Comprehensive integration documentation with architecture diagrams, code examples, KPIs, and deployment checklist
 
 **Files Modified:**
-- `HMS/analytics/tasks.py` - Added 4 new forecasting tasks, updated `calculate_revenue_metrics()`, updated `nightly_etl_pipeline()`
+- `nephele/analytics/tasks.py` - Added 4 new forecasting tasks, updated `calculate_revenue_metrics()`, updated `nightly_etl_pipeline()`
 
 **Task 3 Integration Points:**
 - ✅ Pricing models (XGBoost, Ensemble, Neural Network) loaded and used
@@ -3865,7 +3865,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health/ || exit 1
 
 # Run gunicorn
-CMD ["gunicorn", "--workers=4", "--worker-class=uvicorn.workers.UvicornWorker", "--bind=0.0.0.0:8000", "HMS.wsgi:application"]
+CMD ["gunicorn", "--workers=4", "--worker-class=uvicorn.workers.UvicornWorker", "--bind=0.0.0.0:8000", "nephele.wsgi:application"]
 ```
 
 #### Container Orchestration: ECS Fargate
@@ -4476,7 +4476,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health/readiness/ || exit 1
 
 # Start Gunicorn with production settings
-CMD ["gunicorn", "--workers=4", "--worker-class=sync", "--bind=0.0.0.0:8000", "--timeout=60", "--access-logfile=-", "--error-logfile=-", "HMS.wsgi:application"]
+CMD ["gunicorn", "--workers=4", "--worker-class=sync", "--bind=0.0.0.0:8000", "--timeout=60", "--access-logfile=-", "--error-logfile=-", "nephele.wsgi:application"]
 ```
 
 **Optimization Benefits:**
@@ -4782,7 +4782,7 @@ BACKUP_FILE="$BACKUP_DIR/nephele_$(date +%Y%m%d_%H%M%S).sql.gz"
 
 **Status:** ✅ PRODUCTION READY - Integrated with monitoring
 
-#### 6.6.8 Enhanced Health Check Endpoints: HMS/health.py
+#### 6.6.8 Enhanced Health Check Endpoints: nephele/health.py
 
 **Four Production Health Endpoints (80+ lines)**
 
@@ -5004,7 +5004,7 @@ All 10 critical infrastructure gaps completed in parallel to backend development
 | backup-database.sh | ✅ Complete | Automated backups with encryption, compression, retention |
 | restore-database.sh | ✅ Complete | Safe restore with confirmations and verification |
 | health-check.sh | ✅ Complete | Real-time service status monitoring |
-| HMS/health.py | ✅ Enhanced | 4 health endpoints for comprehensive monitoring |
+| nephele/health.py | ✅ Enhanced | 4 health endpoints for comprehensive monitoring |
 | deploy-staging.yml | ✅ Complete | Automated staging CI/CD pipeline |
 | deploy-production.yml | ✅ Complete | Production CI/CD with rollback capability |
 | DEPLOYMENT_GUIDE.md | ✅ Complete | 480+ line step-by-step deployment instructions |

@@ -111,10 +111,10 @@ Complete Django app implementation for Business Intelligence and analytics funct
 
 ## Configuration Changes
 
-### File: `HMS/settings.py`
+### File: `nephele/settings.py`
 - Added `'analytics'` to `INSTALLED_APPS`
 
-### File: `HMS/api_urls.py`
+### File: `nephele/api_urls.py`
 - Added route: `path('analytics/', include('analytics.urls'))`
 
 ### File: `accounts/permissions.py`

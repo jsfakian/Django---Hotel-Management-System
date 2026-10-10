@@ -114,7 +114,7 @@ python3 train_forecasting.py
 
 #### 3A. Database Models
 
-**File:** `HMS/analytics/models.py`
+**File:** `nephele/analytics/models.py`
 
 **5 New Models Added (500+ lines):**
 
@@ -152,7 +152,7 @@ python3 train_forecasting.py
 
 #### 3B. Serializers
 
-**File:** `HMS/analytics/serializers.py`
+**File:** `nephele/analytics/serializers.py`
 
 **8 New Serializers Added (350+ lines):**
 - OccupancyForecastSerializer
@@ -170,7 +170,7 @@ python3 train_forecasting.py
 
 #### 3C. REST API ViewSets
 
-**File:** `HMS/analytics/views.py`
+**File:** `nephele/analytics/views.py`
 
 **5 New ViewSets Added (450+ lines):**
 
@@ -199,7 +199,7 @@ python3 train_forecasting.py
 
 #### 3D. URL Configuration
 
-**File:** `HMS/analytics/urls.py`
+**File:** `nephele/analytics/urls.py`
 
 All forecasting viewsets registered with DefaultRouter:
 - `/api/analytics/occupancy-forecasts/`
@@ -302,10 +302,10 @@ GET /api/analytics/forecast-metrics/health_check/?property_id=1
 2. ✅ `FORECASTING_IMPLEMENTATION_GUIDE.md` - Complete deployment guide (400 lines)
 
 ### Modified Files:
-1. ✅ `HMS/analytics/models.py` - Added 5 forecasting models (500 lines)
-2. ✅ `HMS/analytics/serializers.py` - Added 8 serializers (350 lines)
-3. ✅ `HMS/analytics/views.py` - Added 5 viewsets (450 lines)
-4. ✅ `HMS/analytics/urls.py` - Updated routing with forecasting endpoints
+1. ✅ `nephele/analytics/models.py` - Added 5 forecasting models (500 lines)
+2. ✅ `nephele/analytics/serializers.py` - Added 8 serializers (350 lines)
+3. ✅ `nephele/analytics/views.py` - Added 5 viewsets (450 lines)
+4. ✅ `nephele/analytics/urls.py` - Updated routing with forecasting endpoints
 5. ✅ `DELIVERABLES-Task3-ResearchCompletion.md` - Updated with forecasting research (2,000 lines)
 6. ✅ `DELIVERABLES-Task4-SystemArchitecture.md` - Added architecture section (1,500 lines)
 

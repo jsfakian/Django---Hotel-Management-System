@@ -22,7 +22,7 @@ This document describes the adjustments made to the NEPHELE Hotel Management Sys
 
 ### 1.1 Django Settings Configuration
 
-**File:** `HMS/settings.py`
+**File:** `nephele/settings.py`
 
 **Changes Made:**
 - ✅ Added REST Framework configuration with JWT authentication
@@ -50,7 +50,7 @@ This document describes the adjustments made to the NEPHELE Hotel Management Sys
 
 ### 1.2 Exception Handling & Error Responses
 
-**File:** `HMS/exceptions.py`
+**File:** `nephele/exceptions.py`
 
 **Changes Made:**
 - ✅ Custom exception handler for consistent error response format
@@ -78,7 +78,7 @@ This document describes the adjustments made to the NEPHELE Hotel Management Sys
 
 ### 1.3 URL Configuration
 
-**File:** `HMS/urls.py` and `HMS/api_urls.py`
+**File:** `nephele/urls.py` and `nephele/api_urls.py`
 
 **Changes Made:**
 - ✅ Created separate API URL router (`/api/v1/`)

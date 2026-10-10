@@ -1,4 +1,4 @@
-# NEPHELE HMS — Architecture
+# Nephele — Architecture
 
 This document describes the **current** runtime architecture as implemented in the repository (Django 4.2 API, React SPA, Celery, Postgres/Redis, monitoring). Historical design essays live in `DELIVERABLES-Task4-SystemArchitecture.md` and related task docs; when they conflict with this file or the code, **trust the code**.
 
@@ -45,11 +45,11 @@ This document describes the **current** runtime architecture as implemented in t
 
 ### 2.1 API / web (Django)
 
-- Project package: `HMS/HMS/`
-- Entry: `manage.py`, WSGI/ASGI under `HMS/HMS/`
-- Settings: `HMS/HMS/settings.py` (prod via env); tests: `HMS/HMS/test_settings.py`
-- URL roots (`HMS/HMS/urls.py`):
-  - REST: `/api/v1/` → `HMS/HMS/api_urls.py`
+- Project package: `nephele/config/`
+- Entry: `manage.py`, WSGI/ASGI under `nephele/config/`
+- Settings: `nephele/config/settings.py` (prod via env); tests: `nephele/config/test_settings.py`
+- URL roots (`nephele/config/urls.py`):
+  - REST: `/api/v1/` → `nephele/config/api_urls.py`
   - Health: `/health/`, `/health/db/`, `/health/cache/`, `/healthz/`
   - Metrics: `/metrics/` (django-prometheus)
   - Admin: `/admin/`
@@ -69,11 +69,11 @@ Django templates remain for landing/portal and some ops pages; the SPA is the pr
 
 | Piece | Location |
 |-------|----------|
-| App | `HMS/HMS/celery.py` |
+| App | `nephele/config/celery.py` |
 | Broker / results | Redis (`CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`) |
 | Beat schedule (code) | `CELERY_BEAT_SCHEDULE` in `settings.py` |
 | Beat runtime | `django_celery_beat` DatabaseScheduler (compose) |
-| Alternate schedule file | `HMS/HMS/celery_config.py` (not imported by settings) |
+| Alternate schedule file | `nephele/config/celery_config.py` (not imported by settings) |
 
 **Task modules**
 
@@ -117,7 +117,7 @@ Django templates remain for landing/portal and some ops pages; the SPA is the pr
 | `analytics` | BI, custom reports, forecasting | Dashboards, ETL tasks, web + API |
 | `hotel` | Legacy ops (events, bills, storage, …) | Classic views; no dedicated `urls.py` include |
 
-Cross-cutting API implementation also lives in `HMS/HMS/api_viewsets.py`, `auth_api.py`, and `dashboard_api.py`.
+Cross-cutting API implementation also lives in `nephele/config/api_viewsets.py`, `auth_api.py`, and `dashboard_api.py`.
 
 ### Domain relationships (simplified)
 
@@ -143,11 +143,11 @@ Booking ── Payment ── Invoice ──(optional)── MyData submission
 - Schema: drf-spectacular → `/api/v1/schema/`, Swagger UI → `/api/v1/docs/swagger/`
 - Supplemental includes (not only router CRUD):
   - `bookings.urls` — dynamic price, recommendations, pricing predict/history/scenario
-  - `channels.urls` — channel-specific actions (note nested path segments)
+  - Channel ViewSet registered on `/api/v1/channels/` (no separate `channels.urls`)
   - `inventory.urls` — availability, overbook, sync log
   - `analytics.urls` — reporting & forecasting surface
 
-JWT login (`HMSTokenObtainPairView`) embeds `role`, `username`, and `email` claims. Role resolution: superuser → `admin`, else first Django Group name, else `guest`.
+JWT login (`NepheleTokenObtainPairView`) embeds `role`, `username`, and `email` claims. Role resolution: superuser → `admin`, else first Django Group name, else `guest`.
 
 ## 5. AuthZ model
 
@@ -187,7 +187,7 @@ Payment and invoice models live in `payments`. MyData submission is encapsulated
 
 ### 6.4 GDPR
 
-API under `/api/v1/gdpr/*` orchestrates async export (Celery) and deletion requests. Guest SPA page: `frontend/src/pages/guest/GDPRPage.jsx`. Tests: `HMS/accounts/tests_gdpr.py` (`make test-gdpr`).
+API under `/api/v1/gdpr/*` orchestrates async export (Celery) and deletion requests. Guest SPA page: `frontend/src/pages/guest/GDPRPage.jsx`. Tests: `nephele/accounts/tests_gdpr.py` (`make test-gdpr`).
 
 ## 7. Deployment topologies
 
@@ -209,16 +209,17 @@ Services: `postgres`, `redis`, `django` (`Dockerfile.prod`, `DEBUG=False`), `cel
 |------|------|
 | `terraform/` | AWS IaC (compute, database, environments) |
 | `k8s/` | Kubernetes manifests + `deploy.sh` |
-| `deployment/` | nginx configs and production runbooks |
+| `deployment/` | nginx + `.env.prod.example` (runbooks in `docs/deployment/`) |
+| `ml/` | pricing/forecast training (`algorithms/`) and experiment CSVs (`data/`) |
 | `scripts/` | Backup, restore, health, certbot helpers |
 
 ## 8. Testing architecture
 
 ```
-HMS/tests/          # primary pyramid (unit / integration / e2e / performance)
-HMS/accounts/tests_gdpr.py
+nephele/tests/          # primary pyramid (unit / integration / e2e / performance)
+nephele/accounts/tests_gdpr.py
 monitoring/test_monitoring.py
-HMS/pytest.ini      # DJANGO_SETTINGS_MODULE=HMS.test_settings
+nephele/pytest.ini      # DJANGO_SETTINGS_MODULE=config.test_settings
 ```
 
 - In-memory SQLite for tests; Celery eager in test settings as configured

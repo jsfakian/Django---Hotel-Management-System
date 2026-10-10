@@ -2,7 +2,7 @@
 set -e
 
 echo "========================================="
-echo "HMS Django Entrypoint Script"
+echo "Nephele Django Entrypoint Script"
 echo "========================================="
 
 # Wait for PostgreSQL

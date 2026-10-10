@@ -10,7 +10,7 @@ When attempting to create an invoice via `/portal/invoices/create/`, the system 
 ```
 TypeError at /portal/invoices/create/
 unsupported operand type(s) for +: 'NoneType' and 'int'
-Exception Location: /app/HMS/payments/models.py, line 222, in __init__
+Exception Location: /app/nephele/payments/models.py, line 222, in __init__
 ```
 
 ### Root Cause
@@ -95,7 +95,7 @@ Connect the invoice module to MyData (AADE - Greek tax authority system)
      - Added admin action to bulk transmit invoices
    - Made MyData fields readonly in admin
 
-5. **HMS/settings.py**
+5. **nephele/settings.py**
    - Added MyData configuration section:
      - `MYDATA_API_BASE`
      - `MYDATA_USERNAME`
@@ -106,7 +106,7 @@ Connect the invoice module to MyData (AADE - Greek tax authority system)
      - `MYDATA_SANDBOX_MODE`
      - `MYDATA_TRANSMISSION_RETRIES`
 
-6. **HMS/web_views.py**
+6. **nephele/web_views.py**
    - Updated `MODULE_FIELD_CONFIG['invoices']`:
      - Added `mydata_transmitted` and `mydata_transmission_id` to editable fields
      - Added `mydata_transmitted` to display columns
@@ -224,8 +224,8 @@ For production deployment:
 - `payments/views.py` (+162 lines)
 - `payments/urls.py` (+8 lines)
 - `payments/admin.py` (+38 lines)
-- `HMS/settings.py` (+22 lines)
-- `HMS/web_views.py` (+4 lines)
+- `nephele/settings.py` (+22 lines)
+- `nephele/web_views.py` (+4 lines)
 
 ### Total Changes
 - Lines added: ~450+
@@ -262,7 +262,7 @@ Complete documentation available in:
 
 For issues:
 1. Check MYDATA_INTEGRATION_GUIDE.md
-2. Review error logs in HMS/logs/errors.log
+2. Review error logs in nephele/logs/errors.log
 3. Verify HOTEL_TAX_ID is configured
 4. Test with MYDATA_SANDBOX_MODE=True first
 

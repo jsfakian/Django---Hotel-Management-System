@@ -1,6 +1,6 @@
 {
   "dashboard": {
-    "title": "HMS - Django Application Metrics",
+    "title": "Nephele - Django Application Metrics",
     "tags": ["hms", "django", "application"],
     "timezone": "browser",
     "panels": [
@@ -120,7 +120,7 @@
       "from": "now-6h",
       "to": "now"
     },
-    "uid": "hms-django-metrics",
+    "uid": "nephele-django-metrics",
     "version": 1
   }
 }

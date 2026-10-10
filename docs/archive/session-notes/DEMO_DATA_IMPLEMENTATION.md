@@ -11,7 +11,7 @@ Comprehensive test data has been successfully created, stored, and integrated in
 ## What Was Created
 
 ### 1. **Management Command**
-- **File**: `HMS/bookings/management/commands/load_demo_data.py`
+- **File**: `nephele/bookings/management/commands/load_demo_data.py`
 - **Purpose**: Loads comprehensive demo data from JSON fixture
 - **Features**:
   - Atomic transactions (all-or-nothing loading)
@@ -20,7 +20,7 @@ Comprehensive test data has been successfully created, stored, and integrated in
   - Progress reporting
 
 ### 2. **Demo Data Fixture**
-- **File**: `HMS/fixtures/demo_data.json`
+- **File**: `nephele/fixtures/demo_data.json`
 - **Size**: ~15KB, includes:
   - 4 hotel properties
   - 14 rooms (various types and prices)
@@ -225,7 +225,7 @@ Navigate to:
 ## Customization
 
 ### Add More Properties
-Edit `HMS/fixtures/demo_data.json`:
+Edit `nephele/fixtures/demo_data.json`:
 ```json
 {
   "name": "New Hotel",
@@ -268,7 +268,7 @@ See [DEMO_DATA_SETUP.md](DEMO_DATA_SETUP.md) for detailed customization guide.
 ## File Structure
 
 ```
-HMS/
+nephele/
 ├── fixtures/
 │   └── demo_data.json                              # Demo data storage
 ├── bookings/
@@ -376,10 +376,10 @@ make load-demo-data-fresh
 **Issue**: Demo data file not found
 ```bash
 # Verify file exists
-ls -la HMS/fixtures/demo_data.json
+ls -la nephele/fixtures/demo_data.json
 
 # Check JSON syntax
-python -m json.tool HMS/fixtures/demo_data.json
+python -m json.tool nephele/fixtures/demo_data.json
 ```
 
 **Issue**: Import errors
@@ -398,8 +398,8 @@ python -m json.tool HMS/fixtures/demo_data.json
 ## Files Modified/Created
 
 ### New Files
-- ✅ `HMS/bookings/management/commands/load_demo_data.py`
-- ✅ `HMS/fixtures/demo_data.json`
+- ✅ `nephele/bookings/management/commands/load_demo_data.py`
+- ✅ `nephele/fixtures/demo_data.json`
 - ✅ `DEMO_DATA_SETUP.md`
 
 ### Modified Files
@@ -436,7 +436,7 @@ Safe to run:
    ```
 
 3. **Customize for your needs**
-   - Edit `HMS/fixtures/demo_data.json`
+   - Edit `nephele/fixtures/demo_data.json`
    - Run `make load-demo-data-fresh` to reload
 
 4. **Refer to DEMO_DATA_SETUP.md for detailed guidance**

@@ -8,7 +8,7 @@
 ## 1. Invoice Display Templates
 
 ### A. Invoice Detail Template (`invoice-detail.html`)
-**Location:** `/HMS/templates/manager/invoice-detail.html`
+**Location:** `/nephele/templates/manager/invoice-detail.html`
 
 **Purpose:** Enhanced web-based invoice viewer with full MyData integration status display
 
@@ -49,7 +49,7 @@ return render(request, 'manager/invoice-detail.html', context)
 ---
 
 ### B. Invoice Print-Friendly Template (`invoice-print.html`)
-**Location:** `/HMS/templates/manager/invoice-print.html`
+**Location:** `/nephele/templates/manager/invoice-print.html`
 
 **Purpose:** Professional print-optimized invoice document for PDF/printing
 
@@ -92,7 +92,7 @@ Users can print from the invoice detail view or navigate directly to print templ
 ## 2. Comprehensive Unit Tests (25 Tests - ALL PASSING ✅)
 
 ### Test File Location
-`/HMS/payments/tests.py` - 580+ lines
+`/nephele/payments/tests.py` - 580+ lines
 
 ### Test Configuration
 ```python

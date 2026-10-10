@@ -120,13 +120,13 @@ monitoring/
 
 ### 7. Django Integration ✅
 
-**Updated `HMS/settings.py`**:
+**Updated `nephele/settings.py`**:
 - Added `django_prometheus` to INSTALLED_APPS
 - Added PrometheusBeforeMiddleware
 - Added PrometheusAfterMiddleware
 - Automatic HTTP, DB, ORM, cache metrics
 
-**Updated `HMS/urls.py`**:
+**Updated `nephele/urls.py`**:
 - Added `/metrics/` endpoint
 - Accessible at `http://localhost:8000/metrics/`
 
@@ -217,8 +217,8 @@ Project Root
 
 ### Django Integration
 ```
-HMS/
-├── HMS/
+nephele/
+├── nephele/
 │   ├── settings.py     ✅ [Updated: added django_prometheus]
 │   └── urls.py         ✅ [Updated: added /metrics/ endpoint]
 └── requirements.docker.txt ✅ [Updated: added monitoring packages]

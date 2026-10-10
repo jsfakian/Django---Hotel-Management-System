@@ -5,9 +5,9 @@ Date: 2026-02-20
 ## Scope
 
 Compare `swagger.yaml` to currently wired Django API routes under:
-- `HMS/HMS/api_urls.py`
-- `HMS/analytics/urls.py`
-- `HMS/bookings/urls.py`
+- `nephele/nephele/api_urls.py`
+- `nephele/analytics/urls.py`
+- `nephele/bookings/urls.py`
 
 Status legend:
 - **MATCHED**: implemented with compatible semantics
