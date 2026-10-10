@@ -9,7 +9,7 @@ from accounts.models import Guest, Employee
 class Announcement(models.Model):
     content = models.TextField()
     sender = models.ForeignKey(Employee, null=True, on_delete=models.CASCADE)
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.localdate)
 
     def __str__(self):
         return str(self.sender)
@@ -64,7 +64,7 @@ class FoodMenu(models.Model):
 
 
 class Report(models.Model):
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default=timezone.localdate)
     content = models.TextField()
 
     def __str__(self):

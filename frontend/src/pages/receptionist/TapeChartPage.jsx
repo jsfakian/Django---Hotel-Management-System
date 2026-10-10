@@ -42,6 +42,22 @@ function BookingChip({ booking }) {
   )
 }
 
+function roomDropHandlers(onDropAssign, selectedBookingId, roomId) {
+  return {
+    onDragOver: (e) => e.preventDefault(),
+    onDrop: (e) => {
+      e.preventDefault()
+      const bookingId = e.dataTransfer.getData('text/booking-id') || selectedBookingId
+      if (bookingId) onDropAssign(bookingId, roomId)
+    },
+  }
+}
+
+function cellBooking(cell) {
+  if (!cell?.booking_id) return null
+  return { booking_id: cell.booking_id, guest: cell.guest, status: cell.status }
+}
+
 function TapeTable({ rooms, dates, onDropAssign, selectedBookingId }) {
   return (
     <Paper sx={{ overflow: 'auto' }}>
@@ -55,46 +71,109 @@ function TapeTable({ rooms, dates, onDropAssign, selectedBookingId }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {rooms.map((room) => (
-            <TableRow key={room.room_id || room.id || room.room_number}>
-              <TableCell
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  const bookingId = e.dataTransfer.getData('text/booking-id') || selectedBookingId
-                  if (bookingId) onDropAssign(bookingId, room.room_id || room.id)
-                }}
-                sx={{ cursor: 'copy' }}
-              >
-                <Typography variant="body2" fontWeight={600}>{room.room_number}</Typography>
-                <Typography variant="caption" color="text.secondary">{room.status}</Typography>
-              </TableCell>
-              {(room.cells || dates.map((d) => ({ date: d }))).map((cell) => {
-                const d = cell.date
-                const booking = cell.booking_id
-                  ? { booking_id: cell.booking_id, guest: cell.guest, status: cell.status }
-                  : null
-                return (
-                  <TableCell
-                    key={d}
-                    align="center"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      const bookingId = e.dataTransfer.getData('text/booking-id') || selectedBookingId
-                      if (bookingId) onDropAssign(bookingId, room.room_id || room.id)
-                    }}
-                    sx={{ bgcolor: booking ? 'rgba(11,95,107,0.12)' : 'transparent' }}
-                  >
-                    <BookingChip booking={booking} />
-                  </TableCell>
-                )
-              })}
-            </TableRow>
-          ))}
+          {rooms.map((room) => {
+            const roomId = room.room_id || room.id
+            const drop = roomDropHandlers(onDropAssign, selectedBookingId, roomId)
+            return (
+              <TableRow key={roomId || room.room_number}>
+                <TableCell {...drop} sx={{ cursor: 'copy' }}>
+                  <Typography variant="body2" fontWeight={600}>{room.room_number}</Typography>
+                  <Typography variant="caption" color="text.secondary">{room.status}</Typography>
+                </TableCell>
+                {(room.cells || dates.map((d) => ({ date: d }))).map((cell) => {
+                  const booking = cellBooking(cell)
+                  return (
+                    <TableCell
+                      key={cell.date}
+                      align="center"
+                      {...drop}
+                      sx={{ bgcolor: booking ? 'rgba(11,95,107,0.12)' : 'transparent' }}
+                    >
+                      <BookingChip booking={booking} />
+                    </TableCell>
+                  )
+                })}
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </Paper>
+  )
+}
+
+function UnassignedPanel({
+  unassigned, rooms, selectedBookingId, setSelectedBookingId, assigning, onAssign,
+}) {
+  if (!unassigned.length) return null
+  return (
+    <Paper sx={{ p: 2, mb: 2 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>Unassigned room-type bookings</Typography>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+        {unassigned.map((b) => (
+          <Chip
+            key={b.booking_id}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/booking-id', String(b.booking_id))
+              setSelectedBookingId(String(b.booking_id))
+            }}
+            onClick={() => setSelectedBookingId(String(b.booking_id))}
+            color={String(selectedBookingId) === String(b.booking_id) ? 'primary' : 'default'}
+            label={`#${b.booking_id} ${b.guest || ''} ${b.check_in}→${b.check_out}`}
+            sx={{ cursor: 'grab' }}
+          />
+        ))}
+        <TextField
+          select
+          size="small"
+          label="Assign to room"
+          sx={{ minWidth: 140 }}
+          value=""
+          disabled={!selectedBookingId || assigning}
+          onChange={(e) => onAssign(selectedBookingId, e.target.value)}
+        >
+          {rooms.map((r) => (
+            <MenuItem key={r.room_id} value={r.room_id}>{r.room_number}</MenuItem>
+          ))}
+        </TextField>
+        {selectedBookingId && (
+          <Button size="small" onClick={() => setSelectedBookingId('')}>Clear</Button>
+        )}
+      </Box>
+    </Paper>
+  )
+}
+
+function TapeChartBody({
+  error, message, unassigned, rooms, dates, selectedBookingId, setSelectedBookingId,
+  assigning, handleAssign, isLoading,
+}) {
+  return (
+    <>
+      {error && <ErrorAlert error={error} />}
+      {message && <Alert severity="info" sx={{ mb: 2 }}>{message}</Alert>}
+      <UnassignedPanel
+        unassigned={unassigned}
+        rooms={rooms}
+        selectedBookingId={selectedBookingId}
+        setSelectedBookingId={setSelectedBookingId}
+        assigning={assigning}
+        onAssign={handleAssign}
+      />
+      {isLoading && <LoadingSpinner />}
+      {!isLoading && !error && rooms.length === 0 && (
+        <Typography color="text.secondary">No tape-chart data for this range.</Typography>
+      )}
+      {!isLoading && rooms.length > 0 && (
+        <TapeTable
+          rooms={rooms}
+          dates={dates}
+          selectedBookingId={selectedBookingId}
+          onDropAssign={handleAssign}
+        />
+      )}
+    </>
   )
 }
 
@@ -141,59 +220,18 @@ export default function TapeChartPage() {
         <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
       </Box>
 
-      {error && <ErrorAlert error={error} />}
-      {message && <Alert severity="info" sx={{ mb: 2 }}>{message}</Alert>}
-
-      {unassigned.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Unassigned room-type bookings</Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-            {unassigned.map((b) => (
-              <Chip
-                key={b.booking_id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/booking-id', String(b.booking_id))
-                  setSelectedBookingId(String(b.booking_id))
-                }}
-                onClick={() => setSelectedBookingId(String(b.booking_id))}
-                color={String(selectedBookingId) === String(b.booking_id) ? 'primary' : 'default'}
-                label={`#${b.booking_id} ${b.guest || ''} ${b.check_in}→${b.check_out}`}
-                sx={{ cursor: 'grab' }}
-              />
-            ))}
-            <TextField
-              select
-              size="small"
-              label="Assign to room"
-              sx={{ minWidth: 140 }}
-              value=""
-              disabled={!selectedBookingId || assigning}
-              onChange={(e) => handleAssign(selectedBookingId, e.target.value)}
-            >
-              {rooms.map((r) => (
-                <MenuItem key={r.room_id} value={r.room_id}>{r.room_number}</MenuItem>
-              ))}
-            </TextField>
-            {selectedBookingId && (
-              <Button size="small" onClick={() => setSelectedBookingId('')}>Clear</Button>
-            )}
-          </Box>
-        </Paper>
-      )}
-
-      {isLoading && <LoadingSpinner />}
-      {!isLoading && !error && rooms.length === 0 && (
-        <Typography color="text.secondary">No tape-chart data for this range.</Typography>
-      )}
-      {!isLoading && rooms.length > 0 && (
-        <TapeTable
-          rooms={rooms}
-          dates={dates}
-          selectedBookingId={selectedBookingId}
-          onDropAssign={handleAssign}
-        />
-      )}
+      <TapeChartBody
+        error={error}
+        message={message}
+        unassigned={unassigned}
+        rooms={rooms}
+        dates={dates}
+        selectedBookingId={selectedBookingId}
+        setSelectedBookingId={setSelectedBookingId}
+        assigning={assigning}
+        handleAssign={handleAssign}
+        isLoading={isLoading}
+      />
     </AppLayout>
   )
 }

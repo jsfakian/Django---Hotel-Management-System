@@ -188,6 +188,84 @@ def _create_channel_booking(channel, room, validated_data):
     return booking
 
 
+def _ingest_channel_booking(channel, request):
+    """Validate webhook payload and create booking; return Response."""
+    body_str = _decode_body(request.body)
+
+    auth_error = _webhook_auth_error(channel, request, body_str)
+    if auth_error is not None:
+        return auth_error
+
+    validated_data, error_response = _parse_booking_payload(body_str)
+    if error_response is not None:
+        return error_response
+
+    duplicate = _duplicate_booking_response(channel, validated_data)
+    if duplicate is not None:
+        return duplicate
+
+    room, error_response = _get_channel_room(channel, validated_data)
+    if error_response is not None:
+        return error_response
+
+    unavailable = _room_unavailable_response(channel, room, validated_data)
+    if unavailable is not None:
+        return unavailable
+
+    try:
+        booking = _create_channel_booking(channel, room, validated_data)
+        ChannelWebhookLog.objects.create(
+            channel=channel,
+            event='booking',
+            payload=validated_data,
+            status='processed',
+        )
+    except Exception as e:
+        ChannelWebhookLog.objects.create(
+            channel=channel,
+            event='booking',
+            payload=validated_data,
+            status='failed',
+            error_message=str(e),
+        )
+        return Response(
+            {"error": "Failed to create booking", "details": str(e)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    return Response(
+        {
+            "booking_id": booking.id,
+            "status": "confirmed",
+            "confirmation_number": f"BKNG-{booking.id}",
+            "booking_created_at": booking.created_at.isoformat()
+        },
+        status=status.HTTP_201_CREATED
+    )
+
+
+def _mapping_errors(mapping, local_ids, entity_label):
+    """Validate mapping keys against a set of local catalog ids."""
+    errors = []
+    for key, remote in mapping.items():
+        try:
+            rid = int(key)
+        except (TypeError, ValueError):
+            errors.append({'key': key, 'error': f'non-integer {entity_label} id'})
+            continue
+        if rid not in local_ids:
+            errors.append(
+                {'key': key, 'error': f'unknown {entity_label} for property'}
+            )
+        if not remote:
+            errors.append({'key': key, 'error': 'empty remote id'})
+    return errors
+
+
+def _unmapped_local_ids(local_ids, mapping):
+    return sorted(local_ids - {int(k) for k in mapping if str(k).isdigit()})
+
+
 class ChannelViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing OTA channel integrations.
@@ -253,67 +331,14 @@ class ChannelViewSet(viewsets.ModelViewSet):
                 {"error": "Channel not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         if not channel.accept_bookings:
             return Response(
                 {"error": "Channel not accepting bookings"},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        body_str = _decode_body(request.body)
 
-        auth_error = _webhook_auth_error(channel, request, body_str)
-        if auth_error is not None:
-            return auth_error
-
-        # Parse and validate booking data
-        validated_data, error_response = _parse_booking_payload(body_str)
-        if error_response is not None:
-            return error_response
-
-        duplicate = _duplicate_booking_response(channel, validated_data)
-        if duplicate is not None:
-            return duplicate
-
-        # Verify room exists and is accessible by property
-        room, error_response = _get_channel_room(channel, validated_data)
-        if error_response is not None:
-            return error_response
-
-        unavailable = _room_unavailable_response(channel, room, validated_data)
-        if unavailable is not None:
-            return unavailable
-
-        try:
-            booking = _create_channel_booking(channel, room, validated_data)
-            ChannelWebhookLog.objects.create(
-                channel=channel,
-                event='booking',
-                payload=validated_data,
-                status='processed',
-            )
-        except Exception as e:
-            ChannelWebhookLog.objects.create(
-                channel=channel,
-                event='booking',
-                payload=validated_data,
-                status='failed',
-                error_message=str(e),
-            )
-            return Response(
-                {"error": "Failed to create booking", "details": str(e)},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-        
-        return Response(
-            {
-                "booking_id": booking.id,
-                "status": "confirmed",
-                "confirmation_number": f"BKNG-{booking.id}",
-                "booking_created_at": booking.created_at.isoformat()
-            },
-            status=status.HTTP_201_CREATED
-        )
+        return _ingest_channel_booking(channel, request)
     
     @action(detail=True, methods=['post'], url_path='availability/sync')
     def sync_availability(self, request, pk=None):
@@ -413,29 +438,8 @@ class ChannelViewSet(viewsets.ModelViewSet):
                 'id', flat=True
             )
         )
-        rt_errors = []
-        for key, remote in rt_map.items():
-            try:
-                rid = int(key)
-            except (TypeError, ValueError):
-                rt_errors.append({'key': key, 'error': 'non-integer room type id'})
-                continue
-            if rid not in local_rt:
-                rt_errors.append({'key': key, 'error': 'unknown room type for property'})
-            if not remote:
-                rt_errors.append({'key': key, 'error': 'empty remote id'})
-        rp_errors = []
-        for key, remote in rp_map.items():
-            try:
-                rid = int(key)
-            except (TypeError, ValueError):
-                rp_errors.append({'key': key, 'error': 'non-integer rate plan id'})
-                continue
-            if rid not in local_rp:
-                rp_errors.append({'key': key, 'error': 'unknown rate plan for property'})
-            if not remote:
-                rp_errors.append({'key': key, 'error': 'empty remote id'})
-
+        rt_errors = _mapping_errors(rt_map, local_rt, 'room type')
+        rp_errors = _mapping_errors(rp_map, local_rp, 'rate plan')
         ok = not rt_errors and not rp_errors and bool(rt_map)
         return Response(
             {
@@ -444,8 +448,8 @@ class ChannelViewSet(viewsets.ModelViewSet):
                 'rate_plan_mappings_count': len(rp_map),
                 'room_type_errors': rt_errors,
                 'rate_plan_errors': rp_errors,
-                'unmapped_room_types': sorted(local_rt - {int(k) for k in rt_map if str(k).isdigit()}),
-                'unmapped_rate_plans': sorted(local_rp - {int(k) for k in rp_map if str(k).isdigit()}),
+                'unmapped_room_types': _unmapped_local_ids(local_rt, rt_map),
+                'unmapped_rate_plans': _unmapped_local_ids(local_rp, rp_map),
             }
         )
 

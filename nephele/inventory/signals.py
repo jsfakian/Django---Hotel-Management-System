@@ -73,32 +73,40 @@ def booking_pre_save_capture(sender, instance, **kwargs):
         _PREVIOUS_BOOKING_STATE[instance.pk] = previous
 
 
+def _booking_slot_changed(previous, instance) -> bool:
+    return (
+        previous["room_id"] != instance.room_id
+        or previous["check_in_date"] != instance.check_in_date
+        or previous["check_out_date"] != instance.check_out_date
+        or previous["status"] != instance.status
+    )
+
+
+def _refresh_previous_inventory(previous, instance):
+    """Recalculate inventory for the prior room/dates when the booking moved."""
+    if not previous or not previous.get("room_id"):
+        return
+    old_room_id = previous["room_id"]
+    if not old_room_id or not _booking_slot_changed(previous, instance):
+        return
+    try:
+        from room.models import Room
+
+        old_room = Room.objects.filter(pk=old_room_id).first()
+        if old_room:
+            recalculate_room_availability(
+                old_room,
+                previous["check_in_date"],
+                previous["check_out_date"],
+            )
+    except Exception:
+        logger.exception("Failed to refresh previous booking inventory")
+
+
 @receiver(post_save, sender="room.Booking")
 def booking_post_save_inventory(sender, instance, created, **kwargs):
     previous = _PREVIOUS_BOOKING_STATE.pop(instance.pk, None) if instance.pk else None
-
-    # Refresh previous room/dates if they changed
-    if previous and previous.get("room_id"):
-        old_room_id = previous["room_id"]
-        dates_changed = (
-            old_room_id != instance.room_id
-            or previous["check_in_date"] != instance.check_in_date
-            or previous["check_out_date"] != instance.check_out_date
-            or previous["status"] != instance.status
-        )
-        if dates_changed and old_room_id:
-            try:
-                from room.models import Room
-
-                old_room = Room.objects.filter(pk=old_room_id).first()
-                if old_room:
-                    recalculate_room_availability(
-                        old_room,
-                        previous["check_in_date"],
-                        previous["check_out_date"],
-                    )
-            except Exception:
-                logger.exception("Failed to refresh previous booking inventory")
+    _refresh_previous_inventory(previous, instance)
 
     if instance.status in ACTIVE_BOOKING_STATUSES:
         apply_booking_to_inventory(instance)

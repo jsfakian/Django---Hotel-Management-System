@@ -81,6 +81,138 @@ def _parse_date(value):
     return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
 
 
+def _rooms_affected_from_result(result) -> int:
+    rooms_affected = int(result.get("vevents") or 0)
+    if not rooms_affected and result.get("prepared_rooms") is not None:
+        rooms_affected = len(result.get("prepared_rooms") or [])
+    return rooms_affected
+
+
+def _finish_not_implemented_result(channel, sync_log, result, rooms_affected):
+    from django.conf import settings
+
+    stubs_ok = getattr(settings, "CHANNEL_SYNC_STUBS_OK", False)
+    if stubs_ok:
+        sync_log.sync_status = "success"
+        sync_log.error_message = (
+            f"Stub accepted (CHANNEL_SYNC_STUBS_OK): "
+            f"{result.get('message', 'not_implemented')}"
+        )
+    else:
+        sync_log.sync_status = "not_implemented"
+        sync_log.error_message = result.get("message", "not_implemented")
+        channel.last_error = result.get("message", "")
+        channel.save(update_fields=["last_error", "updated_at"])
+    sync_log.response_data = result
+    sync_log.rooms_affected = rooms_affected
+    sync_log.completed_at = timezone.now()
+    sync_log.save()
+    return result
+
+
+def _push_via_connector(channel, connector, date_from, date_to, sync_log):
+    result = connector.push_availability(
+        channel, date_from=date_from, date_to=date_to
+    )
+    rooms_affected = _rooms_affected_from_result(result)
+    if result.get("status") == "not_implemented":
+        return _finish_not_implemented_result(
+            channel, sync_log, result, rooms_affected
+        ), None
+    if result.get("status") == "error":
+        raise RuntimeError(result.get("message") or "connector error")
+    return result, rooms_affected
+
+
+def _finalize_zero_rooms(channel, sync_log, result):
+    msg = (
+        "No rooms synced — missing room mappings, empty availability, "
+        "or connector returned zero affected units"
+    )
+    sync_log.sync_status = "not_implemented"
+    sync_log.error_message = msg
+    sync_log.rooms_affected = 0
+    sync_log.response_data = result if isinstance(result, dict) else {}
+    sync_log.completed_at = timezone.now()
+    sync_log.save()
+    channel.last_error = msg
+    channel.save(update_fields=["last_error", "updated_at"])
+    return {
+        "status": "not_implemented",
+        "message": msg,
+        "rooms_affected": 0,
+    }
+
+
+def _finalize_success(channel, sync_log, result, rooms_affected):
+    sync_log.sync_status = "success"
+    sync_log.completed_at = timezone.now()
+    sync_log.rooms_affected = rooms_affected
+    sync_log.response_data = result if isinstance(result, dict) else {}
+    sync_log.save()
+
+    channel.last_sync_at = sync_log.completed_at
+    channel.error_count = 0
+    channel.last_error = ""
+    channel.save()
+    return result
+
+
+def _handle_not_implemented_exc(channel, sync_log, exc):
+    from django.conf import settings
+
+    stubs_ok = getattr(settings, "CHANNEL_SYNC_STUBS_OK", False)
+    if stubs_ok:
+        sync_log.sync_status = "success"
+        sync_log.error_message = f"Stub accepted (CHANNEL_SYNC_STUBS_OK): {exc}"
+        sync_log.completed_at = timezone.now()
+        sync_log.save()
+        return {"status": "success", "detail": "stub_ok", "message": str(exc)}
+    sync_log.sync_status = "not_implemented"
+    sync_log.error_message = str(exc)
+    sync_log.completed_at = timezone.now()
+    sync_log.save()
+    channel.last_error = str(exc)
+    channel.save(update_fields=["last_error", "updated_at"])
+    return {"status": "not_implemented", "message": str(exc)}
+
+
+def _handle_sync_failure(self, channel, sync_log, channel_id, exc):
+    logger.error("Error syncing to channel %s: %s", channel_id, exc)
+    channel.error_count += 1
+    channel.last_error = str(exc)
+    channel.save()
+    if self.request.retries < self.max_retries:
+        countdown = 2 ** self.request.retries
+        raise self.retry(exc=exc, countdown=countdown)
+    sync_log.sync_status = "failed"
+    sync_log.error_message = str(exc)
+    sync_log.completed_at = timezone.now()
+    sync_log.save()
+    return {"status": "failed", "message": str(exc)}
+
+
+def _execute_channel_sync(channel, connector, date_from, date_to, sync_log):
+    if connector is not None:
+        early, rooms_affected = _push_via_connector(
+            channel, connector, date_from, date_to, sync_log
+        )
+        if rooms_affected is None:
+            return early
+        result = early
+    else:
+        rooms_affected = _legacy_sync_rooms(channel, date_from, date_to)
+        result = {
+            "status": "ok",
+            "channel": channel.channel_name,
+            "rooms_affected": rooms_affected,
+        }
+
+    if rooms_affected == 0:
+        return _finalize_zero_rooms(channel, sync_log, result)
+    return _finalize_success(channel, sync_log, result, rooms_affected)
+
+
 @shared_task(bind=True, max_retries=5, default_retry_delay=60)
 def sync_availability_to_channel(
     self, channel_id, sync_type="full_sync", date_from=None, date_to=None
@@ -95,8 +227,6 @@ def sync_availability_to_channel(
     if not channel.sync_enabled or not channel.is_active:
         logger.info("Channel %s sync is disabled", channel)
         return {"status": "skipped", "reason": "disabled"}
-
-    from django.conf import settings
 
     date_from = _parse_date(date_from)
     date_to = _parse_date(date_to)
@@ -113,103 +243,13 @@ def sync_availability_to_channel(
     )
 
     try:
-        if connector is not None:
-            result = connector.push_availability(
-                channel, date_from=date_from, date_to=date_to
-            )
-            rooms_affected = int(result.get("vevents") or 0)
-            if not rooms_affected and result.get("prepared_rooms") is not None:
-                rooms_affected = len(result.get("prepared_rooms") or [])
-            if result.get("status") == "not_implemented":
-                stubs_ok = getattr(settings, "CHANNEL_SYNC_STUBS_OK", False)
-                if stubs_ok:
-                    sync_log.sync_status = "success"
-                    sync_log.error_message = (
-                        f"Stub accepted (CHANNEL_SYNC_STUBS_OK): "
-                        f"{result.get('message', 'not_implemented')}"
-                    )
-                else:
-                    sync_log.sync_status = "not_implemented"
-                    sync_log.error_message = result.get(
-                        "message", "not_implemented"
-                    )
-                    channel.last_error = result.get("message", "")
-                    channel.save(update_fields=["last_error", "updated_at"])
-                sync_log.response_data = result
-                sync_log.rooms_affected = rooms_affected
-                sync_log.completed_at = timezone.now()
-                sync_log.save()
-                return result
-            if result.get("status") == "error":
-                raise RuntimeError(result.get("message") or "connector error")
-        else:
-            rooms_affected = _legacy_sync_rooms(channel, date_from, date_to)
-            result = {
-                "status": "ok",
-                "channel": channel.channel_name,
-                "rooms_affected": rooms_affected,
-            }
-
-        if rooms_affected == 0:
-            msg = (
-                "No rooms synced — missing room mappings, empty availability, "
-                "or connector returned zero affected units"
-            )
-            sync_log.sync_status = "not_implemented"
-            sync_log.error_message = msg
-            sync_log.rooms_affected = 0
-            sync_log.response_data = result if isinstance(result, dict) else {}
-            sync_log.completed_at = timezone.now()
-            sync_log.save()
-            channel.last_error = msg
-            channel.save(update_fields=["last_error", "updated_at"])
-            return {
-                "status": "not_implemented",
-                "message": msg,
-                "rooms_affected": 0,
-            }
-
-        sync_log.sync_status = "success"
-        sync_log.completed_at = timezone.now()
-        sync_log.rooms_affected = rooms_affected
-        sync_log.response_data = result if isinstance(result, dict) else {}
-        sync_log.save()
-
-        channel.last_sync_at = sync_log.completed_at
-        channel.error_count = 0
-        channel.last_error = ""
-        channel.save()
-        return result
-
+        return _execute_channel_sync(
+            channel, connector, date_from, date_to, sync_log
+        )
     except NotImplementedError as exc:
-        stubs_ok = getattr(settings, "CHANNEL_SYNC_STUBS_OK", False)
-        if stubs_ok:
-            sync_log.sync_status = "success"
-            sync_log.error_message = f"Stub accepted (CHANNEL_SYNC_STUBS_OK): {exc}"
-            sync_log.completed_at = timezone.now()
-            sync_log.save()
-            return {"status": "success", "detail": "stub_ok", "message": str(exc)}
-        sync_log.sync_status = "not_implemented"
-        sync_log.error_message = str(exc)
-        sync_log.completed_at = timezone.now()
-        sync_log.save()
-        channel.last_error = str(exc)
-        channel.save(update_fields=["last_error", "updated_at"])
-        return {"status": "not_implemented", "message": str(exc)}
-
+        return _handle_not_implemented_exc(channel, sync_log, exc)
     except Exception as exc:
-        logger.error("Error syncing to channel %s: %s", channel_id, exc)
-        channel.error_count += 1
-        channel.last_error = str(exc)
-        channel.save()
-        if self.request.retries < self.max_retries:
-            countdown = 2 ** self.request.retries
-            raise self.retry(exc=exc, countdown=countdown)
-        sync_log.sync_status = "failed"
-        sync_log.error_message = str(exc)
-        sync_log.completed_at = timezone.now()
-        sync_log.save()
-        return {"status": "failed", "message": str(exc)}
+        return _handle_sync_failure(self, channel, sync_log, channel_id, exc)
 
 
 @shared_task

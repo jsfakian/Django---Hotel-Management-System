@@ -146,6 +146,54 @@ class MyDataService:
         
         return qr_data
     
+    @staticmethod
+    def _guest_email_for_invoice(invoice: Invoice) -> str:
+        if not invoice.guest_id:
+            return ''
+        guest_email = ''
+        if getattr(invoice.guest, 'user_id', None) and invoice.guest.user:
+            guest_email = invoice.guest.user.email or ''
+        return guest_email or getattr(invoice.guest, 'email', '') or ''
+
+    @staticmethod
+    def _response_body(response) -> Dict:
+        try:
+            return response.json()
+        except ValueError:
+            return {'raw': response.text}
+
+    def _sandbox_transmit(self, invoice: Invoice, qr_code: str) -> Tuple[bool, str]:
+        transmission_id = self._generate_transmission_id(invoice)
+        invoice.mark_as_mydata_transmitted(transmission_id, qr_code)
+        return True, transmission_id
+
+    def _live_transmit(
+        self, invoice: Invoice, export_data: Dict, qr_code: str
+    ) -> Tuple[bool, str]:
+        if not self.username or not self.subscription_key:
+            return (
+                False,
+                'MYDATA_USERNAME and MYDATA_SUBSCRIPTION_KEY (or MYDATA_API_KEY) '
+                'required when MYDATA_SANDBOX_MODE=False',
+            )
+
+        response = requests.post(
+            f'{self.api_base}/SendInvoices',
+            json=export_data,
+            headers=self._auth_headers(),
+            timeout=self.timeout,
+        )
+        body = self._response_body(response)
+        if response.status_code >= 400:
+            return False, f'MyData HTTP {response.status_code}: {body}'
+
+        transmission_id = (
+            str(body.get('transmission_id') or body.get('mark') or body.get('uid') or '')
+            or self._generate_transmission_id(invoice)
+        )
+        invoice.mark_as_mydata_transmitted(transmission_id, qr_code)
+        return True, transmission_id
+
     def transmit_invoice(self, invoice: Invoice) -> Tuple[bool, str]:
         """
         Transmit invoice to MyData.
@@ -157,50 +205,15 @@ class MyDataService:
             if not invoice.amount or invoice.amount <= 0:
                 return False, f'Invalid invoice amount: {invoice.amount}'
 
-            guest_email = ''
-            if invoice.guest_id:
-                if getattr(invoice.guest, 'user_id', None) and invoice.guest.user:
-                    guest_email = invoice.guest.user.email or ''
-                guest_email = guest_email or getattr(invoice.guest, 'email', '') or ''
-            if not guest_email:
+            if not self._guest_email_for_invoice(invoice):
                 return False, 'Guest email is required for MyData transmission'
 
             export_data = self.export_invoice(invoice)
             qr_code = self.generate_qr_code_data(invoice)
 
             if self.sandbox_mode:
-                transmission_id = self._generate_transmission_id(invoice)
-                invoice.mark_as_mydata_transmitted(transmission_id, qr_code)
-                return True, transmission_id
-
-            if not self.username or not self.subscription_key:
-                return (
-                    False,
-                    'MYDATA_USERNAME and MYDATA_SUBSCRIPTION_KEY (or MYDATA_API_KEY) '
-                    'required when MYDATA_SANDBOX_MODE=False',
-                )
-
-            url = f'{self.api_base}/SendInvoices'
-            response = requests.post(
-                url,
-                json=export_data,
-                headers=self._auth_headers(),
-                timeout=self.timeout,
-            )
-            try:
-                body = response.json()
-            except ValueError:
-                body = {'raw': response.text}
-
-            if response.status_code >= 400:
-                return False, f'MyData HTTP {response.status_code}: {body}'
-
-            transmission_id = (
-                str(body.get('transmission_id') or body.get('mark') or body.get('uid') or '')
-                or self._generate_transmission_id(invoice)
-            )
-            invoice.mark_as_mydata_transmitted(transmission_id, qr_code)
-            return True, transmission_id
+                return self._sandbox_transmit(invoice, qr_code)
+            return self._live_transmit(invoice, export_data, qr_code)
 
         except requests.RequestException as e:
             return False, f'MyData network error: {e}'

@@ -160,35 +160,26 @@ def send_travel_agent_availability_update(property_id, room_ids=None, channel=No
         logger.error(f"Error sending travel agent availability update: {e}")
 
 
-@shared_task
-def send_booking_confirmation(booking_id):
-    """Send booking confirmation email to guest"""
-    try:
-        from room.models import Booking
-        
-        booking = Booking.objects.select_related(
-            'room', 'room__property', 'room_type', 'room_type__property', 'guest'
-        ).get(id=booking_id)
+def _property_name_for_booking(booking):
+    if booking.room_id and booking.room.property_id:
+        return booking.room.property.name
+    if booking.room_type_id and booking.room_type.property_id:
+        return booking.room_type.property.name
+    return 'Nephele'
 
-        property_name = 'Nephele'
-        if booking.room_id and booking.room.property_id:
-            property_name = booking.room.property.name
-        elif booking.room_type_id and booking.room_type.property_id:
-            property_name = booking.room_type.property.name
 
-        guest_name = booking.guest.first_name if booking.guest_id else 'Guest'
-        guest_email = booking.guest.email if booking.guest_id else None
-        if not guest_email:
-            logger.warning('No guest email for booking %s; skip confirmation', booking_id)
-            return
+def _guest_contact(booking):
+    guest_name = booking.guest.first_name if booking.guest_id else 'Guest'
+    guest_email = booking.guest.email if booking.guest_id else None
+    return guest_name, guest_email
 
-        total = booking.actual_price or booking.base_price
-        vat = booking.vat_amount or 0
-        climate = booking.climate_resilience_fee or 0
-        conf = f"NEPH-{booking.id}"
 
-        subject = f"Booking Confirmation / Επιβεβαίωση κράτησης - {property_name}"
-        html_message = f"""
+def _booking_confirmation_html(booking, property_name, guest_name):
+    total = booking.actual_price or booking.base_price
+    vat = booking.vat_amount or 0
+    climate = booking.climate_resilience_fee or 0
+    conf = f"NEPH-{booking.id}"
+    return f"""
 <html>
 <body style="font-family: Georgia, serif; color: #1a1a1a; line-height: 1.5;">
 <p>Dear {guest_name}, / Αγαπητέ/ή {guest_name},</p>
@@ -205,6 +196,25 @@ def send_booking_confirmation(booking_id):
 </html>
 """
 
+
+@shared_task
+def send_booking_confirmation(booking_id):
+    """Send booking confirmation email to guest"""
+    try:
+        from room.models import Booking
+
+        booking = Booking.objects.select_related(
+            'room', 'room__property', 'room_type', 'room_type__property', 'guest'
+        ).get(id=booking_id)
+
+        property_name = _property_name_for_booking(booking)
+        guest_name, guest_email = _guest_contact(booking)
+        if not guest_email:
+            logger.warning('No guest email for booking %s; skip confirmation', booking_id)
+            return
+
+        subject = f"Booking Confirmation / Επιβεβαίωση κράτησης - {property_name}"
+        html_message = _booking_confirmation_html(booking, property_name, guest_name)
         send_mail(
             subject=subject,
             message=strip_tags(html_message),

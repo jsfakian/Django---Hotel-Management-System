@@ -143,7 +143,7 @@ class Booking(models.Model):
 
     check_in_date = models.DateField()
     check_out_date = models.DateField()
-    date_of_reservation = models.DateField(default=timezone.now)
+    date_of_reservation = models.DateField(default=timezone.localdate)
 
     number_of_guests = models.PositiveIntegerField(default=1)
     adults = models.PositiveIntegerField(default=1)
@@ -330,7 +330,7 @@ class RoomService(models.Model):
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
-    created_date = models.DateField(default=timezone.now)
+    created_date = models.DateField(default=timezone.localdate)
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 

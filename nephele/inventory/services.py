@@ -198,6 +198,31 @@ def _occupancy_price(rate_price, occupancy: int) -> Optional[Decimal]:
     return rate_price.price_1
 
 
+def _night_restriction_reasons(row, on_date: date, check_in: date, nights: int) -> List[str]:
+    reasons: List[str] = []
+    if row.stop_sell or row.closed:
+        reasons.append(f"closed:{on_date}")
+    if on_date == check_in and row.cta:
+        reasons.append(f"cta:{on_date}")
+    if row.min_stay and nights < row.min_stay:
+        reasons.append(f"min_stay:{on_date}")
+    if row.max_stay and nights > row.max_stay:
+        reasons.append(f"max_stay:{on_date}")
+    return reasons
+
+
+def _ctd_reasons(by_date: Dict, check_out: date) -> List[str]:
+    # CTD is evaluated on the departure date row if present
+    ctd_row = by_date.get(check_out) or by_date.get(check_out - timedelta(days=1))
+    if ctd_row is None or not getattr(ctd_row, "ctd", False):
+        return []
+    # Closed to departure on the last night of stay
+    last_night = by_date.get(check_out - timedelta(days=1))
+    if last_night is not None and last_night.ctd:
+        return [f"ctd:{last_night.date}"]
+    return []
+
+
 def _restrictions_ok(
     night_rows: Sequence,
     check_in: date,
@@ -213,24 +238,125 @@ def _restrictions_ok(
         if row is None:
             reasons.append(f"missing_availability:{on_date}")
             continue
-        if row.stop_sell or row.closed:
-            reasons.append(f"closed:{on_date}")
-        if on_date == check_in and row.cta:
-            reasons.append(f"cta:{on_date}")
-        if row.min_stay and nights < row.min_stay:
-            reasons.append(f"min_stay:{on_date}")
-        if row.max_stay and nights > row.max_stay:
-            reasons.append(f"max_stay:{on_date}")
+        reasons.extend(_night_restriction_reasons(row, on_date, check_in, nights))
 
-    # CTD is evaluated on the departure date row if present
-    ctd_row = by_date.get(check_out) or by_date.get(check_out - timedelta(days=1))
-    if ctd_row is not None and getattr(ctd_row, "ctd", False):
-        # Closed to departure on the last night of stay
-        last_night = by_date.get(check_out - timedelta(days=1))
-        if last_night is not None and last_night.ctd:
-            reasons.append(f"ctd:{last_night.date}")
-
+    reasons.extend(_ctd_reasons(by_date, check_out))
     return (len(reasons) == 0, reasons)
+
+
+def _allotment_for_stay(room_type, night_rows, check_in, check_out, ok: bool):
+    expected_nights = (check_out - check_in).days
+    if night_rows and len(night_rows) >= expected_nights:
+        open_rows = [r for r in night_rows if not r.stop_sell and not r.closed]
+        available_allotment = (
+            min(max(0, row.allotment - row.booked) for row in open_rows)
+            if open_rows
+            else 0
+        )
+        return available_allotment, ok
+    available_allotment = physical_room_count(room_type)
+    return available_allotment, available_allotment > 0 and ok
+
+
+def _nightly_prices_for_plan(rate_plan, room_type, check_in, check_out, occupancy):
+    from inventory.models import RatePlanPrice
+
+    nightly_prices: List[Dict[str, Any]] = []
+    total = Decimal("0.00")
+    missing_price = False
+
+    for on_date in _daterange(check_in, check_out):
+        price_row = RatePlanPrice.objects.filter(
+            rate_plan=rate_plan,
+            room_type=room_type,
+            date=on_date,
+        ).first()
+        if price_row is None:
+            missing_price = True
+            nightly_prices.append({"date": on_date.isoformat(), "price": None})
+            continue
+        price = _occupancy_price(price_row, occupancy)
+        if price is None:
+            missing_price = True
+            nightly_prices.append({"date": on_date.isoformat(), "price": None})
+            continue
+        nightly_prices.append({"date": on_date.isoformat(), "price": str(price)})
+        total += price
+
+    if missing_price:
+        nights = (check_out - check_in).days
+        total = room_type.base_price * nights
+        nightly_prices = [
+            {"date": d.isoformat(), "price": str(room_type.base_price)}
+            for d in _daterange(check_in, check_out)
+        ]
+    return nightly_prices, total
+
+
+def _quote_product_dict(
+    room_type, rate_plan, nightly_prices, total, available_allotment, ok
+):
+    return {
+        "room_type_id": room_type.id,
+        "rate_plan_id": rate_plan.id,
+        "room_type": {
+            "id": room_type.id,
+            "code": room_type.code,
+            "name": room_type.name,
+            "capacity": room_type.capacity,
+            "max_occupancy": room_type.max_occupancy,
+        },
+        "rate_plan": {
+            "id": rate_plan.id,
+            "code": rate_plan.code,
+            "name": rate_plan.name,
+            "meal_plan": rate_plan.meal_plan,
+            "is_refundable": rate_plan.is_refundable,
+        },
+        "nightly_prices": nightly_prices,
+        "total": str(total),
+        "available_allotment": available_allotment,
+        "restrictions_ok": bool(ok and available_allotment > 0),
+    }
+
+
+def _quotes_for_room_type(
+    room_type, property_id, check_in, check_out, occupancy
+) -> List[Dict[str, Any]]:
+    from inventory.models import RatePlan, RoomTypeAvailability
+
+    for on_date in _daterange(check_in, check_out):
+        ensure_room_type_availability(room_type, on_date)
+
+    night_rows = list(
+        RoomTypeAvailability.objects.filter(
+            room_type=room_type,
+            date__gte=check_in,
+            date__lt=check_out,
+        )
+    )
+    ok, _reasons = _restrictions_ok(night_rows, check_in, check_out)
+    available_allotment, ok = _allotment_for_stay(
+        room_type, night_rows, check_in, check_out, ok
+    )
+
+    rate_plans = RatePlan.objects.filter(
+        property_id=property_id,
+        is_active=True,
+        room_types=room_type,
+    ).distinct()
+
+    results: List[Dict[str, Any]] = []
+    for rate_plan in rate_plans:
+        nightly_prices, total = _nightly_prices_for_plan(
+            rate_plan, room_type, check_in, check_out, occupancy
+        )
+        results.append(
+            _quote_product_dict(
+                room_type, rate_plan, nightly_prices, total, available_allotment, ok
+            )
+        )
+    return results
 
 
 def quote_availability(
@@ -247,7 +373,7 @@ def quote_availability(
     Returns list of dicts:
       room_type, rate_plan, nightly_prices, total, available_allotment, restrictions_ok
     """
-    from inventory.models import RatePlan, RatePlanPrice, RoomType, RoomTypeAvailability
+    from inventory.models import RoomType
 
     del children_ages  # reserved for future child-rate rules
 
@@ -264,103 +390,11 @@ def quote_availability(
     for room_type in room_types:
         if occupancy > room_type.max_occupancy:
             continue
-
-        expected_nights = (check_out - check_in).days
-        # Seed missing calendar nights from physical room count
-        for on_date in _daterange(check_in, check_out):
-            ensure_room_type_availability(room_type, on_date)
-
-        night_rows = list(
-            RoomTypeAvailability.objects.filter(
-                room_type=room_type,
-                date__gte=check_in,
-                date__lt=check_out,
+        results.extend(
+            _quotes_for_room_type(
+                room_type, property_id, check_in, check_out, occupancy
             )
         )
-
-        ok, _reasons = _restrictions_ok(night_rows, check_in, check_out)
-        if night_rows and len(night_rows) >= expected_nights:
-            open_rows = [r for r in night_rows if not r.stop_sell and not r.closed]
-            available_allotment = (
-                min(max(0, row.allotment - row.booked) for row in open_rows)
-                if open_rows
-                else 0
-            )
-        else:
-            available_allotment = physical_room_count(room_type)
-            ok = available_allotment > 0 and ok
-
-        rate_plans = RatePlan.objects.filter(
-            property_id=property_id,
-            is_active=True,
-            room_types=room_type,
-        ).distinct()
-
-        for rate_plan in rate_plans:
-            nightly_prices: List[Dict[str, Any]] = []
-            total = Decimal("0.00")
-            missing_price = False
-
-            for on_date in _daterange(check_in, check_out):
-                price_row = RatePlanPrice.objects.filter(
-                    rate_plan=rate_plan,
-                    room_type=room_type,
-                    date=on_date,
-                ).first()
-                if price_row is None:
-                    missing_price = True
-                    nightly_prices.append(
-                        {"date": on_date.isoformat(), "price": None}
-                    )
-                    continue
-                price = _occupancy_price(price_row, occupancy)
-                if price is None:
-                    missing_price = True
-                    nightly_prices.append(
-                        {"date": on_date.isoformat(), "price": None}
-                    )
-                    continue
-                nightly_prices.append(
-                    {"date": on_date.isoformat(), "price": str(price)}
-                )
-                total += price
-
-            if missing_price:
-                nights = (check_out - check_in).days
-                total = room_type.base_price * nights
-                nightly_prices = [
-                    {
-                        "date": d.isoformat(),
-                        "price": str(room_type.base_price),
-                    }
-                    for d in _daterange(check_in, check_out)
-                ]
-
-            restrictions_ok = bool(ok and available_allotment > 0)
-            results.append(
-                {
-                    "room_type_id": room_type.id,
-                    "rate_plan_id": rate_plan.id,
-                    "room_type": {
-                        "id": room_type.id,
-                        "code": room_type.code,
-                        "name": room_type.name,
-                        "capacity": room_type.capacity,
-                        "max_occupancy": room_type.max_occupancy,
-                    },
-                    "rate_plan": {
-                        "id": rate_plan.id,
-                        "code": rate_plan.code,
-                        "name": rate_plan.name,
-                        "meal_plan": rate_plan.meal_plan,
-                        "is_refundable": rate_plan.is_refundable,
-                    },
-                    "nightly_prices": nightly_prices,
-                    "total": str(total),
-                    "available_allotment": available_allotment,
-                    "restrictions_ok": restrictions_ok,
-                }
-            )
 
     return results
 

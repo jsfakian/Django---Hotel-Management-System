@@ -269,6 +269,65 @@ class BookingEngineConfirmationView(APIView):
         )
 
 
+def _guest_display_name(booking):
+    if booking.guest_id:
+        return f"{booking.guest.first_name} {booking.guest.last_name}"
+    return None
+
+
+def _booking_on_night(bookings, room_id, night):
+    return next(
+        (
+            b
+            for b in bookings
+            if b.room_id == room_id and b.check_in_date <= night < b.check_out_date
+        ),
+        None,
+    )
+
+
+def _tape_chart_cells(room, bookings, d0, d1):
+    cells = []
+    for night in daterange(d0, d1):
+        hit = _booking_on_night(bookings, room.id, night)
+        cells.append(
+            {
+                "date": night.isoformat(),
+                "booking_id": hit.id if hit else None,
+                "status": hit.status if hit else room.status,
+                "guest": _guest_display_name(hit) if hit else None,
+            }
+        )
+    return cells
+
+
+def _tape_chart_room_rows(rooms, bookings, d0, d1):
+    return [
+        {
+            "room_id": room.id,
+            "room_number": room.room_number,
+            "status": room.status,
+            "room_type_fk": room.room_type_fk_id,
+            "cells": _tape_chart_cells(room, bookings, d0, d1),
+        }
+        for room in rooms
+    ]
+
+
+def _tape_chart_unassigned(unassigned):
+    return [
+        {
+            "booking_id": b.id,
+            "room_type": b.room_type_id,
+            "check_in": b.check_in_date,
+            "check_out": b.check_out_date,
+            "status": b.status,
+            "guest": _guest_display_name(b),
+        }
+        for b in unassigned
+    ]
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsHotelStaff])
 def tape_chart(request):
@@ -285,12 +344,14 @@ def tape_chart(request):
     d0 = date_cls.fromisoformat(date_from)
     d1 = date_cls.fromisoformat(date_to)
     rooms = Room.objects.filter(property_id=property_id).order_by("room_number")
-    bookings = Booking.objects.filter(
-        room__property_id=property_id,
-        status__in=["pending", "confirmed", "checked_in", "held"],
-        check_in_date__lt=d1,
-        check_out_date__gt=d0,
-    ).select_related("guest", "room_type")
+    bookings = list(
+        Booking.objects.filter(
+            room__property_id=property_id,
+            status__in=["pending", "confirmed", "checked_in", "held"],
+            check_in_date__lt=d1,
+            check_out_date__gt=d0,
+        ).select_related("guest", "room_type")
+    )
     unassigned = Booking.objects.filter(
         room__isnull=True,
         room_type__property_id=property_id,
@@ -299,56 +360,10 @@ def tape_chart(request):
         check_out_date__gt=d0,
     ).select_related("guest", "room_type")
 
-    room_rows = []
-    for room in rooms:
-        cells = []
-        for night in daterange(d0, d1):
-            hit = next(
-                (
-                    b
-                    for b in bookings
-                    if b.room_id == room.id
-                    and b.check_in_date <= night < b.check_out_date
-                ),
-                None,
-            )
-            cells.append(
-                {
-                    "date": night.isoformat(),
-                    "booking_id": hit.id if hit else None,
-                    "status": hit.status if hit else room.status,
-                    "guest": (
-                        f"{hit.guest.first_name} {hit.guest.last_name}"
-                        if hit and hit.guest_id
-                        else None
-                    ),
-                }
-            )
-        room_rows.append(
-            {
-                "room_id": room.id,
-                "room_number": room.room_number,
-                "status": room.status,
-                "room_type_fk": room.room_type_fk_id,
-                "cells": cells,
-            }
-        )
     return Response(
         {
-            "rooms": room_rows,
-            "unassigned": [
-                {
-                    "booking_id": b.id,
-                    "room_type": b.room_type_id,
-                    "check_in": b.check_in_date,
-                    "check_out": b.check_out_date,
-                    "status": b.status,
-                    "guest": (
-                        f"{b.guest.first_name} {b.guest.last_name}" if b.guest_id else None
-                    ),
-                }
-                for b in unassigned
-            ],
+            "rooms": _tape_chart_room_rows(rooms, bookings, d0, d1),
+            "unassigned": _tape_chart_unassigned(unassigned),
         }
     )
 

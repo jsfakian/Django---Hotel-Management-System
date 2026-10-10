@@ -108,6 +108,73 @@ def quote(property_id, check_in, check_out, adults=1, children=0, children_ages=
     return enriched
 
 
+def _split_guest_name(guest_name, guest_first_name, guest_last_name):
+    if guest_name and not guest_first_name:
+        parts = guest_name.strip().split(None, 1)
+        guest_first_name = parts[0]
+        guest_last_name = parts[1] if len(parts) > 1 else guest_last_name
+    return guest_first_name, guest_last_name
+
+
+def _match_quote_product(products, room_type_id, rate_plan_id):
+    match = next(
+        (
+            q
+            for q in products
+            if q["room_type_id"] == room_type_id and q["rate_plan_id"] == rate_plan_id
+        ),
+        None,
+    )
+    if not match:
+        raise NoAllotmentError("Selected room type / rate plan not available for dates")
+    return match
+
+
+def _reserve_room_type_nights(room_type, check_in, check_out):
+    from inventory.models import RoomTypeAvailability
+
+    for night in daterange(check_in, check_out):
+        avail = (
+            RoomTypeAvailability.objects.select_for_update()
+            .filter(room_type=room_type, date=night)
+            .first()
+        )
+        if avail is None:
+            avail = ensure_room_type_availability(
+                room_type, night, allotment=max(1, room_type.rooms.count())
+            )
+            avail = RoomTypeAvailability.objects.select_for_update().get(pk=avail.pk)
+        if avail.stop_sell or avail.closed or avail.available_units <= 0:
+            raise NoAllotmentError(f"No allotment for {night}")
+        avail.booked += 1
+        avail.save(update_fields=["booked", "updated_at"])
+
+
+def _deposit_due_amount(total, payment_mode, deposit_percent):
+    pct = Decimal(str(deposit_percent if deposit_percent is not None else "30.00"))
+    if payment_mode == "pay_at_hotel":
+        return Decimal("0.00")
+    if payment_mode == "full":
+        return total
+    return (total * pct / Decimal("100")).quantize(Decimal("0.01"))
+
+
+def _get_or_create_hold_guest(
+    guest_email, guest_first_name, guest_last_name, guest_phone
+):
+    from accounts.models import Guest
+
+    guest, _ = Guest.objects.get_or_create(
+        email=guest_email,
+        defaults={
+            "first_name": guest_first_name or "Guest",
+            "last_name": guest_last_name,
+            "phone_number": guest_phone,
+        },
+    )
+    return guest
+
+
 @transaction.atomic
 def create_hold(
     *,
@@ -129,8 +196,7 @@ def create_hold(
     payment_mode: str = "deposit",
     deposit_percent=None,
 ):
-    from accounts.models import Guest
-    from inventory.models import RatePlan, RoomType, RoomTypeAvailability
+    from inventory.models import RatePlan, RoomType
     from room.models import Booking
 
     if not guest_email:
@@ -138,24 +204,14 @@ def create_hold(
     if check_out <= check_in:
         raise BookingEngineError("check_out must be after check_in")
 
-    if guest_name and not guest_first_name:
-        parts = guest_name.strip().split(None, 1)
-        guest_first_name = parts[0]
-        guest_last_name = parts[1] if len(parts) > 1 else guest_last_name
+    guest_first_name, guest_last_name = _split_guest_name(
+        guest_name, guest_first_name, guest_last_name
+    )
 
     products = quote(
         property_id, check_in, check_out, adults=adults, children=children
     )
-    match = next(
-        (
-            q
-            for q in products
-            if q["room_type_id"] == room_type_id and q["rate_plan_id"] == rate_plan_id
-        ),
-        None,
-    )
-    if not match:
-        raise NoAllotmentError("Selected room type / rate plan not available for dates")
+    match = _match_quote_product(products, room_type_id, rate_plan_id)
 
     room_type = RoomType.objects.select_for_update().get(
         pk=room_type_id, property_id=property_id
@@ -163,42 +219,17 @@ def create_hold(
     rate_plan = RatePlan.objects.get(pk=rate_plan_id, property_id=property_id)
 
     nights = (check_out - check_in).days
-    for night in daterange(check_in, check_out):
-        avail = (
-            RoomTypeAvailability.objects.select_for_update()
-            .filter(room_type=room_type, date=night)
-            .first()
-        )
-        if avail is None:
-            avail = ensure_room_type_availability(
-                room_type, night, allotment=max(1, room_type.rooms.count())
-            )
-            avail = RoomTypeAvailability.objects.select_for_update().get(pk=avail.pk)
-        if avail.stop_sell or avail.closed or avail.available_units <= 0:
-            raise NoAllotmentError(f"No allotment for {night}")
-        avail.booked += 1
-        avail.save(update_fields=["booked", "updated_at"])
+    _reserve_room_type_nights(room_type, check_in, check_out)
 
-    guest, _ = Guest.objects.get_or_create(
-        email=guest_email,
-        defaults={
-            "first_name": guest_first_name or "Guest",
-            "last_name": guest_last_name,
-            "phone_number": guest_phone,
-        },
+    guest = _get_or_create_hold_guest(
+        guest_email, guest_first_name, guest_last_name, guest_phone
     )
 
     subtotal = Decimal(str(match["total"]))
     taxes = compute_taxes(subtotal, nights)
     hold_expires = timezone.now() + timedelta(minutes=ttl_minutes)
     total = taxes["total_with_taxes"]
-    pct = Decimal(str(deposit_percent if deposit_percent is not None else "30.00"))
-    if payment_mode == "pay_at_hotel":
-        deposit_due = Decimal("0.00")
-    elif payment_mode == "full":
-        deposit_due = total
-    else:
-        deposit_due = (total * pct / Decimal("100")).quantize(Decimal("0.01"))
+    deposit_due = _deposit_due_amount(total, payment_mode, deposit_percent)
 
     payment_note = (
         f"payment_mode={payment_mode}; deposit_due={deposit_due}; "
@@ -231,6 +262,41 @@ def create_hold(
     return booking
 
 
+def _append_confirm_notes(booking, payment_ref, payment_mode):
+    extras = []
+    if payment_mode:
+        extras.append(f"confirmed_payment_mode={payment_mode}")
+    if payment_ref:
+        extras.append(f"Payment: {payment_ref}")
+    if extras:
+        booking.notes = ((booking.notes or "") + "\n" + "; ".join(extras)).strip()
+
+
+def _notify_hold_confirmed(booking):
+    try:
+        from notifications.tasks import send_booking_confirmation
+
+        send_booking_confirmation.delay(booking.id)
+    except Exception:
+        try:
+            from notifications.tasks import send_channel_booking_alert
+
+            send_channel_booking_alert.delay(
+                booking_id=booking.id, channel_name="Booking Engine"
+            )
+        except Exception:
+            pass
+
+
+def _expire_stale_hold(booking):
+    if not booking.hold_expires_at or booking.hold_expires_at >= timezone.now():
+        return
+    _release_room_type_allotment(booking)
+    booking.status = "cancelled"
+    booking.save(update_fields=["status", "updated_at"])
+    raise HoldExpiredError("Hold expired")
+
+
 @transaction.atomic
 def confirm_hold(
     booking_id: int,
@@ -246,36 +312,13 @@ def confirm_hold(
 
     if booking.status != "held":
         raise HoldNotFoundError(f"Booking {booking_id} is not held")
-    if booking.hold_expires_at and booking.hold_expires_at < timezone.now():
-        _release_room_type_allotment(booking)
-        booking.status = "cancelled"
-        booking.save(update_fields=["status", "updated_at"])
-        raise HoldExpiredError("Hold expired")
+    _expire_stale_hold(booking)
 
     booking.status = "confirmed"
     booking.hold_expires_at = None
-    extras = []
-    if payment_mode:
-        extras.append(f"confirmed_payment_mode={payment_mode}")
-    if payment_ref:
-        extras.append(f"Payment: {payment_ref}")
-    if extras:
-        booking.notes = ((booking.notes or "") + "\n" + "; ".join(extras)).strip()
+    _append_confirm_notes(booking, payment_ref, payment_mode)
     booking.save()
-
-    try:
-        from notifications.tasks import send_booking_confirmation
-
-        send_booking_confirmation.delay(booking.id)
-    except Exception:
-        try:
-            from notifications.tasks import send_channel_booking_alert
-
-            send_channel_booking_alert.delay(
-                booking_id=booking.id, channel_name="Booking Engine"
-            )
-        except Exception:
-            pass
+    _notify_hold_confirmed(booking)
     return booking
 
 

@@ -135,12 +135,12 @@ class BookingSerializerTests(TestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
     
     def test_booking_serializer_required_fields(self):
-        """Test BookingSerializer requires essential fields"""
+        """Test BookingSerializer requires stay dates (room is optional for room-type holds)."""
         data = {}
         serializer = BookingSerializer(data=data)
-        
+
         self.assertFalse(serializer.is_valid())
-        self.assertIn('room', serializer.errors)
+        # Physical room is nullable (inventory RoomType bookings); dates remain required.
         self.assertIn('check_in_date', serializer.errors)
         self.assertIn('check_out_date', serializer.errors)
     

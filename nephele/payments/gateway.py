@@ -55,27 +55,30 @@ class VivaWalletGateway(PaymentGateway):
     def _auth(self):
         return (self.merchant_id, self.api_key)
 
-    def create_payment(
+    def _demo_payment(self, return_url: str) -> Dict[str, Any]:
+        pid = f"viva-demo-{uuid.uuid4().hex[:12]}"
+        return {
+            "payment_id": pid,
+            "status": "pending",
+            "redirect_url": return_url or f"/payment-success?ref={pid}",
+            "gateway": self.name,
+            "demo": True,
+        }
+
+    def _checkout_host(self) -> str:
+        if "demo" not in self.api_base:
+            return "www.vivapayments.com"
+        return "demo.vivapayments.com"
+
+    def _build_order_payload(
         self,
         *,
         amount: Decimal,
-        currency: str = "EUR",
-        description: str = "",
-        customer_email: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
-        return_url: str = "",
+        description: str,
+        customer_email: str,
+        metadata: Optional[Dict[str, Any]],
+        return_url: str,
     ) -> Dict[str, Any]:
-        if not self.merchant_id or not self.api_key:
-            # Dev/demo path without credentials
-            pid = f"viva-demo-{uuid.uuid4().hex[:12]}"
-            return {
-                "payment_id": pid,
-                "status": "pending",
-                "redirect_url": return_url or f"/payment-success?ref={pid}",
-                "gateway": self.name,
-                "demo": True,
-            }
-
         # Amount in cents for Viva; SCA/3DS handled by Smart Checkout redirect
         amount_cents = int((amount * 100).quantize(Decimal("1")))
         meta = metadata or {}
@@ -93,6 +96,9 @@ class VivaWalletGateway(PaymentGateway):
         if return_url:
             payload["successUrl"] = return_url
             payload["failureUrl"] = meta.get("failure_url") or return_url
+        return payload
+
+    def _post_checkout_order(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             resp = requests.post(
                 f"{self.api_base}/checkout/v2/orders",
@@ -104,15 +110,12 @@ class VivaWalletGateway(PaymentGateway):
                 raise PaymentGatewayError(f"Viva error: {resp.status_code} {resp.text}")
             data = resp.json()
             order_code = data.get("orderCode") or data.get("OrderCode")
-            checkout_host = (
-                "www.vivapayments.com"
-                if "demo" not in self.api_base
-                else "demo.vivapayments.com"
-            )
             return {
                 "payment_id": str(order_code),
                 "status": "pending",
-                "redirect_url": f"https://{checkout_host}/web/checkout?ref={order_code}",
+                "redirect_url": (
+                    f"https://{self._checkout_host()}/web/checkout?ref={order_code}"
+                ),
                 "sca_required": True,
                 "gateway": self.name,
                 "raw": data,
@@ -121,6 +124,27 @@ class VivaWalletGateway(PaymentGateway):
             raise
         except Exception as exc:
             raise PaymentGatewayError(str(exc)) from exc
+
+    def create_payment(
+        self,
+        *,
+        amount: Decimal,
+        currency: str = "EUR",
+        description: str = "",
+        customer_email: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
+        return_url: str = "",
+    ) -> Dict[str, Any]:
+        if not self.merchant_id or not self.api_key:
+            return self._demo_payment(return_url)
+        payload = self._build_order_payload(
+            amount=amount,
+            description=description,
+            customer_email=customer_email,
+            metadata=metadata,
+            return_url=return_url,
+        )
+        return self._post_checkout_order(payload)
 
     def verify_payment(self, payment_id: str) -> Dict[str, Any]:
         if str(payment_id).startswith("viva-demo-"):

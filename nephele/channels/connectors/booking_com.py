@@ -36,18 +36,9 @@ class BookingComConnector(ChannelConnector):
             or getattr(settings, "BOOKING_COM_API_SECRET", ""),
         }
 
-    def push_availability(
-        self, channel, date_from: Optional[date] = None, date_to: Optional[date] = None
-    ) -> Dict[str, Any]:
-        creds = self._credentials(channel)
-        if not creds["hotel_id"] or not creds["api_key"]:
-            return {
-                "status": "error",
-                "channel": self.channel_name,
-                "operation": "push_availability",
-                "message": "Missing Booking.com hotel_id/api_key on channel",
-            }
-        # Build payload shape for future live implementation
+    def _prepared_room_types(
+        self, channel, date_from: Optional[date], date_to: Optional[date]
+    ) -> list:
         room_types = []
         for rt_id, remote_id in (
             (channel.mapping_config or {}).get("room_type_mappings") or {}
@@ -60,43 +51,62 @@ class BookingComConnector(ChannelConnector):
                     "date_to": date_to.isoformat() if date_to else None,
                 }
             )
-        live = getattr(settings, "BOOKING_COM_LIVE", False)
-        if live:
-            # Partner-certified Connectivity endpoint — POST prepared ARI when enabled
-            try:
-                import requests
+        return room_types
 
-                resp = requests.post(
-                    f"{self.API_BASE}/hotels/{creds['hotel_id']}/availability",
-                    json={"rooms": room_types, "date_from": date_from, "date_to": date_to},
-                    auth=(creds["api_key"], creds["api_secret"] or ""),
-                    timeout=45,
-                    headers={"Content-Type": "application/json"},
-                )
-                if resp.status_code >= 400:
-                    return {
-                        "status": "error",
-                        "channel": self.channel_name,
-                        "operation": "push_availability",
-                        "message": f"Booking.com HTTP {resp.status_code}: {resp.text[:500]}",
-                        "prepared_rooms": room_types,
-                    }
-                return {
-                    "status": "ok",
-                    "channel": self.channel_name,
-                    "operation": "push_availability",
-                    "prepared_rooms": room_types,
-                    "rooms_affected": len(room_types),
-                    "raw": resp.json() if resp.content else {},
-                }
-            except Exception as exc:
+    def _live_push_availability(
+        self, creds: Dict[str, str], room_types: list, date_from, date_to
+    ) -> Dict[str, Any]:
+        try:
+            import requests
+
+            resp = requests.post(
+                f"{self.API_BASE}/hotels/{creds['hotel_id']}/availability",
+                json={"rooms": room_types, "date_from": date_from, "date_to": date_to},
+                auth=(creds["api_key"], creds["api_secret"] or ""),
+                timeout=45,
+                headers={"Content-Type": "application/json"},
+            )
+            if resp.status_code >= 400:
                 return {
                     "status": "error",
                     "channel": self.channel_name,
                     "operation": "push_availability",
-                    "message": str(exc),
+                    "message": f"Booking.com HTTP {resp.status_code}: {resp.text[:500]}",
                     "prepared_rooms": room_types,
                 }
+            return {
+                "status": "ok",
+                "channel": self.channel_name,
+                "operation": "push_availability",
+                "prepared_rooms": room_types,
+                "rooms_affected": len(room_types),
+                "raw": resp.json() if resp.content else {},
+            }
+        except Exception as exc:
+            return {
+                "status": "error",
+                "channel": self.channel_name,
+                "operation": "push_availability",
+                "message": str(exc),
+                "prepared_rooms": room_types,
+            }
+
+    def push_availability(
+        self, channel, date_from: Optional[date] = None, date_to: Optional[date] = None
+    ) -> Dict[str, Any]:
+        creds = self._credentials(channel)
+        if not creds["hotel_id"] or not creds["api_key"]:
+            return {
+                "status": "error",
+                "channel": self.channel_name,
+                "operation": "push_availability",
+                "message": "Missing Booking.com hotel_id/api_key on channel",
+            }
+        room_types = self._prepared_room_types(channel, date_from, date_to)
+        if getattr(settings, "BOOKING_COM_LIVE", False):
+            return self._live_push_availability(
+                creds, room_types, date_from, date_to
+            )
 
         result = self.not_implemented("push_availability")
         result["prepared_rooms"] = room_types
