@@ -20,10 +20,16 @@ fi
 E2E_FRONTEND_URL="${E2E_FRONTEND_URL:-http://localhost:3000}"
 E2E_API_URL="${E2E_API_URL:-http://localhost:8000}"
 
+# Ephemeral passwords if not already exported (never commit these).
+gen() { openssl rand -hex 16; }
+export E2E_GUEST_PASSWORD="${E2E_GUEST_PASSWORD:-$(gen)}"
+export E2E_RECEPTIONIST_PASSWORD="${E2E_RECEPTIONIST_PASSWORD:-$(gen)}"
+export E2E_MANAGER_PASSWORD="${E2E_MANAGER_PASSWORD:-$(gen)}"
+
 echo "Checking API at ${E2E_API_URL} ..."
 for i in $(seq 1 60); do
-  if curl -fsS "${E2E_API_URL}/" >/dev/null 2>&1 \
-    || curl -fsS "${E2E_API_URL}/api/v1/schema/" >/dev/null 2>&1; then
+  code=$(curl -sS -o /dev/null -w '%{http_code}' "${E2E_API_URL}/api/v1/auth/login/" || true)
+  if [[ "${code}" =~ ^(200|400|401|405)$ ]]; then
     break
   fi
   if [[ "${i}" -eq 60 ]]; then
@@ -48,11 +54,13 @@ done
 export E2E_FRONTEND_URL E2E_API_URL
 export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.test_settings}"
 export SECRET_KEY="${SECRET_KEY:-test-secret-key-for-ci}"
-export DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}"
-export DJANGO_SUPERUSER_PASSWORD="${DJANGO_SUPERUSER_PASSWORD:-admin123}"
 
 echo "Seeding e2e users..."
-docker compose exec -T django python manage.py seed_e2e_users
+docker compose exec -T \
+  -e E2E_GUEST_PASSWORD \
+  -e E2E_RECEPTIONIST_PASSWORD \
+  -e E2E_MANAGER_PASSWORD \
+  django python manage.py seed_e2e_users
 
 echo "Running Playwright e2e suite..."
 cd "${ROOT}/nephele"

@@ -111,9 +111,24 @@ jobs:
     - name: Install Playwright Chromium (+ OS deps)
       run: python -m playwright install --with-deps chromium
 
+    - name: Generate ephemeral e2e credentials
+      id: e2e_creds
+      run: |
+        # Runtime-only secrets (never commit). Do not echo values.
+        gen() { openssl rand -hex 16; }
+        {
+          echo "E2E_GUEST_PASSWORD=$(gen)"
+          echo "E2E_RECEPTIONIST_PASSWORD=$(gen)"
+          echo "E2E_MANAGER_PASSWORD=$(gen)"
+        } >> "$GITHUB_ENV"
+
     - name: Start app stack (API + frontend)
       run: |
         if [[ ! -f .env ]]; then cp .env.example .env; fi
+        set -a
+        # shellcheck disable=SC1091
+        source .env
+        set +a
         docker compose up -d --build postgres redis django frontend
         echo "Waiting for API..."
         for i in $(seq 1 90); do
@@ -145,19 +160,18 @@ jobs:
           fi
           sleep 5
         done
-        # Ensure bootstrap admin can authenticate (entrypoint creates it).
+        # Bootstrap admin comes from .env / entrypoint (not hardcoded here).
         for i in $(seq 1 30); do
           code=$(curl -sS -o /tmp/login.json -w '%{http_code}' \
             -X POST http://localhost:8000/api/v1/auth/login/ \
             -H 'Content-Type: application/json' \
-            -d '{"username":"admin","password":"admin123"}' || true)
+            -d "{\"username\":\"${DJANGO_SUPERUSER_USERNAME}\",\"password\":\"${DJANGO_SUPERUSER_PASSWORD}\"}" || true)
           if [[ "$code" == "200" ]]; then
             echo "Admin login OK"
             break
           fi
           if [[ "$i" -eq 30 ]]; then
             echo "Admin login failed (HTTP $code)"
-            cat /tmp/login.json || true
             docker compose logs --no-color django | tail -100
             exit 1
           fi
@@ -165,14 +179,17 @@ jobs:
         done
 
     - name: Seed e2e users
-      run: docker compose exec -T django python manage.py seed_e2e_users
+      run: |
+        docker compose exec -T \
+          -e E2E_GUEST_PASSWORD \
+          -e E2E_RECEPTIONIST_PASSWORD \
+          -e E2E_MANAGER_PASSWORD \
+          django python manage.py seed_e2e_users
 
     - name: Run Playwright e2e tests
       env:
         E2E_FRONTEND_URL: http://localhost:3000
         E2E_API_URL: http://localhost:8000
-        DJANGO_SUPERUSER_USERNAME: admin
-        DJANGO_SUPERUSER_PASSWORD: admin123
         DJANGO_SETTINGS_MODULE: config.test_settings
         SECRET_KEY: test-secret-key-for-ci
         PWDEBUG: '0'
