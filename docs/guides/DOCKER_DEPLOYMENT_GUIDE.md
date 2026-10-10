@@ -74,7 +74,7 @@ The application will:
 ## Service Details
 
 ### Django (Web Server)
-- Python 3.10-slim
+- Python 3.14-slim
 - Runs on port 8000
 - Auto-reloads on code changes (development)
 - Handles HTTP requests

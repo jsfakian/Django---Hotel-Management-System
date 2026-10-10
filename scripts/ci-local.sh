@@ -17,7 +17,7 @@ export PATH="${ROOT}/tools/bin:${PATH}"
 WORKFLOW="${ACT_WORKFLOW:-.github/workflows/tests.yml}"
 JOB="${ACT_JOB:-}"
 EVENT="${ACT_EVENT:-push}"
-PYTHON_VERSION="${ACT_PYTHON_VERSION:-3.11}"
+PYTHON_VERSION="${ACT_PYTHON_VERSION:-3.14}"
 
 ARGS=(
   "${EVENT}"

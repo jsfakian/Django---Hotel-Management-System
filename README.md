@@ -20,7 +20,7 @@ Django 4.2 REST API + React SPA for multi-property hotel operations. Supports Ad
 
 ## Quick start (Docker)
 
-Prerequisites: Docker Compose v2, Make, and (for local pytest) Python 3.11+ with a `.venv`.
+Prerequisites: Docker Compose v2, Make, and (for local pytest) Python 3.14+ with a `.venv`.
 
 ```bash
 cp .env.example .env

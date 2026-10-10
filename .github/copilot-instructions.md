@@ -4,7 +4,7 @@
 This is **Nephele** — a Django 4.2 multi-property hotel management system with a REST API, dynamic ML-based pricing, Greek MyData (AADE) tax integration, GDPR compliance, and full observability via Prometheus/Grafana.
 
 ## Tech Stack
-- **Python 3.10**, **Django 4.2**, **Django REST Framework 3.14**
+- **Python 3.14**, **Django 5.2**, **Django REST Framework 3.16**
 - **Database**: PostgreSQL 15 (psycopg2-binary), SQLite for local dev
 - **Cache / Queue broker**: Redis 7
 - **Task queue**: Celery 5.3 + Celery Beat with `django_celery_beat`
