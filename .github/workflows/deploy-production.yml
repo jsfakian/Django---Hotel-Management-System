@@ -4,6 +4,7 @@ on:
   push:
     branches: [ main ]
     tags: [ 'v*' ]
+  # Manual runs from any branch (including nephele) — deploy job allows workflow_dispatch.
   workflow_dispatch:
     inputs:
       environment:
@@ -13,6 +14,11 @@ on:
         type: choice
         options:
           - production
+      deploy_ref:
+        description: 'Git ref to checkout on the server (branch or tag). Defaults to the workflow branch.'
+        required: false
+        type: string
+        default: ''
 
 env:
   REGISTRY: ghcr.io
@@ -246,10 +252,26 @@ jobs:
     environment:
       name: production
       url: https://your-production-domain.com/health/
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Auto on main/tags; also when manually dispatched (so Actions UI "Run workflow" is not a no-op).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')))
 
     steps:
     - uses: actions/checkout@v3
+
+    - name: Resolve deploy ref
+      id: ref
+      run: |
+        if [ -n "${{ github.event.inputs.deploy_ref }}" ]; then
+          echo "name=${{ github.event.inputs.deploy_ref }}" >> "$GITHUB_OUTPUT"
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+        elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "name=main" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Create backup before deployment
       env:
@@ -264,7 +286,9 @@ jobs:
         ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
         
         echo "Creating pre-deployment backup..."
-        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" << 'EOF'
+        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+          "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") bash -s" << 'EOF'
+        set -euo pipefail
         cd "$DEPLOY_PATH"
         ./scripts/backup-database.sh
         echo "Backup created successfully"
@@ -277,55 +301,51 @@ jobs:
         DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
         DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
         ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+        DEPLOY_REF: ${{ steps.ref.outputs.name }}
       run: |
         mkdir -p ~/.ssh
         echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-        
-        # Deploy
-        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" << 'EOF'
-        set -e
+
+        # Ship .env.prod via scp (multiline secret — do not embed in remote argv)
+        printf '%s\n' "$ENV_FILE" > /tmp/.env.prod
+        scp -i ~/.ssh/deploy_key /tmp/.env.prod \
+          "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/.env.prod"
+        rm -f /tmp/.env.prod
+
+        ssh -i ~/.ssh/deploy_key "$DEPLOY_USER@$DEPLOY_HOST" \
+          "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") DEPLOY_REF=$(printf %q "$DEPLOY_REF") bash -s" << 'EOF'
+        set -euo pipefail
         cd "$DEPLOY_PATH"
-        
-        echo "=== Starting Production Deployment ==="
-        
-        # Update .env.prod
-        echo "$ENV_FILE" > .env.prod
-        
-        # Pull latest code
+
+        echo "=== Starting Production Deployment (ref=$DEPLOY_REF) ==="
+
         echo "Pulling latest code..."
         git fetch origin
-        git checkout main
-        git pull origin main
-        
-        # Pull latest Docker images
+        git checkout "$DEPLOY_REF"
+        git pull origin "$DEPLOY_REF" || git pull --ff-only
+
         echo "Pulling Docker images..."
-        docker-compose -f docker-compose.prod.yml pull
-        
-        # Stop services gracefully
+        docker compose -f docker-compose.prod.yml pull
+
         echo "Stopping services..."
-        docker-compose -f docker-compose.prod.yml down
-        
-        # Start services
+        docker compose -f docker-compose.prod.yml down
+
         echo "Starting services..."
-        docker-compose -f docker-compose.prod.yml up -d
-        
-        # Wait for services to stabilize
+        docker compose -f docker-compose.prod.yml up -d
+
         sleep 30
-        
-        # Run migrations
+
         echo "Running database migrations..."
-        docker-compose -f docker-compose.prod.yml exec -T django python manage.py migrate
-        
-        # Collect static files
+        docker compose -f docker-compose.prod.yml exec -T django python manage.py migrate
+
         echo "Collecting static files..."
-        docker-compose -f docker-compose.prod.yml exec -T django python manage.py collectstatic --noinput
-        
-        # Copy backups to secure location
+        docker compose -f docker-compose.prod.yml exec -T django python manage.py collectstatic --noinput
+
         echo "Backing up database after deployment..."
-        docker-compose -f docker-compose.prod.yml exec -T django python manage.py backup
-        
+        docker compose -f docker-compose.prod.yml exec -T django python manage.py backup
+
         echo "=== Deployment Complete ==="
         EOF
 
