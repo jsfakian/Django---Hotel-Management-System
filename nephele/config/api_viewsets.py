@@ -347,6 +347,12 @@ class ContractViewSet(viewsets.ModelViewSet):
         return Response({'error': 'Unauthorized signer'}, status=status.HTTP_403_FORBIDDEN)
 
 
+def _mark_payment_invoice_paid(payment):
+    invoice = getattr(payment, 'invoice', None)
+    if invoice and invoice.status != 'paid':
+        invoice.mark_as_paid()
+
+
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related('guest', 'booking', 'payment_method').all()
     permission_classes = [IsAuthenticated]
@@ -392,17 +398,144 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if payment.is_verified or payment.status == 'completed':
-            invoice = getattr(payment, 'invoice', None)
-            if invoice and invoice.status != 'paid':
-                invoice.mark_as_paid()
+            _mark_payment_invoice_paid(payment)
             return Response({'message': 'Payment already verified', 'status': payment.status})
         if payment.verify(code):
             payment.refresh_from_db()
-            invoice = getattr(payment, 'invoice', None)
-            if invoice and invoice.status != 'paid':
-                invoice.mark_as_paid()
+            _mark_payment_invoice_paid(payment)
             return Response({'message': 'Payment verified successfully', 'status': payment.status})
         return Response({'error': 'Invalid verification code'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _already_paid_response(invoice, linked):
+    if invoice.status != 'paid':
+        invoice.mark_as_paid()
+    return Response(
+        {
+            'message': 'Invoice already paid',
+            'invoice_id': invoice.id,
+            'payment_id': linked.id,
+            'status': invoice.status,
+            'payment_status': linked.status,
+        }
+    )
+
+
+def _guest_owns_invoice(user, invoice):
+    guest = _guest_for(user)
+    return bool(guest) and invoice.guest_id == guest.id
+
+
+def _find_pending_payment(invoice, linked):
+    if linked and linked.status == 'pending':
+        return linked
+    return Payment.objects.filter(
+        guest=invoice.guest,
+        status='pending',
+        description__contains=str(invoice.invoice_number),
+    ).first()
+
+
+def _resend_pending_verification(invoice, existing_pending):
+    if not invoice.payment_id:
+        invoice.payment = existing_pending
+        invoice.save(update_fields=['payment'])
+    from payments.views import send_verification_email
+
+    # Always (re)send so a prior email failure cannot trap the guest
+    code = existing_pending.generate_verification_code()
+    sent = send_verification_email(existing_pending, code)
+    if not sent:
+        return Response(
+            {
+                'message': 'Payment pending but verification email failed',
+                'payment_id': existing_pending.id,
+                'payment_status': existing_pending.status,
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    return Response(
+        {
+            'message': 'Payment already pending verification',
+            'payment_id': existing_pending.id,
+            'payment_status': existing_pending.status,
+        }
+    )
+
+
+def _complete_pending_payment(invoice, existing_pending):
+    """Staff path: complete the pending payment row instead of duplicating it."""
+    existing_pending.status = 'completed'
+    existing_pending.is_verified = True
+    existing_pending.processed_at = timezone.now()
+    existing_pending.amount = invoice.total_amount
+    existing_pending.save(
+        update_fields=['status', 'is_verified', 'processed_at', 'amount']
+    )
+    invoice.payment = existing_pending
+    invoice.mark_as_paid()
+    return Response(
+        {
+            'message': 'Payment processed',
+            'invoice_id': invoice.id,
+            'payment_id': existing_pending.id,
+            'status': invoice.status,
+            'payment_status': existing_pending.status,
+        }
+    )
+
+
+def _create_invoice_payment(request, invoice, can_complete):
+    payment_method_name = request.data.get('payment_method', 'card')
+    payment_method, _ = PaymentMethod.objects.get_or_create(
+        name=payment_method_name,
+        defaults={'payment_type': 'card'},
+    )
+
+    payment_status = 'completed' if can_complete else 'pending'
+    payment = Payment.objects.create(
+        guest=invoice.guest,
+        booking=invoice.booking,
+        payment_method=payment_method,
+        amount=invoice.total_amount,
+        currency='EUR',
+        status=payment_status,
+        transaction_id=f"txn-{uuid4().hex}",
+        reference_code=f"ref-{uuid4().hex[:12]}",
+        processed_at=timezone.now() if can_complete else None,
+        is_verified=bool(can_complete),
+        description=f'Payment for invoice {invoice.invoice_number}',
+    )
+
+    invoice.payment = payment
+    if can_complete:
+        invoice.mark_as_paid()
+    else:
+        invoice.save(update_fields=['payment'])
+        from payments.views import send_verification_email
+
+        code = payment.generate_verification_code()
+        sent = send_verification_email(payment, code)
+        if not sent:
+            return Response(
+                {
+                    'message': 'Payment created but verification email failed',
+                    'invoice_id': invoice.id,
+                    'payment_id': payment.id,
+                    'payment_status': payment.status,
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+    return Response(
+        {
+            'message': 'Payment processed' if can_complete else 'Payment pending verification',
+            'invoice_id': invoice.id,
+            'payment_id': payment.id,
+            'status': invoice.status,
+            'payment_status': payment.status,
+        }
+    )
 
 
 class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -434,131 +567,20 @@ class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
 
         linked = invoice.payment
         if linked and (linked.status in ('completed', 'processing') or linked.is_verified):
-            if invoice.status != 'paid':
-                invoice.mark_as_paid()
-            return Response(
-                {
-                    'message': 'Invoice already paid',
-                    'invoice_id': invoice.id,
-                    'payment_id': linked.id,
-                    'status': invoice.status,
-                    'payment_status': linked.status,
-                }
-            )
+            return _already_paid_response(invoice, linked)
 
         can_complete = _can_manage_payments(request.user)
-        guest = _guest_for(request.user)
-        if not can_complete:
-            if not guest or invoice.guest_id != guest.id:
-                return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        if not can_complete and not _guest_owns_invoice(request.user, invoice):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
-        existing_pending = None
-        if linked and linked.status == 'pending':
-            existing_pending = linked
-        else:
-            existing_pending = Payment.objects.filter(
-                guest=invoice.guest,
-                status='pending',
-                description__contains=str(invoice.invoice_number),
-            ).first()
+        existing_pending = _find_pending_payment(invoice, linked)
+        if existing_pending:
+            if can_complete:
+                return _complete_pending_payment(invoice, existing_pending)
+            # Guests: do not create duplicates
+            return _resend_pending_verification(invoice, existing_pending)
 
-        # Guests: do not create duplicates; staff: complete the pending row instead
-        if existing_pending and not can_complete:
-            if not invoice.payment_id:
-                invoice.payment = existing_pending
-                invoice.save(update_fields=['payment'])
-            from payments.views import send_verification_email
-
-            # Always (re)send so a prior email failure cannot trap the guest
-            code = existing_pending.generate_verification_code()
-            sent = send_verification_email(existing_pending, code)
-            if not sent:
-                return Response(
-                    {
-                        'message': 'Payment pending but verification email failed',
-                        'payment_id': existing_pending.id,
-                        'payment_status': existing_pending.status,
-                    },
-                    status=status.HTTP_502_BAD_GATEWAY,
-                )
-            return Response(
-                {
-                    'message': 'Payment already pending verification',
-                    'payment_id': existing_pending.id,
-                    'payment_status': existing_pending.status,
-                }
-            )
-
-        if existing_pending and can_complete:
-            existing_pending.status = 'completed'
-            existing_pending.is_verified = True
-            existing_pending.processed_at = timezone.now()
-            existing_pending.amount = invoice.total_amount
-            existing_pending.save(
-                update_fields=['status', 'is_verified', 'processed_at', 'amount']
-            )
-            invoice.payment = existing_pending
-            invoice.mark_as_paid()
-            return Response(
-                {
-                    'message': 'Payment processed',
-                    'invoice_id': invoice.id,
-                    'payment_id': existing_pending.id,
-                    'status': invoice.status,
-                    'payment_status': existing_pending.status,
-                }
-            )
-
-        payment_method_name = request.data.get('payment_method', 'card')
-        payment_method, _ = PaymentMethod.objects.get_or_create(
-            name=payment_method_name,
-            defaults={'payment_type': 'card'},
-        )
-
-        payment_status = 'completed' if can_complete else 'pending'
-        payment = Payment.objects.create(
-            guest=invoice.guest,
-            booking=invoice.booking,
-            payment_method=payment_method,
-            amount=invoice.total_amount,
-            currency='EUR',
-            status=payment_status,
-            transaction_id=f"txn-{uuid4().hex}",
-            reference_code=f"ref-{uuid4().hex[:12]}",
-            processed_at=timezone.now() if can_complete else None,
-            is_verified=bool(can_complete),
-            description=f'Payment for invoice {invoice.invoice_number}',
-        )
-
-        invoice.payment = payment
-        if can_complete:
-            invoice.mark_as_paid()
-        else:
-            invoice.save(update_fields=['payment'])
-            from payments.views import send_verification_email
-
-            code = payment.generate_verification_code()
-            sent = send_verification_email(payment, code)
-            if not sent:
-                return Response(
-                    {
-                        'message': 'Payment created but verification email failed',
-                        'invoice_id': invoice.id,
-                        'payment_id': payment.id,
-                        'payment_status': payment.status,
-                    },
-                    status=status.HTTP_502_BAD_GATEWAY,
-                )
-
-        return Response(
-            {
-                'message': 'Payment processed' if can_complete else 'Payment pending verification',
-                'invoice_id': invoice.id,
-                'payment_id': payment.id,
-                'status': invoice.status,
-                'payment_status': payment.status,
-            }
-        )
+        return _create_invoice_payment(request, invoice, can_complete)
 
     @action(detail=True, methods=['get'], url_path='payment-status')
     def payment_status(self, request, pk=None):

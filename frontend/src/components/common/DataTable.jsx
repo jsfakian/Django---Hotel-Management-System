@@ -8,7 +8,6 @@ import {
   TableRow,
   TablePagination,
   Paper,
-  TableSortLabel,
 } from '@mui/material'
 import LoadingSpinner from './LoadingSpinner'
 import EmptyState from './EmptyState'

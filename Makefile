@@ -4,7 +4,7 @@ COMPOSE := docker compose
 # Deploy, DB backup, and daily cron targets (make deploy / make backup / make backup-cron-install)
 include deploy.mk
 
-.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-e2e-browser playwright-install test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test act-install ci-local ci-local-job ci-local-e2e test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-migrate prod-static prod-health prod-backup prod-restore backup-setup backup-weekly backup-monthly backup-health backup-verify backup-test tf-init tf-validate tf-plan tf-apply tf-destroy tf-apply-dev tf-apply-staging tf-apply-prod tf-plan-dev tf-plan-staging tf-plan-prod tf-destroy-dev tf-destroy-staging tf-destroy-prod tf-output tf-fmt tf-import lb-info lb-targets lb-rules lb-test lb-metrics asg-info asg-tasks asg-activity asg-metrics asg-test-scaling cache-status cache-flush cache-warm cache-bench perf-report db-indexes db-analyze security-check waf-status rotate-secrets compliance-audit dr-status failover-simulate backup-restore rto-test rpo-verify
+.PHONY: help build up down restart logs ps shell migrate makemigrations bootstrap create-admin check test-venv test-docker setup smoke clean load-demo-data test test-cov test-unit test-integration test-e2e test-e2e-browser playwright-install test-performance test-verbose test-fast test-failed test-quiet test-file test-class test-method cov-report cov-clean lint format quality test-validate ci-test act-install ci-local ci-local-job ci-local-e2e hygiene hygiene-python hygiene-react test-gdpr test-gdpr-service test-gdpr-api test-gdpr-command test-gdpr-compliance test-gdpr-integrity test-monitoring test-all prod-build prod-up prod-down prod-restart prod-logs prod-ps prod-migrate prod-static prod-health prod-backup prod-restore backup-setup backup-weekly backup-monthly backup-health backup-verify backup-test tf-init tf-validate tf-plan tf-apply tf-destroy tf-apply-dev tf-apply-staging tf-apply-prod tf-plan-dev tf-plan-staging tf-plan-prod tf-destroy-dev tf-destroy-staging tf-destroy-prod tf-output tf-fmt tf-import lb-info lb-targets lb-rules lb-test lb-metrics asg-info asg-tasks asg-activity asg-metrics asg-test-scaling cache-status cache-flush cache-warm cache-bench perf-report db-indexes db-analyze security-check waf-status rotate-secrets compliance-audit dr-status failover-simulate backup-restore rto-test rpo-verify
 
 help:
 	@echo "Nephele - Available Commands"
@@ -54,6 +54,11 @@ help:
 	@echo "  make ci-local        Run tests.yml locally (default: test@3.11)"
 	@echo "  make ci-local-job JOB=integration  Run one workflow job via act"
 	@echo "  make ci-local-e2e    Run Playwright e2e against local stack"
+	@echo ""
+	@echo "Code hygiene (complexity):"
+	@echo "  make hygiene-python  Xenon/radon/flake8 complexity gates"
+	@echo "  make hygiene-react   ESLint complexity + production build"
+	@echo "  make hygiene         Run both hygiene suites"
 	@echo ""
 	@echo "Testing - GDPR Compliance (NEW):"
 	@echo "  make test-gdpr       Run all GDPR tests (21 tests)"
@@ -261,6 +266,16 @@ ci-local-job: act-install
 # Playwright e2e against docker-compose stack (same as CI e2e job intent)
 ci-local-e2e: playwright-install
 	@bash scripts/ci-local-e2e.sh $(ARGS)
+
+# Code hygiene / complexity gates (also GitHub Actions: hygiene-python / hygiene-react)
+hygiene-python:
+	@bash scripts/hygiene-python.sh
+
+hygiene-react:
+	@bash scripts/hygiene-react.sh
+
+hygiene: hygiene-python hygiene-react
+	@echo "✓ All hygiene suites passed"
 
 # Run performance tests
 test-performance:

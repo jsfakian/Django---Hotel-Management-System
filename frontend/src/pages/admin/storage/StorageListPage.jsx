@@ -62,7 +62,7 @@ export default function StorageListPage() {
         </Box>
       </Dialog>
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
-        <DialogTitle>Delete "{deleteTarget?.name}"?</DialogTitle>
+        <DialogTitle>Delete &quot;{deleteTarget?.name}&quot;?</DialogTitle>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
           <Button color="error" onClick={handleDelete} disabled={deleting}>Delete</Button>

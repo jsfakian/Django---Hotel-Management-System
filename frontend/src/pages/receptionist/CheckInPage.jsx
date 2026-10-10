@@ -36,6 +36,104 @@ const formatDate = (dateStr) => {
   })
 }
 
+const DASH = '—'
+
+function Field({ label, children }) {
+  return (
+    <Grid item xs={12} sm={6}>
+      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Typography variant="body1" fontWeight={500}>{children}</Typography>
+    </Grid>
+  )
+}
+
+const guestLabel = (b) => b.guest_name || b.guest?.full_name || b.guest?.username || DASH
+const roomLabel = (b) => b.room_number || b.room?.number || b.room || DASH
+
+function BookingDetails({ booking }) {
+  return (
+    <Grid container spacing={2}>
+      <Field label="Guest">{guestLabel(booking)}</Field>
+      <Field label="Room">{roomLabel(booking)}</Field>
+      <Field label="Check-in Date">{formatDate(booking.check_in_date)}</Field>
+      <Field label="Check-out Date">{formatDate(booking.check_out_date)}</Field>
+      {booking.total_price != null && (
+        <Field label="Total Price">€{Number(booking.total_price).toLocaleString()}</Field>
+      )}
+    </Grid>
+  )
+}
+
+function ActionButton({ color, icon, busy, onClick, label }) {
+  return (
+    <Button variant="contained" color={color} startIcon={icon} disabled={busy} onClick={onClick}>
+      {busy ? <CircularProgress size={20} color="inherit" /> : label}
+    </Button>
+  )
+}
+
+function BookingActions({ booking, checkingIn, checkingOut, onCheckIn, onCheckOut }) {
+  const { status } = booking
+  return (
+    <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+      {status === 'confirmed' && (
+        <ActionButton color="success" icon={<CheckInIcon />} busy={checkingIn} onClick={onCheckIn} label="Confirm Check-In" />
+      )}
+      {status === 'checked_in' && (
+        <ActionButton color="warning" icon={<CheckOutIcon />} busy={checkingOut} onClick={onCheckOut} label="Confirm Check-Out" />
+      )}
+      {status !== 'confirmed' && status !== 'checked_in' && (
+        <Typography variant="body2" color="text.secondary">
+          No actions available for status: {status}
+        </Typography>
+      )}
+    </Box>
+  )
+}
+
+function BookingCard({ booking, ...actions }) {
+  return (
+    <Card>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Booking #{booking.id}</Typography>
+          <Chip
+            label={booking.status?.replace('_', ' ')}
+            color={STATUS_COLORS[booking.status] || 'default'}
+            sx={{ textTransform: 'capitalize' }}
+          />
+        </Box>
+        <Divider sx={{ mb: 2 }} />
+        <BookingDetails booking={booking} />
+        <BookingActions booking={booking} {...actions} />
+      </CardContent>
+    </Card>
+  )
+}
+
+function LookupForm({ value, onChange, onSubmit }) {
+  return (
+    <Card sx={{ mb: 3 }}>
+      <CardContent>
+        <Box component="form" onSubmit={onSubmit} sx={{ display: 'flex', gap: 2 }}>
+          <TextField
+            label="Booking ID"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            size="small"
+            type="number"
+            sx={{ width: 200 }}
+            required
+          />
+          <Button type="submit" variant="contained" startIcon={<Search />}>
+            Look Up
+          </Button>
+        </Box>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function CheckInPage() {
   const [bookingId, setBookingId] = useState('')
   const [searchId, setSearchId] = useState(null)
@@ -82,24 +180,7 @@ export default function CheckInPage() {
         subtitle="Look up a booking by ID to arrive or depart a guest"
       />
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box component="form" onSubmit={handleSearch} sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              label="Booking ID"
-              value={bookingId}
-              onChange={(e) => setBookingId(e.target.value)}
-              size="small"
-              type="number"
-              sx={{ width: 200 }}
-              required
-            />
-            <Button type="submit" variant="contained" startIcon={<Search />}>
-              Look Up
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+      <LookupForm value={bookingId} onChange={setBookingId} onSubmit={handleSearch} />
 
       {!searchId && !loadingBooking && (
         <EmptyState
@@ -124,84 +205,13 @@ export default function CheckInPage() {
         </Alert>
       )}
       {booking && (
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Booking #{booking.id}</Typography>
-              <Chip
-                label={booking.status?.replace('_', ' ')}
-                color={STATUS_COLORS[booking.status] || 'default'}
-                sx={{ textTransform: 'capitalize' }}
-              />
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="body2" color="text.secondary">Guest</Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {booking.guest_name || booking.guest?.full_name || booking.guest?.username || '—'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="body2" color="text.secondary">Room</Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {booking.room_number || booking.room?.number || booking.room || '—'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="body2" color="text.secondary">Check-in Date</Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {formatDate(booking.check_in_date)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="body2" color="text.secondary">Check-out Date</Typography>
-                <Typography variant="body1" fontWeight={500}>
-                  {formatDate(booking.check_out_date)}
-                </Typography>
-              </Grid>
-              {booking.total_price != null && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">Total Price</Typography>
-                  <Typography variant="body1" fontWeight={500}>
-                    €{Number(booking.total_price).toLocaleString()}
-                  </Typography>
-                </Grid>
-              )}
-            </Grid>
-
-            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-              {booking.status === 'confirmed' && (
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<CheckInIcon />}
-                  disabled={checkingIn}
-                  onClick={handleCheckIn}
-                >
-                  {checkingIn ? <CircularProgress size={20} color="inherit" /> : 'Confirm Check-In'}
-                </Button>
-              )}
-              {booking.status === 'checked_in' && (
-                <Button
-                  variant="contained"
-                  color="warning"
-                  startIcon={<CheckOutIcon />}
-                  disabled={checkingOut}
-                  onClick={handleCheckOut}
-                >
-                  {checkingOut ? <CircularProgress size={20} color="inherit" /> : 'Confirm Check-Out'}
-                </Button>
-              )}
-              {booking.status !== 'confirmed' && booking.status !== 'checked_in' && (
-                <Typography variant="body2" color="text.secondary">
-                  No actions available for status: {booking.status}
-                </Typography>
-              )}
-            </Box>
-          </CardContent>
-        </Card>
+        <BookingCard
+          booking={booking}
+          checkingIn={checkingIn}
+          checkingOut={checkingOut}
+          onCheckIn={handleCheckIn}
+          onCheckOut={handleCheckOut}
+        />
       )}
     </AppLayout>
   )

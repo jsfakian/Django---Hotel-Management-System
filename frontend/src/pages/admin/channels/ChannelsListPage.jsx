@@ -93,7 +93,7 @@ export default function ChannelsListPage() {
       </Dialog>
 
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
-        <DialogTitle>Remove "{deleteTarget?.channel_name}" channel?</DialogTitle>
+        <DialogTitle>Remove &quot;{deleteTarget?.channel_name}&quot; channel?</DialogTitle>
         <DialogContent>This will stop syncing bookings from this channel.</DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>

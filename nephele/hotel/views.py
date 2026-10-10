@@ -26,14 +26,44 @@ def home(request):
         return redirect("guest-profile", pk=request.user.id)
 
 
+def _filter_events(events, post):
+    if post.get("type") != "":
+        events = events.filter(eventType__contains=post.get("type"))
+
+    if post.get("name") != "":
+        events = events.filter(location__contains=post.get("location"))
+
+    if post.get("fd") != "":
+        events = events.filter(startDate__gte=post.get("fd"))
+
+    if post.get("ed") != "":
+        events = events.filter(endDate__lte=post.get("ed"))
+    return events
+
+
+def _attend_event(request, events, attendedEvents):
+    """Register the guest for an event. Returns a redirect when attendance was added."""
+    tempEvent = events.get(id=request.POST.get('id'))
+    already_attending = any(t.event.id == tempEvent.id for t in attendedEvents)
+    if already_attending:
+        return None
+    EventAttendees(event=tempEvent, guest=request.user.guest).save()
+    return redirect('events')  # refresh page
+
+
+def _remove_event(request, events):
+    tempEvent = events.get(id=request.POST.get('id'))
+    EventAttendees.objects.filter(
+        event=tempEvent, guest=request.user.guest).delete()
+    return redirect('events')  # refresh page
+
+
 @login_required(login_url='login')
 def events(request):
     role = str(request.user.groups.all()[0])
     path = role + "/"
 
     events = Event.objects.all()
-
-    # eventAttendees = EventAttendees.objects.filter(guest = request.user.guest, event = )
 
     attendedEvents = None
     if role == 'guest':
@@ -42,21 +72,7 @@ def events(request):
 
     if request.method == "POST":
         if "filter" in request.POST:
-            if (request.POST.get("type") != ""):
-                events = events.filter(
-                    eventType__contains=request.POST.get("type"))
-
-            if (request.POST.get("name") != ""):
-                events = events.filter(
-                    location__contains=request.POST.get("location"))
-
-            if (request.POST.get("fd") != ""):
-                events = events.filter(
-                    startDate__gte=request.POST.get("fd"))
-
-            if (request.POST.get("ed") != ""):
-                events = events.filter(
-                    endDate__lte=request.POST.get("ed"))
+            events = _filter_events(events, request.POST)
 
             context = {
                 "role": role,
@@ -77,25 +93,12 @@ def events(request):
         if 'attend' in request.POST:  # attend button clicked
             attendedEvents = EventAttendees.objects.filter(
                 guest=request.user.guest)
-            tempEvent = events.get(id=request.POST.get('id'))
-            # print("query set**",attendedEvents)
-            # print("**object***",tempEvent)
-            # print(tempEvent in attendedEvents)
-            check = False
-            for t in attendedEvents:
-                if t.event.id == tempEvent.id:
-                    check = True
-                    break
-            if not check:  # event not in the query set
-                a = EventAttendees(event=tempEvent, guest=request.user.guest)
-                a.save()
-                return redirect('events')  # refresh page
+            response = _attend_event(request, events, attendedEvents)
+            if response is not None:
+                return response
 
         elif 'remove' in request.POST:  # remove button clicked
-            tempEvent = events.get(id=request.POST.get('id'))
-            EventAttendees.objects.filter(
-                event=tempEvent, guest=request.user.guest).delete()
-            return redirect('events')  # refresh page
+            return _remove_event(request, events)
 
     context = {
         "role": role,

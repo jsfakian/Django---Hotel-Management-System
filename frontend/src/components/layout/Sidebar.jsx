@@ -89,6 +89,51 @@ const ROLE_LABELS = {
   guest: 'Guest',
 }
 
+function SidebarGroup({ group, pathname, onNavigate }) {
+  return (
+    <List
+      dense
+      subheader={
+        <ListSubheader
+          disableSticky
+          sx={{
+            bgcolor: 'transparent',
+            lineHeight: 2.2,
+            fontWeight: 700,
+            color: 'text.secondary',
+            textTransform: 'uppercase',
+            fontSize: '0.68rem',
+            letterSpacing: 0.6,
+          }}
+        >
+          {group.name}
+        </ListSubheader>
+      }
+    >
+      {group.items.map((item) => {
+        const IconComponent = ICON_MAP[item.icon]
+        const isActive =
+          pathname === item.path ||
+          (item.path !== '/' && pathname.startsWith(`${item.path}/`))
+
+        return (
+          <ListItem key={item.path} disablePadding>
+            <ListItemButton selected={isActive} onClick={() => onNavigate(item.path)}>
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                {IconComponent ? <IconComponent fontSize="small" /> : null}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isActive ? 600 : 500 }}
+              />
+            </ListItemButton>
+          </ListItem>
+        )
+      })}
+    </List>
+  )
+}
+
 export default function Sidebar({ mobileOpen, onDrawerToggle }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -130,47 +175,7 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
 
       <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
         {groups.map((group) => (
-          <List
-            key={group.name}
-            dense
-            subheader={
-              <ListSubheader
-                disableSticky
-                sx={{
-                  bgcolor: 'transparent',
-                  lineHeight: 2.2,
-                  fontWeight: 700,
-                  color: 'text.secondary',
-                  textTransform: 'uppercase',
-                  fontSize: '0.68rem',
-                  letterSpacing: 0.6,
-                }}
-              >
-                {group.name}
-              </ListSubheader>
-            }
-          >
-            {group.items.map((item) => {
-              const IconComponent = ICON_MAP[item.icon]
-              const isActive =
-                location.pathname === item.path ||
-                (item.path !== '/' && location.pathname.startsWith(`${item.path}/`))
-
-              return (
-                <ListItem key={item.path} disablePadding>
-                  <ListItemButton selected={isActive} onClick={() => navigate(item.path)}>
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      {IconComponent ? <IconComponent fontSize="small" /> : null}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.label}
-                      primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isActive ? 600 : 500 }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              )
-            })}
-          </List>
+          <SidebarGroup key={group.name} group={group} pathname={location.pathname} onNavigate={navigate} />
         ))}
       </Box>
 

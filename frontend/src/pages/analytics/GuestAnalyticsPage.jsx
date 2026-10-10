@@ -13,7 +13,6 @@ export default function GuestAnalyticsPage() {
 
   const kpis = data?.kpis || {}
   const segments = data?.guest_segments || []
-  const sources = data?.booking_sources || []
   const nationalities = data?.nationalities || []
 
   return (

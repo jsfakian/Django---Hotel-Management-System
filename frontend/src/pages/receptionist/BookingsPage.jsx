@@ -24,7 +24,7 @@ const formatDate = (dateStr) => {
 }
 
 export default function BookingsPage() {
-  const [page, setPage] = useState(1)
+  const [page] = useState(1)
   const { data, isLoading, error } = useGetBookingsQuery({ page })
   const [checkIn, { isLoading: checkingIn }] = useCheckInMutation()
   const [checkOut, { isLoading: checkingOut }] = useCheckOutMutation()

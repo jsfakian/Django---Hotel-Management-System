@@ -124,103 +124,105 @@ def logout_user(request):
     return redirect('login')
 
 
-@login_required(login_url='login')
-def guests(request):
-    role = str(request.user.groups.all()[0])
-    path = role + "/"
-
-    topRange = Booking.objects.all().values("guest").annotate(
+def _ranked_guest_bookings():
+    return Booking.objects.all().values("guest").annotate(
         total=Count("guest")).order_by("-total")
-    topLimit = 10
-    topList = []
-    for t in topRange:
-        if len(topList) > 10:
+
+
+def _top_guest_list(ranked, limit):
+    top_list = []
+    for t in ranked:
+        if len(top_list) >= int(limit):
             break
-        else:
-            topList.append(Guest.objects.get(id=t.get("guest")))
+        top_list.append(Guest.objects.get(id=t.get("guest")))
+    return top_list
 
-    bookings = Booking.objects.all()
-    fd = datetime.combine(date.today()-timedelta(days=30), datetime.min.time())
-    ld = datetime.combine(date.today(), datetime.min.time())
-    guests = []
 
+def _append_guests_in_range(bookings, fd, ld, guests):
+    """Append guests with bookings overlapping [fd, ld] to ``guests`` in place."""
     for b in bookings:
         if b.endDate >= fd.date() and b.startDate <= ld.date():
             if b.guest not in guests:
                 guests.append(b.guest)
 
+
+def _parse_filter_range(post):
+    """Parse the f_day/l_day form values, defaulting blank ones to wide bounds."""
+    if post.get("f_day") == "":
+        fd = datetime.strptime("1970-01-01", '%Y-%m-%d')
+    else:
+        fd = datetime.strptime(post.get("f_day"), '%Y-%m-%d')
+
+    if post.get("l_day") == "":
+        ld = datetime.strptime("2030-01-01", '%Y-%m-%d')
+    else:
+        ld = datetime.strptime(post.get("l_day"), '%Y-%m-%d')
+    return fd, ld
+
+
+_GUEST_USER_FILTERS = (
+    ("id", lambda value: Q(id__contains=value)),
+    ("name", lambda value: Q(first_name__contains=value) | Q(last_name__contains=value)),
+    ("email", lambda value: Q(email__contains=value)),
+)
+
+
+def _filter_guests(post):
+    guests = Guest.objects.all()
+    users = User.objects.all()
+    for key, build_query in _GUEST_USER_FILTERS:
+        if post.get(key) != "":
+            users = users.filter(build_query(post.get(key)))
+            guests = guests.filter(user__in=users)
+
+    if post.get("number") != "":
+        guests = guests.filter(phoneNumber__contains=post.get("number"))
+    return guests
+
+
+@login_required(login_url='login')
+def guests(request):
+    role = str(request.user.groups.all()[0])
+    path = role + "/"
+
+    topLimit = 10
+    topList = _top_guest_list(_ranked_guest_bookings(), 11)
+
+    bookings = Booking.objects.all()
+    fd = datetime.combine(date.today()-timedelta(days=30), datetime.min.time())
+    ld = datetime.combine(date.today(), datetime.min.time())
+    guests = []
+    _append_guests_in_range(bookings, fd, ld, guests)
+
     if request.method == "POST":
-        if "filterDate" in request.POST:
-
-            if request.POST.get("f_day") == "" and request.POST.get("l_day") == "":
-                guests = Guest.objects.all()
-
+        post = request.POST
+        if "filterDate" in post:
+            if post.get("f_day") == "" and post.get("l_day") == "":
                 context = {
                     "role": role,
-                    "guests": guests,
+                    "guests": Guest.objects.all(),
                     "fd": "",
                     "ld": ""
                 }
                 return render(request, path + "guests.html", context)
 
-            if request.POST.get("f_day") == "":
-                fd = datetime.strptime("1970-01-01", '%Y-%m-%d')
-            else:
-                fd = request.POST.get("f_day")
-                fd = datetime.strptime(fd, '%Y-%m-%d')
+            fd, ld = _parse_filter_range(post)
+            _append_guests_in_range(bookings, fd, ld, guests)
 
-            if request.POST.get("l_day") == "":
-                ld = datetime.strptime("2030-01-01", '%Y-%m-%d')
-            else:
-                ld = request.POST.get("l_day")
-                ld = datetime.strptime(ld, '%Y-%m-%d')
-
-            for b in bookings:
-                if b.endDate >= fd.date() and b.startDate <= ld.date():
-                    if b.guest not in guests:
-                        guests.append(b.guest)
-
-        if "filterGuest" in request.POST:
-            guests = Guest.objects.all()
-            users = User.objects.all()
-            if (request.POST.get("id") != ""):
-                users = users.filter(
-                    id__contains=request.POST.get("id"))
-                guests = guests.filter(user__in=users)
-
-            if (request.POST.get("name") != ""):
-                users = users.filter(
-                    Q(first_name__contains=request.POST.get("name")) | Q(last_name__contains=request.POST.get("name")))
-                guests = guests.filter(user__in=users)
-
-            if (request.POST.get("email") != ""):
-                users = users.filter(email__contains=request.POST.get("email"))
-                guests = guests.filter(user__in=users)
-
-            if (request.POST.get("number") != ""):
-                guests = guests.filter(
-                    phoneNumber__contains=request.POST.get("number"))
-
+        if "filterGuest" in post:
             context = {
                 "role": role,
-                "guests": guests,
-                "id": request.POST.get("id"),
-                "name": request.POST.get("name"),
-                "email": request.POST.get("email"),
-                "number": request.POST.get("number")
+                "guests": _filter_guests(post),
+                "id": post.get("id"),
+                "name": post.get("name"),
+                "email": post.get("email"),
+                "number": post.get("number")
             }
             return render(request, path + "guests.html", context)
 
-        if "top" in request.POST:
-            topRange = Booking.objects.all().values("guest").annotate(
-                total=Count("guest")).order_by("-total")
-            topList = []
-            topLimit = request.POST.get("top")
-            for t in topRange:
-                if len(topList) >= int(topLimit):
-                    break
-                else:
-                    topList.append(Guest.objects.get(id=t.get("guest")))
+        if "top" in post:
+            topLimit = post.get("top")
+            topList = _top_guest_list(_ranked_guest_bookings(), topLimit)
             context = {
                 "role": role,
                 "guests": guests,

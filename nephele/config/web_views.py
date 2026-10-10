@@ -542,92 +542,100 @@ def _sum(app_label, model_name, field_name, **filters):
         return 0
 
 
+def _kpi_spec(label, app_label, model_name, **filters):
+    return (label, lambda: _count(app_label, model_name, **filters))
+
+
+def _static_kpi(label, value):
+    return (label, lambda: value)
+
+
+def _revenue_kpi():
+    return (
+        'Revenue (€)',
+        lambda: f"{_sum('payments', 'Payment', 'amount', status='completed'):.2f}",
+    )
+
+
+_MODULE_KPI_SPECS = {
+    'users': [
+        _kpi_spec('Total users', 'auth', 'User'),
+        _kpi_spec('Staff users', 'auth', 'User', is_staff=True),
+        _kpi_spec('Active users', 'auth', 'User', is_active=True),
+    ],
+    'rooms': [
+        _kpi_spec('Total rooms', 'room', 'Room'),
+        _kpi_spec('Available', 'room', 'Room', status='available'),
+        _kpi_spec('Occupied', 'room', 'Room', status='occupied'),
+    ],
+    'bookings': [
+        _kpi_spec('Total bookings', 'room', 'Booking'),
+        _kpi_spec('Pending', 'room', 'Booking', status='pending'),
+        _kpi_spec('Confirmed', 'room', 'Booking', status='confirmed'),
+    ],
+    'guests': [
+        _kpi_spec('Total guests', 'accounts', 'Guest'),
+        _kpi_spec('Employee profiles', 'accounts', 'Employee'),
+        _kpi_spec('Travel agencies', 'properties', 'TravelAgency'),
+    ],
+    'properties': [
+        _kpi_spec('Total properties', 'properties', 'Property'),
+        _kpi_spec('Active', 'properties', 'Property', is_active=True),
+        _static_kpi('Avg rooms', 'View details'),
+    ],
+    'travel-agencies': [
+        _kpi_spec('Total agencies', 'properties', 'TravelAgency'),
+        _kpi_spec('Active', 'properties', 'TravelAgency', status='active'),
+        _static_kpi('Avg commission %', '10%'),
+    ],
+    'payments': [
+        _kpi_spec('Total payments', 'payments', 'Payment'),
+        _kpi_spec('Completed', 'payments', 'Payment', status='completed'),
+        _revenue_kpi(),
+    ],
+    'invoices': [
+        _kpi_spec('Total invoices', 'payments', 'Invoice'),
+        _kpi_spec('Paid', 'payments', 'Invoice', status='paid'),
+        _kpi_spec('Issued', 'payments', 'Invoice', status='issued'),
+    ],
+    'contracts': [
+        _kpi_spec('Total contracts', 'contracts', 'Contract'),
+        _kpi_spec('Active', 'contracts', 'Contract', status='active'),
+        _kpi_spec('Pending', 'contracts', 'Contract', status='pending'),
+    ],
+    'pricing': [
+        _kpi_spec('Room pricing items', 'room', 'Room'),
+        _kpi_spec('Revenue metric rows', 'analytics', 'DashboardRevenueMetrics'),
+        _static_kpi('Dynamic endpoint', 'Enabled'),
+    ],
+    'tasks': [
+        _kpi_spec('Total tasks', 'accounts', 'Task'),
+        _kpi_spec('Pending', 'accounts', 'Task', status='pending'),
+        _kpi_spec('In progress', 'accounts', 'Task', status='in_progress'),
+    ],
+    'notifications': [
+        _kpi_spec('Total notifications', 'notifications', 'Notification'),
+        _kpi_spec('Unread', 'notifications', 'Notification', status='unread'),
+        _kpi_spec('Preferences', 'notifications', 'NotificationPreference'),
+    ],
+    'business-intelligence': [
+        _kpi_spec('Executive metrics', 'analytics', 'DashboardExecutiveMetrics'),
+        _kpi_spec('Operational snapshots', 'analytics', 'DashboardOperationalStatus'),
+        _kpi_spec('Custom reports', 'analytics', 'CustomReport'),
+    ],
+    'forecast': [
+        _kpi_spec('Occupancy forecasts', 'analytics', 'OccupancyForecast'),
+        _kpi_spec('Revenue forecasts', 'analytics', 'RevenueForecast'),
+        _kpi_spec('Cancellation predictions', 'analytics', 'CancellationPrediction'),
+    ],
+}
+
+
 def _module_kpis(module_key):
-    if module_key == 'users':
-        return [
-            {'label': 'Total users', 'value': _count('auth', 'User')},
-            {'label': 'Staff users', 'value': _count('auth', 'User', is_staff=True)},
-            {'label': 'Active users', 'value': _count('auth', 'User', is_active=True)},
-        ]
-    if module_key == 'rooms':
-        return [
-            {'label': 'Total rooms', 'value': _count('room', 'Room')},
-            {'label': 'Available', 'value': _count('room', 'Room', status='available')},
-            {'label': 'Occupied', 'value': _count('room', 'Room', status='occupied')},
-        ]
-    if module_key == 'bookings':
-        return [
-            {'label': 'Total bookings', 'value': _count('room', 'Booking')},
-            {'label': 'Pending', 'value': _count('room', 'Booking', status='pending')},
-            {'label': 'Confirmed', 'value': _count('room', 'Booking', status='confirmed')},
-        ]
-    if module_key == 'guests':
-        return [
-            {'label': 'Total guests', 'value': _count('accounts', 'Guest')},
-            {'label': 'Employee profiles', 'value': _count('accounts', 'Employee')},
-            {'label': 'Travel agencies', 'value': _count('properties', 'TravelAgency')},
-        ]
-    if module_key == 'properties':
-        return [
-            {'label': 'Total properties', 'value': _count('properties', 'Property')},
-            {'label': 'Active', 'value': _count('properties', 'Property', is_active=True)},
-            {'label': 'Avg rooms', 'value': 'View details'},
-        ]
-    if module_key == 'travel-agencies':
-        return [
-            {'label': 'Total agencies', 'value': _count('properties', 'TravelAgency')},
-            {'label': 'Active', 'value': _count('properties', 'TravelAgency', status='active')},
-            {'label': 'Avg commission %', 'value': '10%'},
-        ]
-    if module_key == 'payments':
-        return [
-            {'label': 'Total payments', 'value': _count('payments', 'Payment')},
-            {'label': 'Completed', 'value': _count('payments', 'Payment', status='completed')},
-            {'label': 'Revenue (€)', 'value': f"{_sum('payments', 'Payment', 'amount', status='completed'):.2f}"},
-        ]
-    if module_key == 'invoices':
-        return [
-            {'label': 'Total invoices', 'value': _count('payments', 'Invoice')},
-            {'label': 'Paid', 'value': _count('payments', 'Invoice', status='paid')},
-            {'label': 'Issued', 'value': _count('payments', 'Invoice', status='issued')},
-        ]
-    if module_key == 'contracts':
-        return [
-            {'label': 'Total contracts', 'value': _count('contracts', 'Contract')},
-            {'label': 'Active', 'value': _count('contracts', 'Contract', status='active')},
-            {'label': 'Pending', 'value': _count('contracts', 'Contract', status='pending')},
-        ]
-    if module_key == 'pricing':
-        return [
-            {'label': 'Room pricing items', 'value': _count('room', 'Room')},
-            {'label': 'Revenue metric rows', 'value': _count('analytics', 'DashboardRevenueMetrics')},
-            {'label': 'Dynamic endpoint', 'value': 'Enabled'},
-        ]
-    if module_key == 'tasks':
-        return [
-            {'label': 'Total tasks', 'value': _count('accounts', 'Task')},
-            {'label': 'Pending', 'value': _count('accounts', 'Task', status='pending')},
-            {'label': 'In progress', 'value': _count('accounts', 'Task', status='in_progress')},
-        ]
-    if module_key == 'notifications':
-        return [
-            {'label': 'Total notifications', 'value': _count('notifications', 'Notification')},
-            {'label': 'Unread', 'value': _count('notifications', 'Notification', status='unread')},
-            {'label': 'Preferences', 'value': _count('notifications', 'NotificationPreference')},
-        ]
-    if module_key == 'business-intelligence':
-        return [
-            {'label': 'Executive metrics', 'value': _count('analytics', 'DashboardExecutiveMetrics')},
-            {'label': 'Operational snapshots', 'value': _count('analytics', 'DashboardOperationalStatus')},
-            {'label': 'Custom reports', 'value': _count('analytics', 'CustomReport')},
-        ]
-    if module_key == 'forecast':
-        return [
-            {'label': 'Occupancy forecasts', 'value': _count('analytics', 'OccupancyForecast')},
-            {'label': 'Revenue forecasts', 'value': _count('analytics', 'RevenueForecast')},
-            {'label': 'Cancellation predictions', 'value': _count('analytics', 'CancellationPrediction')},
-        ]
-    return []
+    return [
+        {'label': label, 'value': value_fn()}
+        for label, value_fn in _MODULE_KPI_SPECS.get(module_key, [])
+    ]
 
 
 def _daily_count_series(app_label, model_name, datetime_field, days=7):
@@ -681,6 +689,17 @@ def _daily_sum_series(app_label, model_name, datetime_field, amount_field, days=
     return series
 
 
+def _fill_forecast_series(series, key, model, days, date_field, value_field, since):
+    if not model:
+        return
+    queryset = (
+        model.objects.filter(**{f'{date_field}__gte': since})
+        .order_by(date_field)[:days]
+    )
+    values = [float(getattr(row, value_field) or 0) for row in queryset]
+    series[key][:len(values)] = values
+
+
 def _forecast_series(days=7):
     today = timezone.now().date()
     series = {'occupancy': [0.0] * days, 'revenue': [0.0] * days, 'cancel': [0.0] * days}
@@ -689,20 +708,19 @@ def _forecast_series(days=7):
         revenue_model = apps.get_model('analytics', 'RevenueForecast')
         cancellation_model = apps.get_model('analytics', 'CancellationPrediction')
 
-        if occupancy_model:
-            occ_qs = occupancy_model.objects.filter(target_date__gte=today).order_by('target_date')[:days]
-            occ_vals = [float(row.predicted_occupancy or 0) for row in occ_qs]
-            series['occupancy'][:len(occ_vals)] = occ_vals
-
-        if revenue_model:
-            rev_qs = revenue_model.objects.filter(target_date__gte=today).order_by('target_date')[:days]
-            rev_vals = [float(row.predicted_revenue or 0) for row in rev_qs]
-            series['revenue'][:len(rev_vals)] = rev_vals
-
-        if cancellation_model:
-            can_qs = cancellation_model.objects.filter(prediction_date__gte=today - timedelta(days=days - 1)).order_by('prediction_date')[:days]
-            can_vals = [float(row.cancellation_risk_score or 0) for row in can_qs]
-            series['cancel'][:len(can_vals)] = can_vals
+        _fill_forecast_series(
+            series, 'occupancy', occupancy_model, days,
+            'target_date', 'predicted_occupancy', today,
+        )
+        _fill_forecast_series(
+            series, 'revenue', revenue_model, days,
+            'target_date', 'predicted_revenue', today,
+        )
+        _fill_forecast_series(
+            series, 'cancel', cancellation_model, days,
+            'prediction_date', 'cancellation_risk_score',
+            today - timedelta(days=days - 1),
+        )
     except Exception:
         pass
 
@@ -796,14 +814,247 @@ def module_portal(request, module_key):
     })
 
 
-@login_required(login_url='login')
-def module_crud_page(request, module_key, action, pk=None):
+def _crud_access_denied(request):
     from accounts.permissions import get_user_role
     from django.http import HttpResponseForbidden
 
     role = get_user_role(request.user)
     if role not in ('admin', 'manager', 'receptionist') and not request.user.is_superuser:
         return HttpResponseForbidden('Staff access required for portal CRUD.')
+    return None
+
+
+def _crud_form_class(model, module_key):
+    editable_fields = _configured_fields(model, module_key)
+
+    # Use specific form for invoices, otherwise use dynamic form
+    if module_key == 'invoices':
+        return InvoiceForm
+    return modelform_factory(model, fields=editable_fields if editable_fields else [])
+
+
+def _add_integrity_error(form, exc):
+    """Translate a duplicate-key IntegrityError into form errors."""
+    error_msg = str(exc).lower()
+    if 'username' in error_msg:
+        form.add_error('username', 'A user with this username already exists.')
+    elif 'unique' not in error_msg:
+        form.add_error(None, f'Database error: {str(exc)}')
+    elif 'email' in error_msg:
+        form.add_error('email', 'A user with this email already exists.')
+    else:
+        form.add_error(None, 'This record already exists. Please use different values.')
+    _style_form_fields(form)
+
+
+def _transmit_invoice_to_mydata(request, instance, verb, skip_if_transmitted=False):
+    """Validate and transmit an invoice to MyData, reporting via messages."""
+    try:
+        if skip_if_transmitted and instance.mydata_transmitted:
+            messages.warning(request, 'Invoice already transmitted to MyData.')
+            return
+        mydata_service = get_mydata_service()
+        # Validate invoice before transmission
+        is_valid, validation_errors = mydata_service.validate_invoice_for_transmission(instance)
+        if not is_valid:
+            messages.warning(
+                request,
+                f'Invoice {verb}. MyData transmission skipped: {", ".join(validation_errors)}',
+            )
+            return
+        success, result = mydata_service.transmit_invoice(instance)
+        if success:
+            messages.success(
+                request, f'Invoice {verb} and transmitted to MyData (ID: {result}).'
+            )
+        else:
+            messages.warning(
+                request, f'Invoice {verb} but MyData transmission failed: {result}'
+            )
+    except Exception as e:
+        messages.warning(request, f'Invoice {verb}. MyData transmission error: {str(e)}')
+
+
+def _report_save_success(request, form, instance, module_key, module, verb,
+                         skip_if_transmitted=False):
+    if module_key == 'invoices' and form.cleaned_data.get('transmit_to_mydata'):
+        _transmit_invoice_to_mydata(
+            request, instance, verb, skip_if_transmitted=skip_if_transmitted
+        )
+    else:
+        messages.success(request, f'{module["title"]} record {verb} successfully.')
+
+
+def _crud_success_response(module_key, panel_mode):
+    if panel_mode:
+        return HttpResponse(status=204)  # No content, triggers reload in panel
+    return redirect(f'/portal/{module_key}/read/')
+
+
+def _booking_access_denied_response(request, form, module_key, module, panel_mode):
+    """Handle a travel agent creating a booking for an inaccessible property.
+
+    Returns a rendered response, or None to fall through to the main page render.
+    """
+    form.add_error(None, 'You do not have access to create bookings for this property.')
+    _style_form_fields(form)
+    if panel_mode:
+        return None
+    return render(request, 'module-crud.html', {
+        'action': 'create',
+        'action_title': 'Create',
+        'module_key': module_key,
+        'module': module,
+        'form': form,
+        'panel_mode': panel_mode,
+    })
+
+
+def _save_created_record(request, form, module_key, module, panel_mode):
+    """Persist a created record. Returns a response, or None to re-render the form."""
+    instance = form.save(commit=False)
+
+    agent_profile = None
+    if module_key == 'bookings' and _is_travel_agent(request.user):
+        agent_profile = _get_travel_agent_profile(request.user)
+    if agent_profile:
+        if not _can_access_property(request.user, instance.room.property):
+            return _booking_access_denied_response(
+                request, form, module_key, module, panel_mode
+            )
+        # Auto-set travel agency
+        instance.travel_agency = agent_profile.travel_agency
+
+    instance.save()
+    _report_save_success(request, form, instance, module_key, module, 'created')
+
+    # Create notifications for staff if travel agent created booking
+    if module_key == 'bookings' and _is_travel_agent(request.user):
+        _create_booking_notification(instance, created_by_travel_agent=True)
+
+    return _crud_success_response(module_key, panel_mode)
+
+
+def _crud_create(request, module_key, module, dynamic_form, panel_mode):
+    """Handle the create action. Returns (form, response)."""
+    if request.method != 'POST':
+        form = dynamic_form()
+        _style_form_fields(form)
+        return form, None
+
+    form = dynamic_form(request.POST)
+    _style_form_fields(form)
+    if not form.is_valid():
+        return form, None
+    try:
+        response = _save_created_record(request, form, module_key, module, panel_mode)
+    except IntegrityError as e:
+        _add_integrity_error(form, e)
+        return form, None
+    return form, response
+
+
+def _crud_update(request, module_key, module, dynamic_form, instance, panel_mode):
+    """Handle the update action. Returns (form, response)."""
+    if request.method != 'POST':
+        form = dynamic_form(instance=instance)
+        _style_form_fields(form)
+        return form, None
+
+    form = dynamic_form(request.POST, instance=instance)
+    _style_form_fields(form)
+    if not form.is_valid():
+        return form, None
+    try:
+        form.save()
+        _report_save_success(
+            request, form, instance, module_key, module, 'updated',
+            skip_if_transmitted=True,
+        )
+        return form, _crud_success_response(module_key, panel_mode)
+    except IntegrityError as e:
+        _add_integrity_error(form, e)
+        return form, None
+
+
+def _crud_delete(request, module_key, module, instance, panel_mode):
+    instance.delete()
+    messages.success(request, f'{module["title"]} record deleted successfully.')
+    return _crud_success_response(module_key, panel_mode)
+
+
+def _crud_load_instance(model, action, pk):
+    if action == 'view' and pk is None:
+        raise Http404('Record not found')
+    if action in ('view', 'update', 'delete') and pk is not None:
+        return get_object_or_404(model, pk=pk)
+    return None
+
+
+def _crud_detail_rows(instance, columns):
+    rows = []
+    for field_name in columns:
+        value = getattr(instance, field_name, None)
+        rows.append({
+            'label': field_name.replace('_', ' ').title(),
+            'value': str(value) if value is not None else '-',
+        })
+    return rows
+
+
+def _crud_render_page(request, model, module_key, module, action, form, instance,
+                      panel_mode):
+    columns = _configured_columns(model, module_key)
+    detail_rows = []
+    if action == 'view' and instance is not None:
+        detail_rows = _crud_detail_rows(instance, columns)
+
+    queryset = model.objects.all()
+    order_by_field = '-id' if 'id' in [f.name for f in model._meta.fields] else model._meta.pk.name
+    queryset = queryset.order_by(order_by_field)[:30]
+
+    return render(request, 'module-crud.html', {
+        'role': _user_role(request.user),
+        'module_key': module_key,
+        'module': module,
+        'action': action,
+        'action_title': action.title(),
+        'action_target_url': _crud_target(module_key, action),
+        'crud_actions': CRUD_ACTIONS,
+        'form': form,
+        'columns': columns,
+        'detail_rows': detail_rows,
+        'rows': _build_rows(queryset, columns),
+        'instance': instance,
+        'panel_mode': panel_mode,
+    })
+
+
+def _crud_dispatch(request, model, module_key, module, action, pk, panel_mode):
+    """Run the action handler. Returns (form, instance, response)."""
+    dynamic_form = _crud_form_class(model, module_key)
+
+    if action == 'create':
+        form, response = _crud_create(request, module_key, module, dynamic_form, panel_mode)
+        return form, None, response
+
+    instance = _crud_load_instance(model, action, pk)
+    if action == 'update' and pk is not None:
+        form, response = _crud_update(
+            request, module_key, module, dynamic_form, instance, panel_mode
+        )
+        return form, instance, response
+
+    if action == 'delete' and pk is not None and request.method == 'POST':
+        return None, instance, _crud_delete(request, module_key, module, instance, panel_mode)
+    return None, instance, None
+
+
+@login_required(login_url='login')
+def module_crud_page(request, module_key, action, pk=None):
+    denied = _crud_access_denied(request)
+    if denied is not None:
+        return denied
 
     module = MODULE_CATALOG.get(module_key)
     if not module or action not in (*CRUD_ACTIONS, 'view'):
@@ -816,189 +1067,14 @@ def module_crud_page(request, module_key, action, pk=None):
         messages.warning(request, 'Model binding for this module is not available. Redirected to workspace link.')
         return redirect(module['workspace_url'])
 
-    editable_fields = _configured_fields(model, module_key)
-    
-    # Use specific form for invoices, otherwise use dynamic form
-    if module_key == 'invoices':
-        dynamic_form = InvoiceForm
-    else:
-        dynamic_form = modelform_factory(model, fields=editable_fields if editable_fields else [])
-
-    if action == 'create':
-        if request.method == 'POST':
-            form = dynamic_form(request.POST)
-            _style_form_fields(form)
-            if form.is_valid():
-                try:
-                    # Handle travel agent bookings
-                    instance = form.save(commit=False)
-                    
-                    # Check travel agent access to property
-                    if module_key == 'bookings' and _is_travel_agent(request.user):
-                        agent_profile = _get_travel_agent_profile(request.user)
-                        if agent_profile:
-                            # Verify property access
-                            if not _can_access_property(request.user, instance.room.property):
-                                form.add_error(None, 'You do not have access to create bookings for this property.')
-                                _style_form_fields(form)
-                                if panel_mode:
-                                    instance = None
-                                else:
-                                    context = {
-                                        'action': action,
-                                        'action_title': 'Create',
-                                        'module_key': module_key,
-                                        'module': module,
-                                        'form': form,
-                                        'panel_mode': panel_mode,
-                                    }
-                                    return render(request, 'module-crud.html', context)
-                            # Auto-set travel agency
-                            instance.travel_agency = agent_profile.travel_agency
-                    
-                    instance.save()
-                    
-                    # Handle MyData transmission for invoices
-                    if module_key == 'invoices' and form.cleaned_data.get('transmit_to_mydata'):
-                        try:
-                            mydata_service = get_mydata_service()
-                            # Validate invoice before transmission
-                            is_valid, validation_errors = mydata_service.validate_invoice_for_transmission(instance)
-                            if is_valid:
-                                success, result = mydata_service.transmit_invoice(instance)
-                                if success:
-                                    messages.success(request, f'Invoice created and transmitted to MyData (ID: {result}).')
-                                else:
-                                    messages.warning(request, f'Invoice created but MyData transmission failed: {result}')
-                            else:
-                                messages.warning(request, f'Invoice created. MyData transmission skipped: {", ".join(validation_errors)}')
-                        except Exception as e:
-                            messages.warning(request, f'Invoice created. MyData transmission error: {str(e)}')
-                    else:
-                        messages.success(request, f'{module["title"]} record created successfully.')
-                    
-                    # Create notifications for staff if travel agent created booking
-                    created_by_agent = module_key == 'bookings' and _is_travel_agent(request.user)
-                    if created_by_agent:
-                        _create_booking_notification(instance, created_by_travel_agent=True)
-                    
-                    if panel_mode:
-                        return HttpResponse(status=204)  # No content, triggers reload in panel
-                    return redirect(f'/portal/{module_key}/read/')
-                except IntegrityError as e:
-                    # Handle duplicate key violations
-                    error_msg = str(e).lower()
-                    if 'username' in error_msg or 'unique' in error_msg:
-                        if 'username' in error_msg:
-                            form.add_error('username', 'A user with this username already exists.')
-                        elif 'email' in error_msg:
-                            form.add_error('email', 'A user with this email already exists.')
-                        else:
-                            form.add_error(None, 'This record already exists. Please use different values.')
-                    else:
-                        form.add_error(None, f'Database error: {str(e)}')
-                    _style_form_fields(form)
-        else:
-            form = dynamic_form()
-            _style_form_fields(form)
-    else:
-        form = None
-
-    instance = None
-    if action == 'view' and pk is None:
-        raise Http404('Record not found')
-
-    if action in ('view', 'update', 'delete') and pk is not None:
-        instance = get_object_or_404(model, pk=pk)
-
-    if action == 'update' and pk is not None:
-        if request.method == 'POST':
-            form = dynamic_form(request.POST, instance=instance)
-            _style_form_fields(form)
-            if form.is_valid():
-                try:
-                    form.save()
-                    
-                    # Handle MyData transmission for invoices
-                    if module_key == 'invoices' and form.cleaned_data.get('transmit_to_mydata'):
-                        try:
-                            if instance.mydata_transmitted:
-                                messages.warning(request, 'Invoice already transmitted to MyData.')
-                            else:
-                                mydata_service = get_mydata_service()
-                                # Validate invoice before transmission
-                                is_valid, validation_errors = mydata_service.validate_invoice_for_transmission(instance)
-                                if is_valid:
-                                    success, result = mydata_service.transmit_invoice(instance)
-                                    if success:
-                                        messages.success(request, f'Invoice updated and transmitted to MyData (ID: {result}).')
-                                    else:
-                                        messages.warning(request, f'Invoice updated but MyData transmission failed: {result}')
-                                else:
-                                    messages.warning(request, f'Invoice updated. MyData transmission skipped: {", ".join(validation_errors)}')
-                        except Exception as e:
-                            messages.warning(request, f'Invoice updated. MyData transmission error: {str(e)}')
-                    else:
-                        messages.success(request, f'{module["title"]} record updated successfully.')
-                    
-                    if panel_mode:
-                        return HttpResponse(status=204)  # No content, triggers reload in panel
-                    return redirect(f'/portal/{module_key}/read/')
-                except IntegrityError as e:
-                    # Handle duplicate key violations
-                    error_msg = str(e).lower()
-                    if 'username' in error_msg or 'unique' in error_msg:
-                        if 'username' in error_msg:
-                            form.add_error('username', 'A user with this username already exists.')
-                        elif 'email' in error_msg:
-                            form.add_error('email', 'A user with this email already exists.')
-                        else:
-                            form.add_error(None, 'This record already exists. Please use different values.')
-                    else:
-                        form.add_error(None, f'Database error: {str(e)}')
-                    _style_form_fields(form)
-        else:
-            form = dynamic_form(instance=instance)
-            _style_form_fields(form)
-
-    if action == 'delete' and pk is not None and request.method == 'POST':
-        instance.delete()
-        messages.success(request, f'{module["title"]} record deleted successfully.')
-        if panel_mode:
-            return HttpResponse(status=204)  # No content, triggers reload in panel
-        return redirect(f'/portal/{module_key}/read/')
-
-    columns = _configured_columns(model, module_key)
-    detail_rows = []
-    if action == 'view' and instance is not None:
-        for field_name in columns:
-            value = getattr(instance, field_name, None)
-            detail_rows.append({
-                'label': field_name.replace('_', ' ').title(),
-                'value': str(value) if value is not None else '-',
-            })
-
-    queryset = model.objects.all()
-    order_by_field = '-id' if 'id' in [f.name for f in model._meta.fields] else model._meta.pk.name
-    queryset = queryset.order_by(order_by_field)[:30]
-    table_rows = _build_rows(queryset, columns)
-
-    action_title = action.title()
-    return render(request, 'module-crud.html', {
-        'role': _user_role(request.user),
-        'module_key': module_key,
-        'module': module,
-        'action': action,
-        'action_title': action_title,
-        'action_target_url': _crud_target(module_key, action),
-        'crud_actions': CRUD_ACTIONS,
-        'form': form,
-        'columns': columns,
-        'detail_rows': detail_rows,
-        'rows': table_rows,
-        'instance': instance,
-        'panel_mode': panel_mode,
-    })
+    form, instance, response = _crud_dispatch(
+        request, model, module_key, module, action, pk, panel_mode
+    )
+    if response is not None:
+        return response
+    return _crud_render_page(
+        request, model, module_key, module, action, form, instance, panel_mode
+    )
 
 
 @login_required(login_url='login')

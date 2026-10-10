@@ -37,6 +37,75 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 
+def _properties_for(property_id=None):
+    properties = Property.objects.all()
+    if property_id:
+        properties = properties.filter(id=property_id)
+    return properties
+
+
+def _safe_round_div(numerator, denominator, multiplier=1):
+    """Return round(numerator / denominator * multiplier, 2), or 0 if denominator <= 0."""
+    if denominator > 0:
+        return round((numerator / denominator * multiplier), 2)
+    return 0
+
+
+def _active_bookings_for(property_obj, metric_date):
+    return Booking.objects.filter(
+        room__property=property_obj,
+        check_in_date__lte=metric_date,
+        check_out_date__gt=metric_date,
+        status__in=['confirmed', 'checked_in']
+    )
+
+
+def _revenue_total(bookings):
+    return bookings.aggregate(total=Sum(Coalesce('actual_price', 'base_price')))['total'] or 0
+
+
+def _upsert_metrics(model, property_obj, metric_date, values, create_only=None):
+    """Create the metrics row, or overwrite ``values`` on an existing one."""
+    defaults = {**values, **(create_only or {})}
+    metrics, created = model.objects.get_or_create(
+        property=property_obj,
+        metric_date=metric_date,
+        defaults=defaults,
+    )
+    if not created:
+        for field_name, value in values.items():
+            setattr(metrics, field_name, value)
+        metrics.save()
+    return metrics
+
+
+def _total_rooms_for(property_obj):
+    return property_obj.total_rooms or property_obj.rooms.count()
+
+
+def _store_executive_metrics(property_obj, metric_date):
+    active_bookings = _active_bookings_for(property_obj, metric_date)
+
+    total_rooms = _total_rooms_for(property_obj)
+    occupied_rooms = active_bookings.values('room_id').distinct().count()
+
+    # Calculate KPIs
+    total_revenue = _revenue_total(active_bookings)
+
+    _upsert_metrics(
+        DashboardExecutiveMetrics,
+        property_obj,
+        metric_date,
+        {
+            'total_revenue': total_revenue,
+            'avg_daily_rate': _safe_round_div(total_revenue, occupied_rooms),
+            'occupancy_rate': _safe_round_div(occupied_rooms, total_rooms, 100),
+            'revpar': _safe_round_div(total_revenue, total_rooms),
+            'booking_count': active_bookings.count(),
+        },
+    )
+
+
 @shared_task
 def calculate_executive_metrics(property_id=None, metric_date=None):
     """
@@ -48,59 +117,13 @@ def calculate_executive_metrics(property_id=None, metric_date=None):
     """
     if metric_date is None:
         metric_date = timezone.now().date()
-    
-    properties = Property.objects.all()
-    if property_id:
-        properties = properties.filter(id=property_id)
-    
-    for property_obj in properties:
+
+    for property_obj in _properties_for(property_id):
         try:
-            # Get bookings for the day
-            active_bookings = Booking.objects.filter(
-                room__property=property_obj,
-                check_in_date__lte=metric_date,
-                check_out_date__gt=metric_date,
-                status__in=['confirmed', 'checked_in']
-            )
-            
-            total_rooms = property_obj.total_rooms or property_obj.rooms.count()
-            occupied_rooms = active_bookings.values('room_id').distinct().count()
-            
-            # Calculate KPIs
-            total_revenue = active_bookings.aggregate(
-                total=Sum(Coalesce('actual_price', 'base_price'))
-            )['total'] or 0
-            
-            occupancy_rate = round((occupied_rooms / total_rooms * 100), 2) if total_rooms > 0 else 0
-            
-            adr = round((total_revenue / occupied_rooms), 2) if occupied_rooms > 0 else 0
-            revpar = round((total_revenue / total_rooms), 2) if total_rooms > 0 else 0
-            
-            # Create or update metrics
-            metrics, created = DashboardExecutiveMetrics.objects.get_or_create(
-                property=property_obj,
-                metric_date=metric_date,
-                defaults={
-                    'total_revenue': total_revenue,
-                    'avg_daily_rate': adr,
-                    'occupancy_rate': occupancy_rate,
-                    'revpar': revpar,
-                    'booking_count': active_bookings.count(),
-                }
-            )
-            
-            if not created:
-                metrics.total_revenue = total_revenue
-                metrics.avg_daily_rate = adr
-                metrics.occupancy_rate = occupancy_rate
-                metrics.revpar = revpar
-                metrics.booking_count = active_bookings.count()
-                metrics.save()
-            
+            _store_executive_metrics(property_obj, metric_date)
             logger.info(
                 f"Calculated executive metrics for {property_obj.name} on {metric_date}"
             )
-            
         except Exception as e:
             logger.error(
                 f"Error calculating metrics for property {property_id}: {str(e)}"
@@ -174,6 +197,106 @@ def calculate_operational_status(property_id=None):
             )
 
 
+def _room_uplift_pct(pricing_analyzer, room, metric_date):
+    """ML price uplift (%) over base rate for a room, or None if unavailable."""
+    try:
+        recommendation = pricing_analyzer.get_pricing_recommendation(room.id, metric_date)
+        if not recommendation:
+            return None
+        ml_price = recommendation['ensemble_prediction']
+        base_rate = float(room.base_price)
+        return ((ml_price - base_rate) / base_rate * 100) if base_rate > 0 else 0
+    except Exception:
+        return None
+
+
+def _dynamic_pricing_uplift(property_obj, metric_date):
+    """Average ML pricing uplift (%) over a sample of rooms (Task 3 models)."""
+    from bookings.pricing_service import PricingAnalyzer
+
+    try:
+        pricing_analyzer = PricingAnalyzer()
+        if not pricing_analyzer.predictor.available:
+            return 0.0
+        # Sample 5 rooms to estimate uplift (for performance)
+        uplifts = [
+            _room_uplift_pct(pricing_analyzer, room, metric_date)
+            for room in property_obj.rooms.all()[:5]
+        ]
+        uplifts = [value for value in uplifts if value is not None]
+        if uplifts:
+            return round(sum(uplifts) / len(uplifts), 2)
+        return 0.0
+    except Exception as e:
+        logger.warning(f"Could not calculate dynamic pricing uplift: {str(e)}")
+        return 0.0
+
+
+def _store_revenue_metrics(property_obj, metric_date):
+    """Compute and persist revenue metrics. Returns the pricing uplift used."""
+    active_bookings = _active_bookings_for(property_obj, metric_date)
+
+    # Calculate revenue by source
+    direct_bookings = active_bookings.filter(travel_agency__isnull=True, booking_source__in=['direct_website', 'phone', 'other'])
+    ota_bookings = active_bookings.filter(booking_source__in=['booking_com', 'trivago', 'airbnb', 'expedia'])
+    agency_bookings = active_bookings.filter(travel_agency__isnull=False, booking_source='travel_agency')
+
+    total_revenue = _revenue_total(active_bookings)
+    revenue_direct = _revenue_total(direct_bookings)
+    revenue_ota = _revenue_total(ota_bookings)
+    revenue_agency = _revenue_total(agency_bookings)
+
+    total_rooms = _total_rooms_for(property_obj)
+    occupied_rooms = active_bookings.values('room_id').distinct().count()
+    booking_count = active_bookings.count()
+
+    cancellation_count = Booking.objects.filter(
+        room__property=property_obj,
+        check_in_date__lte=metric_date,
+        check_out_date__gt=metric_date,
+        status='cancelled'
+    ).count()
+
+    dynamic_pricing_uplift = _dynamic_pricing_uplift(property_obj, metric_date)
+
+    _upsert_metrics(
+        DashboardRevenueMetrics,
+        property_obj,
+        metric_date,
+        {
+            'total_revenue': total_revenue,
+            'revenue_direct': revenue_direct,
+            'revenue_ota': revenue_ota,
+            'revenue_agency': revenue_agency,
+            'avg_daily_rate': _safe_round_div(total_revenue, occupied_rooms),
+            'revpar': _safe_round_div(total_revenue, total_rooms),
+            'occupancy_rate': _safe_round_div(occupied_rooms, total_rooms, 100),
+            'occupancy_count': occupied_rooms,
+            'booking_count': booking_count,
+            'cancellation_count': cancellation_count,
+            'cancellation_rate': _safe_round_div(cancellation_count, booking_count, 100),
+            'dynamic_pricing_uplift': dynamic_pricing_uplift,
+        },
+        create_only={
+            'metrics_by_source': {
+                'direct': {
+                    'count': direct_bookings.count(),
+                    'revenue': float(revenue_direct)
+                },
+                'ota': {
+                    'count': ota_bookings.count(),
+                    'revenue': float(revenue_ota)
+                },
+                'agency': {
+                    'count': agency_bookings.count(),
+                    'revenue': float(revenue_agency)
+                }
+            }
+        },
+    )
+    return dynamic_pricing_uplift
+
+
 @shared_task
 def calculate_revenue_metrics(property_id=None, metric_date=None):
     """
@@ -188,134 +311,16 @@ def calculate_revenue_metrics(property_id=None, metric_date=None):
         property_id: Specific property ID or None for all properties
         metric_date: Specific date or None for today
     """
-    from bookings.pricing_service import PricingAnalyzer
-    
     if metric_date is None:
         metric_date = timezone.now().date()
-    
-    properties = Property.objects.all()
-    if property_id:
-        properties = properties.filter(id=property_id)
-    
-    for property_obj in properties:
+
+    for property_obj in _properties_for(property_id):
         try:
-            # Get bookings and payments
-            active_bookings = Booking.objects.filter(
-                room__property=property_obj,
-                check_in_date__lte=metric_date,
-                check_out_date__gt=metric_date,
-                status__in=['confirmed', 'checked_in']
-            )
-            
-            # Calculate revenue by source
-            direct_bookings = active_bookings.filter(travel_agency__isnull=True, booking_source__in=['direct_website', 'phone', 'other'])
-            ota_bookings = active_bookings.filter(booking_source__in=['booking_com', 'trivago', 'airbnb', 'expedia'])
-            agency_bookings = active_bookings.filter(travel_agency__isnull=False, booking_source='travel_agency')
-            
-            total_revenue = active_bookings.aggregate(total=Sum(Coalesce('actual_price', 'base_price')))['total'] or 0
-            revenue_direct = direct_bookings.aggregate(total=Sum(Coalesce('actual_price', 'base_price')))['total'] or 0
-            revenue_ota = ota_bookings.aggregate(total=Sum(Coalesce('actual_price', 'base_price')))['total'] or 0
-            revenue_agency = agency_bookings.aggregate(total=Sum(Coalesce('actual_price', 'base_price')))['total'] or 0
-            
-            total_rooms = property_obj.total_rooms or property_obj.rooms.count()
-            occupied_rooms = active_bookings.values('room_id').distinct().count()
-
-            cancellation_count = Booking.objects.filter(
-                room__property=property_obj,
-                check_in_date__lte=metric_date,
-                check_out_date__gt=metric_date,
-                status='cancelled'
-            ).count()
-
-            cancellation_rate = round((cancellation_count / active_bookings.count() * 100), 2) if active_bookings.count() > 0 else 0
-            
-            occupancy_rate = round((occupied_rooms / total_rooms * 100), 2) if total_rooms > 0 else 0
-            adr = round((total_revenue / occupied_rooms), 2) if occupied_rooms > 0 else 0
-            revpar = round((total_revenue / total_rooms), 2) if total_rooms > 0 else 0
-            
-            # Calculate dynamic pricing uplift using ML from Task 3
-            dynamic_pricing_uplift = 0.0
-            try:
-                pricing_analyzer = PricingAnalyzer()
-                if pricing_analyzer.predictor.available:
-                    # Sample 5 rooms to estimate uplift (for performance)
-                    sample_rooms = property_obj.rooms.all()[:5]
-                    total_uplift = 0.0
-                    uplift_count = 0
-                    
-                    for room in sample_rooms:
-                        try:
-                            # Get ML recommendation
-                            recommendation = pricing_analyzer.get_pricing_recommendation(room.id, metric_date)
-                            if recommendation:
-                                ml_price = recommendation['ensemble_prediction']
-                                base_rate = float(room.base_price)
-                                uplift_pct = ((ml_price - base_rate) / base_rate * 100) if base_rate > 0 else 0
-                                total_uplift += uplift_pct
-                                uplift_count += 1
-                        except Exception:
-                            pass
-                    
-                    if uplift_count > 0:
-                        dynamic_pricing_uplift = round(total_uplift / uplift_count, 2)
-            except Exception as e:
-                logger.warning(f"Could not calculate dynamic pricing uplift: {str(e)}")
-                dynamic_pricing_uplift = 0.0
-            
-            # Create or update metrics
-            metrics, created = DashboardRevenueMetrics.objects.get_or_create(
-                property=property_obj,
-                metric_date=metric_date,
-                defaults={
-                    'total_revenue': total_revenue,
-                    'revenue_direct': revenue_direct,
-                    'revenue_ota': revenue_ota,
-                    'revenue_agency': revenue_agency,
-                    'avg_daily_rate': adr,
-                    'revpar': revpar,
-                    'occupancy_rate': occupancy_rate,
-                    'occupancy_count': occupied_rooms,
-                    'booking_count': active_bookings.count(),
-                    'cancellation_count': cancellation_count,
-                    'cancellation_rate': cancellation_rate,
-                    'dynamic_pricing_uplift': dynamic_pricing_uplift,
-                    'metrics_by_source': {
-                        'direct': {
-                            'count': direct_bookings.count(),
-                            'revenue': float(revenue_direct)
-                        },
-                        'ota': {
-                            'count': ota_bookings.count(),
-                            'revenue': float(revenue_ota)
-                        },
-                        'agency': {
-                            'count': agency_bookings.count(),
-                            'revenue': float(revenue_agency)
-                        }
-                    }
-                }
-            )
-            
-            if not created:
-                metrics.total_revenue = total_revenue
-                metrics.revenue_direct = revenue_direct
-                metrics.revenue_ota = revenue_ota
-                metrics.revenue_agency = revenue_agency
-                metrics.avg_daily_rate = adr
-                metrics.revpar = revpar
-                metrics.occupancy_rate = occupancy_rate
-                metrics.occupancy_count = occupied_rooms
-                metrics.booking_count = active_bookings.count()
-                metrics.cancellation_count = cancellation_count
-                metrics.cancellation_rate = cancellation_rate
-                metrics.dynamic_pricing_uplift = dynamic_pricing_uplift
-                metrics.save()
-            
+            dynamic_pricing_uplift = _store_revenue_metrics(property_obj, metric_date)
             logger.info(
                 f"Calculated revenue metrics for {property_obj.name} on {metric_date} "
                 f"(Pricing Uplift: {dynamic_pricing_uplift}%)"
             )
-            
         except Exception as e:
             logger.error(
                 f"Error calculating revenue metrics for property {property_id}: {str(e)}"
@@ -579,30 +584,8 @@ def generate_scheduled_report(scheduled_report_id, override_recipients=None, exe
         raise
 
 
-@shared_task
-def send_report_email(execution_id, recipients=None):
-    """
-    Send generated report via email
-    
-    Args:
-        execution_id: ID of ReportExecution to send
-        recipients: Optional override recipients list
-    """
-    try:
-        from django.core.mail import EmailMessage
-        from django.core.files import File
-        import os
-        
-        execution = ReportExecution.objects.get(id=execution_id)
-        
-        if not recipients:
-            recipients = execution.email_recipients
-        
-        # Build email
-        subject = f"Report: {execution.scheduled_report.name} - {execution.data_date_from}"
-        
-        # Create HTML body
-        html_content = f"""
+def _build_report_email_html(execution):
+    html_content = f"""
         <html>
         <body>
             <h2>{execution.scheduled_report.name}</h2>
@@ -617,20 +600,59 @@ def send_report_email(execution_id, recipients=None):
             <p>Key Metrics:</p>
             <ul>
         """
-        
-        # Add metrics to email
-        if execution.metrics_snapshot:
-            for key, value in execution.metrics_snapshot.items():
-                if isinstance(value, (int, float)):
-                    html_content += f"<li><strong>{key}:</strong> {value}</li>\n"
-        
-        html_content += """
+
+    # Add metrics to email
+    if execution.metrics_snapshot:
+        for key, value in execution.metrics_snapshot.items():
+            if isinstance(value, (int, float)):
+                html_content += f"<li><strong>{key}:</strong> {value}</li>\n"
+
+    html_content += """
             </ul>
             <p>Attached are the generated report files.</p>
             <p>Best regards,<br>NEPHELE Analytics System</p>
         </body>
         </html>
         """
+    return html_content
+
+
+_REPORT_ATTACHMENTS = (
+    ('pdf_file_path', 'application/pdf'),
+    ('excel_file_path', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+    ('csv_file_path', 'text/csv'),
+)
+
+
+def _attach_report_files(email, execution):
+    import os
+
+    for attr_name, mimetype in _REPORT_ATTACHMENTS:
+        file_path = getattr(execution, attr_name)
+        if file_path and os.path.exists(file_path):
+            email.attach_file(file_path, mimetype=mimetype)
+
+
+@shared_task
+def send_report_email(execution_id, recipients=None):
+    """
+    Send generated report via email
+    
+    Args:
+        execution_id: ID of ReportExecution to send
+        recipients: Optional override recipients list
+    """
+    try:
+        from django.core.mail import EmailMessage
+        
+        execution = ReportExecution.objects.get(id=execution_id)
+        
+        if not recipients:
+            recipients = execution.email_recipients
+        
+        # Build email
+        subject = f"Report: {execution.scheduled_report.name} - {execution.data_date_from}"
+        html_content = _build_report_email_html(execution)
         
         # Create email message
         email = EmailMessage(
@@ -642,14 +664,7 @@ def send_report_email(execution_id, recipients=None):
         email.content_subtype = 'html'
         
         # Attach generated files
-        if execution.pdf_file_path and os.path.exists(execution.pdf_file_path):
-            email.attach_file(execution.pdf_file_path, mimetype='application/pdf')
-        
-        if execution.excel_file_path and os.path.exists(execution.excel_file_path):
-            email.attach_file(execution.excel_file_path, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        
-        if execution.csv_file_path and os.path.exists(execution.csv_file_path):
-            email.attach_file(execution.csv_file_path, mimetype='text/csv')
+        _attach_report_files(email, execution)
         
         # Send email
         email.send(fail_silently=False)
@@ -761,51 +776,62 @@ def cleanup_old_reports(days_to_retain=730):
 
 # Helper functions
 
+def _executive_report_metrics(property_obj, report_date):
+    exec_metrics = DashboardExecutiveMetrics.objects.filter(
+        property=property_obj,
+        metric_date=report_date
+    ).first()
+    if not exec_metrics:
+        return {}
+    return {
+        'total_revenue': float(exec_metrics.total_revenue or 0),
+        'avg_daily_rate': float(exec_metrics.avg_daily_rate or 0),
+        'occupancy_rate': float(exec_metrics.occupancy_rate or 0),
+        'revpar': float(exec_metrics.revpar or 0),
+        'booking_count': exec_metrics.booking_count,
+    }
+
+
+def _revenue_report_metrics(property_obj, report_date):
+    revenue_metrics = DashboardRevenueMetrics.objects.filter(
+        property=property_obj,
+        metric_date=report_date
+    ).first()
+    if not revenue_metrics:
+        return {}
+    return {
+        'revenue_direct': float(revenue_metrics.revenue_direct or 0),
+        'revenue_ota': float(revenue_metrics.revenue_ota or 0),
+        'cancellation_rate': float(revenue_metrics.cancellation_rate or 0),
+    }
+
+
+def _guest_report_metrics(property_obj, report_date):
+    guest_analytics = DashboardGuestAnalytics.objects.filter(
+        property=property_obj,
+        analytics_date=report_date
+    ).first()
+    if not guest_analytics:
+        return {}
+    return {
+        'total_unique_guests': guest_analytics.total_unique_guests,
+        'review_score': float(guest_analytics.avg_review_score or 0),
+        'nps': guest_analytics.avg_nps or 0,
+    }
+
+
 def _gather_report_metrics(scheduled_report, report_date):
     """
     Gather metrics data for report generation
     
     Returns dict of metrics
     """
-    metrics = {}
-    
     property_obj = scheduled_report.property
-    
-    # Executive metrics
-    exec_metrics = DashboardExecutiveMetrics.objects.filter(
-        property=property_obj,
-        metric_date=report_date
-    ).first()
-    
-    if exec_metrics:
-        metrics['total_revenue'] = float(exec_metrics.total_revenue or 0)
-        metrics['avg_daily_rate'] = float(exec_metrics.avg_daily_rate or 0)
-        metrics['occupancy_rate'] = float(exec_metrics.occupancy_rate or 0)
-        metrics['revpar'] = float(exec_metrics.revpar or 0)
-        metrics['booking_count'] = exec_metrics.booking_count
-    
-    # Revenue metrics
-    revenue_metrics = DashboardRevenueMetrics.objects.filter(
-        property=property_obj,
-        metric_date=report_date
-    ).first()
-    
-    if revenue_metrics:
-        metrics['revenue_direct'] = float(revenue_metrics.revenue_direct or 0)
-        metrics['revenue_ota'] = float(revenue_metrics.revenue_ota or 0)
-        metrics['cancellation_rate'] = float(revenue_metrics.cancellation_rate or 0)
-    
-    # Guest analytics
-    guest_analytics = DashboardGuestAnalytics.objects.filter(
-        property=property_obj,
-        analytics_date=report_date
-    ).first()
-    
-    if guest_analytics:
-        metrics['total_unique_guests'] = guest_analytics.total_unique_guests
-        metrics['review_score'] = float(guest_analytics.avg_review_score or 0)
-        metrics['nps'] = guest_analytics.avg_nps or 0
-    
+
+    metrics = {}
+    metrics.update(_executive_report_metrics(property_obj, report_date))
+    metrics.update(_revenue_report_metrics(property_obj, report_date))
+    metrics.update(_guest_report_metrics(property_obj, report_date))
     return metrics
 
 
@@ -997,6 +1023,82 @@ def forecast_occupancy_task(property_id=None, forecast_days=30):
             logger.error(f"Error generating occupancy forecast for property {property_id}: {str(e)}")
 
 
+def _room_adr_contribution(pricing_analyzer, room, target_date, predicted_occupancy):
+    """Nightly rate for a room: ML recommendation when available, else base price."""
+    try:
+        if pricing_analyzer.predictor.available:
+            recommendation = pricing_analyzer.get_pricing_recommendation(
+                room.id,
+                target_date,
+                occupancy_rate=predicted_occupancy
+            )
+            if recommendation:
+                return recommendation['ensemble_prediction']
+        return float(room.base_price)
+    except Exception:
+        return float(room.base_price)
+
+
+def _average_daily_rate(property_obj, pricing_analyzer, target_date, predicted_occupancy):
+    total_adr = 0
+    room_count = 0
+    for room in property_obj.rooms.all():
+        total_adr += _room_adr_contribution(
+            pricing_analyzer, room, target_date, predicted_occupancy
+        )
+        room_count += 1
+    return (total_adr / room_count) if room_count > 0 else 75.0
+
+
+def _forecast_property_revenue(property_obj, forecast_date, forecast_days):
+    from .models import RevenueForecast, OccupancyForecast
+    from bookings.pricing_service import PricingAnalyzer
+
+    total_rooms = _total_rooms_for(property_obj)
+    pricing_analyzer = PricingAnalyzer()  # Leverages Task 3 ML models
+
+    for days_ahead in range(1, forecast_days + 1):
+        target_date = forecast_date + timedelta(days=days_ahead)
+
+        # Get predicted occupancy (from occupancy forecast)
+        occupancy_forecast = OccupancyForecast.objects.filter(
+            property=property_obj,
+            target_date=target_date,
+            model_type='statistical_seasonal'
+        ).first()
+
+        predicted_occupancy = occupancy_forecast.predicted_occupancy if occupancy_forecast else 50
+
+        avg_adr = _average_daily_rate(
+            property_obj, pricing_analyzer, target_date, predicted_occupancy
+        )
+
+        # Calculate predicted revenue
+        occupied_rooms = (total_rooms * predicted_occupancy / 100)
+        predicted_revenue = occupied_rooms * avg_adr
+
+        # Confidence decreases further in future
+        confidence = max(0.6, 0.95 - (days_ahead * 0.01))
+        upper_bound = predicted_revenue * 1.20  # 20% confidence interval for revenue
+        lower_bound = predicted_revenue * 0.80
+
+        # Create or update forecast
+        RevenueForecast.objects.update_or_create(
+            property=property_obj,
+            forecast_date=forecast_date,
+            target_date=target_date,
+            model_type='pricing_occupancy_blend',
+            defaults={
+                'predicted_revenue': round(predicted_revenue, 2),
+                'predicted_occupancy': round(predicted_occupancy, 2),
+                'avg_daily_rate': round(avg_adr, 2),
+                'confidence_interval': round(confidence, 3),
+                'upper_bound': round(upper_bound, 2),
+                'lower_bound': round(lower_bound, 2),
+            }
+        )
+
+
 @shared_task
 def forecast_revenue_task(property_id=None, forecast_days=30):
     """
@@ -1007,90 +1109,96 @@ def forecast_revenue_task(property_id=None, forecast_days=30):
         property_id: Specific property ID or None for all properties
         forecast_days: Number of days to forecast
     """
-    from .models import RevenueForecast, OccupancyForecast
-    from bookings.pricing_service import PricingAnalyzer
-    
-    properties = Property.objects.all()
-    if property_id:
-        properties = properties.filter(id=property_id)
-    
     forecast_date = timezone.now().date()
-    
-    for property_obj in properties:
+
+    for property_obj in _properties_for(property_id):
         try:
-            total_rooms = property_obj.total_rooms or property_obj.rooms.count()
-            pricing_analyzer = PricingAnalyzer()  # Leverages Task 3 ML models
-            
-            for days_ahead in range(1, forecast_days + 1):
-                target_date = forecast_date + timedelta(days=days_ahead)
-                
-                # Get predicted occupancy (from occupancy forecast)
-                occupancy_forecast = OccupancyForecast.objects.filter(
-                    property=property_obj,
-                    target_date=target_date,
-                    model_type='statistical_seasonal'
-                ).first()
-                
-                predicted_occupancy = occupancy_forecast.predicted_occupancy if occupancy_forecast else 50
-                
-                # Get average room rate
-                rooms = property_obj.rooms.all()
-                total_adr = 0
-                room_count = 0
-                
-                for room in rooms:
-                    try:
-                        # Use ML-based pricing recommendation if available
-                        if pricing_analyzer.predictor.available:
-                            recommendation = pricing_analyzer.get_pricing_recommendation(
-                                room.id, 
-                                target_date,
-                                occupancy_rate=predicted_occupancy
-                            )
-                            if recommendation:
-                                total_adr += recommendation['ensemble_prediction']
-                                room_count += 1
-                            else:
-                                total_adr += float(room.base_price)
-                                room_count += 1
-                        else:
-                            total_adr += float(room.base_price)
-                            room_count += 1
-                    except Exception:
-                        total_adr += float(room.base_price)
-                        room_count += 1
-                
-                avg_adr = (total_adr / room_count) if room_count > 0 else 75.0
-                
-                # Calculate predicted revenue
-                occupied_rooms = (total_rooms * predicted_occupancy / 100)
-                predicted_revenue = occupied_rooms * avg_adr
-                
-                # Confidence decreases further in future
-                confidence = max(0.6, 0.95 - (days_ahead * 0.01))
-                upper_bound = predicted_revenue * 1.20  # 20% confidence interval for revenue
-                lower_bound = predicted_revenue * 0.80
-                
-                # Create or update forecast
-                RevenueForecast.objects.update_or_create(
-                    property=property_obj,
-                    forecast_date=forecast_date,
-                    target_date=target_date,
-                    model_type='pricing_occupancy_blend',
-                    defaults={
-                        'predicted_revenue': round(predicted_revenue, 2),
-                        'predicted_occupancy': round(predicted_occupancy, 2),
-                        'avg_daily_rate': round(avg_adr, 2),
-                        'confidence_interval': round(confidence, 3),
-                        'upper_bound': round(upper_bound, 2),
-                        'lower_bound': round(lower_bound, 2),
-                    }
-                )
-            
+            _forecast_property_revenue(property_obj, forecast_date, forecast_days)
             logger.info(f"Generated revenue forecasts for {property_obj.name} ({forecast_days} days)")
-            
         except Exception as e:
             logger.error(f"Error generating revenue forecast for property {property_id}: {str(e)}")
+
+
+def _risk_level(risk_score, high_threshold, medium_threshold):
+    if risk_score > high_threshold:
+        return 'high'
+    return 'medium' if risk_score > medium_threshold else 'low'
+
+
+def _cancellation_days_delta(days_until_checkin):
+    # Very soon bookings less likely to cancel; long advance bookings more likely
+    if days_until_checkin < 3:
+        return -0.15
+    if days_until_checkin > 30:
+        return 0.15
+    return 0.0
+
+
+def _cancellation_lead_time_delta(lead_time):
+    # Longer lead time increases cancellation risk
+    if lead_time > 45:
+        return 0.15
+    if lead_time < 7:
+        return -0.10
+    return 0.0
+
+
+def _cancellation_risk(booking, prediction_date):
+    """Return (risk_score, risk_factors) for a booking's cancellation risk."""
+    risk_score = 0.3  # Base risk
+
+    # Days until check-in (closer = lower risk of cancellation)
+    days_until_checkin = (booking.check_in_date - prediction_date).days
+    risk_score += _cancellation_days_delta(days_until_checkin)
+
+    # Guest history - repeat guests less likely to cancel
+    guest_booking_count = Booking.objects.filter(
+        guest=booking.guest,
+        status__in=['confirmed', 'checked_in', 'cancelled']
+    ).count()
+    if guest_booking_count > 3:
+        risk_score -= 0.10  # Repeat guests better
+
+    lead_time = (booking.check_in_date - booking.created_at.date()).days
+    risk_score += _cancellation_lead_time_delta(lead_time)
+
+    # Booking source - certain channels have higher cancellation
+    if booking.booking_source in ['travel_agency']:
+        risk_score += 0.05  # Slight higher risk
+
+    # Length of stay - very short stays have higher cancel risk
+    num_nights = (booking.check_out_date - booking.check_in_date).days
+    if num_nights == 1:
+        risk_score += 0.10
+
+    # Clamp risk score between 0 and 1
+    risk_score = max(0.0, min(1.0, risk_score))
+
+    risk_factors = {
+        'advance_booking': days_until_checkin > 30,
+        'new_guest': guest_booking_count <= 1,
+        'long_lead_time': lead_time > 45,
+        'single_night': num_nights == 1,
+        'travel_agency_booking': booking.booking_source == 'travel_agency'
+    }
+    return risk_score, risk_factors
+
+
+def _predict_booking_cancellation(booking, property_obj, prediction_date):
+    from .models import CancellationPrediction
+
+    risk_score, risk_factors = _cancellation_risk(booking, prediction_date)
+    CancellationPrediction.objects.update_or_create(
+        booking=booking,
+        property=property_obj,
+        prediction_date=prediction_date,
+        defaults={
+            'prediction_time': timezone.now(),
+            'cancellation_risk': round(risk_score, 3),
+            'risk_level': _risk_level(risk_score, 0.6, 0.35),
+            'risk_factors': risk_factors,
+        }
+    )
 
 
 @shared_task
@@ -1102,16 +1210,9 @@ def predict_cancellations_task(property_id=None):
     Args:
         property_id: Specific property ID or None for all properties
     """
-    from .models import CancellationPrediction
-    from django.utils import timezone
-    
-    properties = Property.objects.all()
-    if property_id:
-        properties = properties.filter(id=property_id)
-    
     prediction_date = timezone.now().date()
-    
-    for property_obj in properties:
+
+    for property_obj in _properties_for(property_id):
         try:
             # Get recent bookings (next 60 days that haven't been cancelled yet)
             upcoming_bookings = Booking.objects.filter(
@@ -1120,72 +1221,84 @@ def predict_cancellations_task(property_id=None):
                 check_in_date__lte=prediction_date + timedelta(days=60),
                 status='confirmed'
             )
-            
+
             for booking in upcoming_bookings:
                 try:
-                    # Calculate cancellation risk factors
-                    risk_score = 0.3  # Base risk
-                    
-                    # Days until check-in (closer = lower risk of cancellation)
-                    days_until_checkin = (booking.check_in_date - prediction_date).days
-                    if days_until_checkin < 3:
-                        risk_score -= 0.15  # Very soon bookings less likely to cancel
-                    elif days_until_checkin > 30:
-                        risk_score += 0.15  # Long advance bookings higher cancellation risk
-                    
-                    # Guest history - repeat guests less likely to cancel
-                    guest_booking_count = Booking.objects.filter(
-                        guest=booking.guest,
-                        status__in=['confirmed', 'checked_in', 'cancelled']
-                    ).count()
-                    if guest_booking_count > 3:
-                        risk_score -= 0.10  # Repeat guests better
-                    
-                    # Lead time - longer lead time increases cancellation risk
-                    lead_time = (booking.check_in_date - booking.created_at.date()).days
-                    if lead_time > 45:
-                        risk_score += 0.15
-                    elif lead_time < 7:
-                        risk_score -= 0.10
-                    
-                    # Booking source - certain channels have higher cancellation
-                    if booking.booking_source in ['travel_agency']:
-                        risk_score += 0.05  # Slight higher risk
-                    
-                    # Length of stay - very short stays have higher cancel risk
-                    num_nights = (booking.check_out_date - booking.check_in_date).days
-                    if num_nights == 1:
-                        risk_score += 0.10
-                    
-                    # Clamp risk score between 0 and 1
-                    risk_score = max(0.0, min(1.0, risk_score))
-                    
-                    # Create prediction record
-                    CancellationPrediction.objects.update_or_create(
-                        booking=booking,
-                        property=property_obj,
-                        prediction_date=prediction_date,
-                        defaults={
-                            'prediction_time': timezone.now(),
-                            'cancellation_risk': round(risk_score, 3),
-                            'risk_level': 'high' if risk_score > 0.6 else ('medium' if risk_score > 0.35 else 'low'),
-                            'risk_factors': {
-                                'advance_booking': days_until_checkin > 30,
-                                'new_guest': guest_booking_count <= 1,
-                                'long_lead_time': lead_time > 45,
-                                'single_night': num_nights == 1,
-                                'travel_agency_booking': booking.booking_source == 'travel_agency'
-                            }
-                        }
-                    )
-                    
+                    _predict_booking_cancellation(booking, property_obj, prediction_date)
                 except Exception as e:
                     logger.warning(f"Error predicting cancellation for booking {booking.id}: {str(e)}")
-            
+
             logger.info(f"Generated cancellation predictions for {property_obj.name}")
-            
+
         except Exception as e:
             logger.error(f"Error in cancellation prediction for property {property_id}: {str(e)}")
+
+
+def _noshow_days_delta(days_until_checkin):
+    if days_until_checkin == 0:
+        return -0.10  # Today = committed
+    if days_until_checkin == 1:
+        return -0.08
+    if days_until_checkin > 14:
+        return 0.12  # Far future more likely to not show
+    return 0.0
+
+
+def _noshow_source_delta(booking_source):
+    if booking_source in ['booking_com', 'trivago']:
+        return 0.10  # OTA bookings higher no-show risk
+    if booking_source in ['direct_website', 'phone']:
+        return -0.08  # Direct bookings lower no-show
+    return 0.0
+
+
+def _noshow_risk(booking, prediction_date):
+    """Return (risk_score, risk_factors) for a booking's no-show risk."""
+    risk_score = 0.15  # Base no-show risk
+
+    # Days until check-in (very close = lower no-show risk)
+    days_until_checkin = (booking.check_in_date - prediction_date).days
+    risk_score += _noshow_days_delta(days_until_checkin)
+
+    # Guest communication - no special requests might indicate casual interest
+    has_special_requests = bool(booking.special_requests)
+    if not has_special_requests:
+        risk_score += 0.08
+
+    risk_score += _noshow_source_delta(booking.booking_source)
+
+    # Weekend vs weekday (slightly higher risk on weekends)
+    is_weekend_checkin = booking.check_in_date.weekday() >= 4  # Fri-Sun
+    if is_weekend_checkin:
+        risk_score += 0.05
+
+    # Clamp risk score
+    risk_score = max(0.0, min(1.0, risk_score))
+
+    risk_factors = {
+        'far_future_booking': days_until_checkin > 14,
+        'no_special_requests': not has_special_requests,
+        'ota_booking': booking.booking_source in ['booking_com', 'trivago'],
+        'weekend_checkin': is_weekend_checkin,
+    }
+    return risk_score, risk_factors
+
+
+def _predict_booking_noshow(booking, property_obj, prediction_date):
+    from .models import NoShowPrediction
+
+    risk_score, risk_factors = _noshow_risk(booking, prediction_date)
+    NoShowPrediction.objects.update_or_create(
+        booking=booking,
+        property=property_obj,
+        prediction_date=prediction_date,
+        defaults={
+            'prediction_time': timezone.now(),
+            'noshow_risk': round(risk_score, 3),
+            'risk_level': _risk_level(risk_score, 0.45, 0.25),
+            'risk_factors': risk_factors,
+        }
+    )
 
 
 @shared_task
@@ -1197,18 +1310,11 @@ def predict_noshow_task(property_id=None):
     Args:
         property_id: Specific property ID or None for all properties
     """
-    from .models import NoShowPrediction
-    from django.utils import timezone
-    
-    properties = Property.objects.all()
-    if property_id:
-        properties = properties.filter(id=property_id)
-    
     prediction_date = timezone.now().date()
     checkin_window_start = prediction_date
     checkin_window_end = prediction_date + timedelta(days=30)
-    
-    for property_obj in properties:
+
+    for property_obj in _properties_for(property_id):
         try:
             # Get bookings checking in within 30 days
             upcoming_checkins = Booking.objects.filter(
@@ -1217,66 +1323,15 @@ def predict_noshow_task(property_id=None):
                 check_in_date__lte=checkin_window_end,
                 status='confirmed'
             )
-            
+
             for booking in upcoming_checkins:
                 try:
-                    risk_score = 0.15  # Base no-show risk
-                    
-                    # Days until check-in (very close = lower no-show risk)
-                    days_until_checkin = (booking.check_in_date - prediction_date).days
-                    if days_until_checkin == 0:
-                        risk_score -= 0.10  # Today = committed
-                    elif days_until_checkin == 1:
-                        risk_score -= 0.08
-                    elif days_until_checkin > 14:
-                        risk_score += 0.12  # Far future more likely to not show
-                    
-                    # Guest communication - no special requests might indicate casual interest
-                    has_special_requests = bool(booking.special_requests)
-                    if not has_special_requests:
-                        risk_score += 0.08
-                    
-                    # Booking source - OTA bookings higher no-show risk
-                    if booking.booking_source in ['booking_com', 'trivago']:
-                        risk_score += 0.10
-                    elif booking.booking_source in ['direct_website', 'phone']:
-                        risk_score -= 0.08  # Direct bookings lower no-show
-                    
-                    # International guests - travel distance proxy
-                    if booking.guest and booking.guest.phone:
-                        # Would integrate with guest location data in production
-                        pass
-                    
-                    # Weekend vs weekday (slightly higher risk on weekends)
-                    if booking.check_in_date.weekday() >= 4:  # Fri-Sun
-                        risk_score += 0.05
-                    
-                    # Clamp risk score
-                    risk_score = max(0.0, min(1.0, risk_score))
-                    
-                    # Create prediction record
-                    NoShowPrediction.objects.update_or_create(
-                        booking=booking,
-                        property=property_obj,
-                        prediction_date=prediction_date,
-                        defaults={
-                            'prediction_time': timezone.now(),
-                            'noshow_risk': round(risk_score, 3),
-                            'risk_level': 'high' if risk_score > 0.45 else ('medium' if risk_score > 0.25 else 'low'),
-                            'risk_factors': {
-                                'far_future_booking': days_until_checkin > 14,
-                                'no_special_requests': not has_special_requests,
-                                'ota_booking': booking.booking_source in ['booking_com', 'trivago'],
-                                'weekend_checkin': booking.check_in_date.weekday() >= 4,
-                            }
-                        }
-                    )
-                    
+                    _predict_booking_noshow(booking, property_obj, prediction_date)
                 except Exception as e:
                     logger.warning(f"Error predicting no-show for booking {booking.id}: {str(e)}")
-            
+
             logger.info(f"Generated no-show predictions for {property_obj.name}")
-            
+
         except Exception as e:
             logger.error(f"Error in no-show prediction for property {property_id}: {str(e)}")
 

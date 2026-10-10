@@ -167,6 +167,49 @@ class MyDataService:
         timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
         return f"AADE-{invoice.invoice_number}-{timestamp}"
     
+    @staticmethod
+    def _required_field_errors(invoice: Invoice) -> List[str]:
+        errors = []
+        if not invoice.invoice_number:
+            errors.append('Invoice number is required')
+
+        if not invoice.amount or invoice.amount <= 0:
+            errors.append('Invoice amount must be greater than 0')
+
+        if not invoice.total_amount or invoice.total_amount <= 0:
+            errors.append('Total amount must be greater than 0')
+
+        if not invoice.issued_date:
+            errors.append('Issue date is required')
+
+        if not invoice.due_date:
+            errors.append('Due date is required')
+        return errors
+
+    @staticmethod
+    def _guest_field_errors(invoice: Invoice) -> List[str]:
+        errors = []
+        user = invoice.guest.user
+        if not user.email:
+            errors.append('Guest email is required')
+
+        if not user.first_name or not user.last_name:
+            errors.append('Guest first and last name are required')
+        return errors
+
+    @staticmethod
+    def _consistency_errors(invoice: Invoice) -> List[str]:
+        errors = []
+        # Validate date consistency
+        if invoice.issued_date.date() > invoice.due_date:
+            errors.append('Due date must be after issue date')
+
+        # Validate amounts
+        expected_total = invoice.amount + (invoice.tax_amount or Decimal('0'))
+        if invoice.total_amount != expected_total:
+            errors.append(f'Total amount mismatch: expected {expected_total}, got {invoice.total_amount}')
+        return errors
+
     def validate_invoice_for_transmission(self, invoice: Invoice) -> Tuple[bool, List[str]]:
         """
         Validate invoice meets MyData requirements.
@@ -178,38 +221,10 @@ class MyDataService:
             Tuple of (is_valid: bool, error_list: List[str])
         """
         errors = []
-        
-        # Validate required fields
-        if not invoice.invoice_number:
-            errors.append('Invoice number is required')
-        
-        if not invoice.amount or invoice.amount <= 0:
-            errors.append('Invoice amount must be greater than 0')
-        
-        if not invoice.total_amount or invoice.total_amount <= 0:
-            errors.append('Total amount must be greater than 0')
-        
-        if not invoice.issued_date:
-            errors.append('Issue date is required')
-        
-        if not invoice.due_date:
-            errors.append('Due date is required')
-        
-        if not invoice.guest.user.email:
-            errors.append('Guest email is required')
-        
-        if not invoice.guest.user.first_name or not invoice.guest.user.last_name:
-            errors.append('Guest first and last name are required')
-        
-        # Validate date consistency
-        if invoice.issued_date.date() > invoice.due_date:
-            errors.append('Due date must be after issue date')
-        
-        # Validate amounts
-        expected_total = invoice.amount + (invoice.tax_amount or Decimal('0'))
-        if invoice.total_amount != expected_total:
-            errors.append(f'Total amount mismatch: expected {expected_total}, got {invoice.total_amount}')
-        
+        errors.extend(self._required_field_errors(invoice))
+        errors.extend(self._guest_field_errors(invoice))
+        errors.extend(self._consistency_errors(invoice))
+
         return len(errors) == 0, errors
     
     def get_transmittable_invoices(self) -> List[Invoice]:

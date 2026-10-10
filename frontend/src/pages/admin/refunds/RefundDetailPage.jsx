@@ -9,6 +9,83 @@ import { useGetRefundQuery, useUpdateRefundMutation } from '../../../features/re
 
 const STATUS_COLORS = { pending: 'warning', approved: 'success', rejected: 'error', processed: 'info' }
 
+const DASH = '—'
+const fmtDate = (v) => (v ? new Date(v).toLocaleDateString() : DASH)
+const ACTION_LABELS = { approved: 'Approve', processed: 'Process', rejected: 'Reject' }
+const ACTION_COLORS = { approved: 'success', processed: 'primary', rejected: 'error' }
+
+function RefundFields({ refund }) {
+  const fields = [
+    ['Booking', refund.booking],
+    ['Guest', refund.guest_name || refund.guest],
+    ['Payment', refund.payment],
+    ['Amount', `€${Number(refund.amount || 0).toFixed(2)}`],
+    ['Requested', fmtDate(refund.created_at)],
+    ['Processed', fmtDate(refund.processed_at)],
+  ]
+  return (
+    <Grid container spacing={2} sx={{ mb: 3 }}>
+      {fields.map(([label, val]) => (
+        <Grid item xs={12} sm={6} md={4} key={label}>
+          <Typography variant="caption" color="text.secondary">{label}</Typography>
+          <Typography>{val || DASH}</Typography>
+        </Grid>
+      ))}
+      <Grid item xs={12}><Typography variant="caption" color="text.secondary">Reason</Typography><Typography>{refund.reason}</Typography></Grid>
+      {refund.admin_notes && <Grid item xs={12}><Typography variant="caption" color="text.secondary">Admin Notes</Typography><Typography>{refund.admin_notes}</Typography></Grid>}
+    </Grid>
+  )
+}
+
+function RefundActions({ status, onAction }) {
+  if (status === 'pending') {
+    return (
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Button variant="contained" color="success" onClick={() => onAction('approved')}>Approve</Button>
+        <Button variant="outlined" color="error" onClick={() => onAction('rejected')}>Reject</Button>
+      </Box>
+    )
+  }
+  if (status === 'approved') {
+    return (
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Button variant="contained" onClick={() => onAction('processed')}>Mark Processed</Button>
+      </Box>
+    )
+  }
+  return null
+}
+
+function RefundActionDialog({ action, refundId, reason, onReasonChange, onClose, onConfirm, updating }) {
+  return (
+    <Dialog open={Boolean(action)} onClose={onClose}>
+      <DialogTitle>{ACTION_LABELS[action] || ACTION_LABELS.rejected} refund #{refundId}?</DialogTitle>
+      <DialogContent>
+        {action === 'rejected' ? (
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            autoFocus
+            margin="dense"
+            label="Rejection reason"
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value)}
+          />
+        ) : (
+          'This action will update the refund status.'
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button color={ACTION_COLORS[action] || 'error'} onClick={() => onConfirm(action)} disabled={updating}>
+          Confirm
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 export default function RefundDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -40,59 +117,18 @@ export default function RefundDetailPage() {
           <Typography variant="h5">Refund #{refund.id}</Typography>
           <Chip label={refund.status} color={STATUS_COLORS[refund.status] || 'default'} />
         </Box>
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {[['Booking', refund.booking], ['Guest', refund.guest_name || refund.guest], ['Payment', refund.payment], ['Amount', `€${Number(refund.amount || 0).toFixed(2)}`], ['Requested', refund.created_at ? new Date(refund.created_at).toLocaleDateString() : '—'], ['Processed', refund.processed_at ? new Date(refund.processed_at).toLocaleDateString() : '—']].map(([label, val]) => (
-            <Grid item xs={12} sm={6} md={4} key={label}>
-              <Typography variant="caption" color="text.secondary">{label}</Typography>
-              <Typography>{val || '—'}</Typography>
-            </Grid>
-          ))}
-          <Grid item xs={12}><Typography variant="caption" color="text.secondary">Reason</Typography><Typography>{refund.reason}</Typography></Grid>
-          {refund.admin_notes && <Grid item xs={12}><Typography variant="caption" color="text.secondary">Admin Notes</Typography><Typography>{refund.admin_notes}</Typography></Grid>}
-        </Grid>
-        {refund.status === 'pending' && (
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button variant="contained" color="success" onClick={() => setDialog('approved')}>Approve</Button>
-            <Button variant="outlined" color="error" onClick={() => setDialog('rejected')}>Reject</Button>
-          </Box>
-        )}
-        {refund.status === 'approved' && (
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button variant="contained" onClick={() => setDialog('processed')}>Mark Processed</Button>
-          </Box>
-        )}
+        <RefundFields refund={refund} />
+        <RefundActions status={refund.status} onAction={setDialog} />
       </Paper>
-      <Dialog open={Boolean(dialog)} onClose={() => setDialog(null)}>
-        <DialogTitle>
-          {dialog === 'approved' ? 'Approve' : dialog === 'processed' ? 'Process' : 'Reject'} refund #{refund.id}?
-        </DialogTitle>
-        <DialogContent>
-          {dialog === 'rejected' ? (
-            <TextField
-              fullWidth
-              multiline
-              minRows={3}
-              autoFocus
-              margin="dense"
-              label="Rejection reason"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-            />
-          ) : (
-            'This action will update the refund status.'
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialog(null)}>Cancel</Button>
-          <Button
-            color={dialog === 'approved' ? 'success' : dialog === 'processed' ? 'primary' : 'error'}
-            onClick={() => handleAction(dialog)}
-            disabled={updating}
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <RefundActionDialog
+        action={dialog}
+        refundId={refund.id}
+        reason={rejectionReason}
+        onReasonChange={setRejectionReason}
+        onClose={() => setDialog(null)}
+        onConfirm={handleAction}
+        updating={updating}
+      />
     </AppLayout>
   )
 }

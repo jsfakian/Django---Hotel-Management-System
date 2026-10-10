@@ -44,6 +44,24 @@ class ConfidenceRangeFilter(admin.SimpleListFilter):
         return queryset
 
 
+def _change_color(change):
+    if change > 0:
+        return 'green'
+    return 'red' if change < 0 else 'gray'
+
+
+def _change_sign(change):
+    return '+' if change > 0 else ''
+
+
+def _or_zero(value):
+    return value or 0
+
+
+def _or_default(value, default):
+    return value or default
+
+
 @admin.register(PricingHistory)
 class PricingHistoryAdmin(admin.ModelAdmin):
     """
@@ -280,19 +298,19 @@ class PricingHistoryAdmin(admin.ModelAdmin):
             <h4>Price Change Analysis</h4>
             <p>
                 <strong>Change:</strong> 
-                <span style="font-size: 18px; color: {'green' if change > 0 else 'red' if change < 0 else 'gray'};">
-                    {'+' if change > 0 else ''} ${change:.2f} ({change_percent:+.1f}%)
+                <span style="font-size: 18px; color: {_change_color(change)};">
+                    {_change_sign(change)} ${change:.2f} ({change_percent:+.1f}%)
                 </span>
             </p>
             <h5>Impact Factors:</h5>
             <ul>
-                <li>Occupancy Impact: {obj.occupancy_impact_percentage or 0:.1f}%</li>
-                <li>Seasonal Impact: {obj.seasonal_impact_percentage or 0:.1f}%</li>
-                <li>Demand Impact: {obj.demand_impact_percentage or 0:.1f}%</li>
-                <li>Competitor Impact: {obj.competitor_impact_percentage or 0:.1f}%</li>
+                <li>Occupancy Impact: {_or_zero(obj.occupancy_impact_percentage):.1f}%</li>
+                <li>Seasonal Impact: {_or_zero(obj.seasonal_impact_percentage):.1f}%</li>
+                <li>Demand Impact: {_or_zero(obj.demand_impact_percentage):.1f}%</li>
+                <li>Competitor Impact: {_or_zero(obj.competitor_impact_percentage):.1f}%</li>
             </ul>
-            <p><strong>Season:</strong> {obj.season or 'Unknown'}</p>
-            <p><strong>Occupancy Rate:</strong> {obj.occupancy_rate or 0:.1%}</p>
+            <p><strong>Season:</strong> {_or_default(obj.season, 'Unknown')}</p>
+            <p><strong>Occupancy Rate:</strong> {_or_zero(obj.occupancy_rate):.1%}</p>
         </div>
         """
         return mark_safe(html)

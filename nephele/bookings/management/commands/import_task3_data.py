@@ -70,6 +70,26 @@ class Command(BaseCommand):
                 'Current ORM expects modern room schema; run schema alignment migration/reset before importing Task3 data.'
             )
 
+    @staticmethod
+    def _clean_text(value, default=''):
+        """Strip a CSV value, falling back to ``default`` when missing or blank."""
+        return (value or default).strip() or default
+
+    def _property_defaults(self, row):
+        city = self._clean_text(row.get('city'), 'Unknown City')
+        country = self._clean_text(row.get('country'), 'Unknown Country')
+        return {
+            'location': city,
+            'address': self._clean_text(row.get('address'), f'{city}, {country}'),
+            'city': city,
+            'postal_code': self._clean_text(row.get('postal_code'), '00000'),
+            'country': country,
+            'phone_number': self._clean_text(row.get('phone_number')),
+            'email': self._clean_text(row.get('email')),
+            'total_rooms': self._safe_int(row.get('total_rooms'), 0),
+            'is_active': True,
+        }
+
     def _import_properties(self, properties_file):
         properties_by_code = {}
         created_count = 0
@@ -82,24 +102,9 @@ class Command(BaseCommand):
                 if not property_code:
                     continue
 
-                city = (row.get('city') or 'Unknown City').strip() or 'Unknown City'
-                country = (row.get('country') or 'Unknown Country').strip() or 'Unknown Country'
-                address = (row.get('address') or f'{city}, {country}').strip() or f'{city}, {country}'
-                total_rooms = self._safe_int(row.get('total_rooms'), 0)
-
                 property_obj, created = Property.objects.update_or_create(
                     name=property_code,
-                    defaults={
-                        'location': city,
-                        'address': address,
-                        'city': city,
-                        'postal_code': (row.get('postal_code') or '00000').strip() or '00000',
-                        'country': country,
-                        'phone_number': (row.get('phone_number') or '').strip(),
-                        'email': (row.get('email') or '').strip(),
-                        'total_rooms': total_rooms,
-                        'is_active': True,
-                    },
+                    defaults=self._property_defaults(row),
                 )
 
                 properties_by_code[property_code] = property_obj

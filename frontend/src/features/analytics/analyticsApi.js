@@ -1,5 +1,67 @@
 import { api } from '../../services/api'
 
+const reportEndpoints = (builder) => ({
+  // Custom Reports
+  getCustomReports: builder.query({
+    query: (params = {}) => ({ url: '/analytics/custom-reports/', method: 'GET', params }),
+    providesTags: (result) =>
+      result
+        ? [...(result.results || result).map(({ id }) => ({ type: 'Dashboard', id: `report-${id}` })), { type: 'Dashboard', id: 'REPORT_LIST' }]
+        : [{ type: 'Dashboard', id: 'REPORT_LIST' }],
+  }),
+  createCustomReport: builder.mutation({
+    query: (data) => ({ url: '/analytics/custom-reports/', method: 'POST', data }),
+    invalidatesTags: [{ type: 'Dashboard', id: 'REPORT_LIST' }],
+  }),
+  deleteCustomReport: builder.mutation({
+    query: (id) => ({ url: `/analytics/custom-reports/${id}/`, method: 'DELETE' }),
+    invalidatesTags: [{ type: 'Dashboard', id: 'REPORT_LIST' }],
+  }),
+
+  // Scheduled Reports
+  getScheduledReports: builder.query({
+    query: (params = {}) => ({ url: '/analytics/scheduled-reports/', method: 'GET', params }),
+    providesTags: (result) =>
+      result
+        ? [...(result.results || result).map(({ id }) => ({ type: 'Dashboard', id: `sched-${id}` })), { type: 'Dashboard', id: 'SCHED_LIST' }]
+        : [{ type: 'Dashboard', id: 'SCHED_LIST' }],
+  }),
+  createScheduledReport: builder.mutation({
+    query: (data) => ({ url: '/analytics/scheduled-reports/', method: 'POST', data }),
+    invalidatesTags: [{ type: 'Dashboard', id: 'SCHED_LIST' }],
+  }),
+  triggerScheduledReport: builder.mutation({
+    query: ({ id, ...data }) => ({ url: `/analytics/scheduled-reports/${id}/trigger/`, method: 'POST', data }),
+    invalidatesTags: [{ type: 'Dashboard', id: 'EXEC_LIST' }],
+  }),
+  testScheduledReport: builder.mutation({
+    query: (id) => ({ url: `/analytics/scheduled-reports/${id}/test/`, method: 'POST' }),
+    invalidatesTags: [{ type: 'Dashboard', id: 'EXEC_LIST' }],
+  }),
+  updateScheduledReport: builder.mutation({
+    query: ({ id, ...data }) => ({ url: `/analytics/scheduled-reports/${id}/`, method: 'PATCH', data }),
+    invalidatesTags: (result, error, { id }) => [{ type: 'Dashboard', id: `sched-${id}` }],
+  }),
+  deleteScheduledReport: builder.mutation({
+    query: (id) => ({ url: `/analytics/scheduled-reports/${id}/`, method: 'DELETE' }),
+    invalidatesTags: [{ type: 'Dashboard', id: 'SCHED_LIST' }],
+  }),
+
+  // Report Executions
+  getReportExecutions: builder.query({
+    query: (params = {}) => ({ url: '/analytics/report-executions/', method: 'GET', params }),
+    providesTags: () => [{ type: 'Dashboard', id: 'EXEC_LIST' }],
+  }),
+  getExecutionDeliveryTracking: builder.query({
+    query: (id) => ({ url: `/analytics/report-executions/${id}/delivery_status/`, method: 'GET' }),
+    providesTags: () => [{ type: 'Dashboard', id: 'EXEC_LIST' }],
+  }),
+  resendReportExecution: builder.mutation({
+    query: ({ id, ...data }) => ({ url: `/analytics/report-executions/${id}/resend/`, method: 'POST', data }),
+    invalidatesTags: [{ type: 'Dashboard', id: 'EXEC_LIST' }],
+  }),
+})
+
 export const analyticsApi = api.injectEndpoints({
   endpoints: (builder) => ({
     // Dashboards
@@ -76,65 +138,7 @@ export const analyticsApi = api.injectEndpoints({
       providesTags: () => [{ type: 'Dashboard' }],
     }),
 
-    // Custom Reports
-    getCustomReports: builder.query({
-      query: (params = {}) => ({ url: '/analytics/custom-reports/', method: 'GET', params }),
-      providesTags: (result) =>
-        result
-          ? [...(result.results || result).map(({ id }) => ({ type: 'Dashboard', id: `report-${id}` })), { type: 'Dashboard', id: 'REPORT_LIST' }]
-          : [{ type: 'Dashboard', id: 'REPORT_LIST' }],
-    }),
-    createCustomReport: builder.mutation({
-      query: (data) => ({ url: '/analytics/custom-reports/', method: 'POST', data }),
-      invalidatesTags: [{ type: 'Dashboard', id: 'REPORT_LIST' }],
-    }),
-    deleteCustomReport: builder.mutation({
-      query: (id) => ({ url: `/analytics/custom-reports/${id}/`, method: 'DELETE' }),
-      invalidatesTags: [{ type: 'Dashboard', id: 'REPORT_LIST' }],
-    }),
-
-    // Scheduled Reports
-    getScheduledReports: builder.query({
-      query: (params = {}) => ({ url: '/analytics/scheduled-reports/', method: 'GET', params }),
-      providesTags: (result) =>
-        result
-          ? [...(result.results || result).map(({ id }) => ({ type: 'Dashboard', id: `sched-${id}` })), { type: 'Dashboard', id: 'SCHED_LIST' }]
-          : [{ type: 'Dashboard', id: 'SCHED_LIST' }],
-    }),
-    createScheduledReport: builder.mutation({
-      query: (data) => ({ url: '/analytics/scheduled-reports/', method: 'POST', data }),
-      invalidatesTags: [{ type: 'Dashboard', id: 'SCHED_LIST' }],
-    }),
-    triggerScheduledReport: builder.mutation({
-      query: ({ id, ...data }) => ({ url: `/analytics/scheduled-reports/${id}/trigger/`, method: 'POST', data }),
-      invalidatesTags: [{ type: 'Dashboard', id: 'EXEC_LIST' }],
-    }),
-    testScheduledReport: builder.mutation({
-      query: (id) => ({ url: `/analytics/scheduled-reports/${id}/test/`, method: 'POST' }),
-      invalidatesTags: [{ type: 'Dashboard', id: 'EXEC_LIST' }],
-    }),
-    updateScheduledReport: builder.mutation({
-      query: ({ id, ...data }) => ({ url: `/analytics/scheduled-reports/${id}/`, method: 'PATCH', data }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'Dashboard', id: `sched-${id}` }],
-    }),
-    deleteScheduledReport: builder.mutation({
-      query: (id) => ({ url: `/analytics/scheduled-reports/${id}/`, method: 'DELETE' }),
-      invalidatesTags: [{ type: 'Dashboard', id: 'SCHED_LIST' }],
-    }),
-
-    // Report Executions
-    getReportExecutions: builder.query({
-      query: (params = {}) => ({ url: '/analytics/report-executions/', method: 'GET', params }),
-      providesTags: () => [{ type: 'Dashboard', id: 'EXEC_LIST' }],
-    }),
-    getExecutionDeliveryTracking: builder.query({
-      query: (id) => ({ url: `/analytics/report-executions/${id}/delivery_status/`, method: 'GET' }),
-      providesTags: () => [{ type: 'Dashboard', id: 'EXEC_LIST' }],
-    }),
-    resendReportExecution: builder.mutation({
-      query: ({ id, ...data }) => ({ url: `/analytics/report-executions/${id}/resend/`, method: 'POST', data }),
-      invalidatesTags: [{ type: 'Dashboard', id: 'EXEC_LIST' }],
-    }),
+    ...reportEndpoints(builder),
   }),
   overrideExisting: true,
 })

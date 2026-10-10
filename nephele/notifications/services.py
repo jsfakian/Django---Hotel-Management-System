@@ -20,6 +20,47 @@ class NotificationService:
     """
     
     @staticmethod
+    def _get_preferences(user):
+        try:
+            return user.notification_preference
+        except NotificationPreference.DoesNotExist:
+            # Create default preferences if not exist
+            return NotificationPreference.objects.create(user=user)
+
+    @staticmethod
+    def _default_channels(preferences):
+        channels = []
+        if preferences.receive_in_app:
+            channels.append('in_app')
+        if preferences.receive_email and not preferences.is_in_quiet_hours():
+            channels.append('email')
+        if preferences.receive_sms and not preferences.is_in_quiet_hours():
+            channels.append('sms')
+        return channels
+
+    @staticmethod
+    def _create_in_app_notification(user, notification_type, title, message,
+                                    action_url, action_label, priority, icon):
+        notification = Notification.objects.create(
+            user=user,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            action_url=action_url,
+            action_label=action_label,
+            priority=priority,
+            icon=icon
+        )
+
+        # Log creation
+        NotificationLog.objects.create(
+            notification=notification,
+            action='create',
+            details='In-app notification created'
+        )
+        return notification
+
+    @staticmethod
     def send_notification(user, notification_type_code, title, message, 
                          action_url='', action_label='', priority='medium',
                          icon='', channels=None):
@@ -47,42 +88,18 @@ class NotificationService:
             print(f"Notification type {notification_type_code} not found")
             return None
         
-        # Get user preferences
-        try:
-            preferences = user.notification_preference
-        except NotificationPreference.DoesNotExist:
-            # Create default preferences if not exist
-            preferences = NotificationPreference.objects.create(user=user)
+        preferences = NotificationService._get_preferences(user)
         
         # Determine which channels to use
         if channels is None:
-            channels = []
-            if preferences.receive_in_app:
-                channels.append('in_app')
-            if preferences.receive_email and not preferences.is_in_quiet_hours():
-                channels.append('email')
-            if preferences.receive_sms and not preferences.is_in_quiet_hours():
-                channels.append('sms')
+            channels = NotificationService._default_channels(preferences)
         
         # Create in-app notification
         notification = None
         if 'in_app' in channels:
-            notification = Notification.objects.create(
-                user=user,
-                notification_type=notification_type,
-                title=title,
-                message=message,
-                action_url=action_url,
-                action_label=action_label,
-                priority=priority,
-                icon=icon
-            )
-            
-            # Log creation
-            NotificationLog.objects.create(
-                notification=notification,
-                action='create',
-                details='In-app notification created'
+            notification = NotificationService._create_in_app_notification(
+                user, notification_type, title, message,
+                action_url, action_label, priority, icon
             )
         
         # Send email notification

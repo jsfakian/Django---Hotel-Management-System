@@ -167,21 +167,9 @@ class PricingAnalyzer:
         }
         
         # Get predictions from all models
-        all_predictions = {}
-        if self.predictor.available:
-            for model_name in self.predictor.get_available_models():
-                pred = self.predictor.predict(features, model_name)
-                if pred:
-                    all_predictions[model_name] = float(pred)
+        all_predictions = self._collect_model_predictions(features)
         
-        # Use ensemble or average if available
-        ensemble_pred = all_predictions.get('ensemble')
-        if not ensemble_pred and all_predictions:
-            ensemble_pred = sum(all_predictions.values()) / len(all_predictions)
-        
-        if not ensemble_pred:
-            # Fallback to base price with adjustments
-            ensemble_pred = float(room.base_price) * (1 + (occupancy_rate / 100 * 0.15))
+        ensemble_pred = self._ensemble_prediction(room, all_predictions, occupancy_rate)
         
         # Get confidence score
         confidence = self._get_confidence_score(room, date_obj)
@@ -211,6 +199,28 @@ class PricingAnalyzer:
             'occupancy_rate': occupancy_rate,
         }
     
+    def _collect_model_predictions(self, features):
+        """Return {model_name: prediction} from every available model."""
+        all_predictions = {}
+        if self.predictor.available:
+            for model_name in self.predictor.get_available_models():
+                pred = self.predictor.predict(features, model_name)
+                if pred:
+                    all_predictions[model_name] = float(pred)
+        return all_predictions
+
+    @staticmethod
+    def _ensemble_prediction(room, all_predictions, occupancy_rate):
+        """Use ensemble or average if available, else adjusted base price."""
+        ensemble_pred = all_predictions.get('ensemble')
+        if not ensemble_pred and all_predictions:
+            ensemble_pred = sum(all_predictions.values()) / len(all_predictions)
+
+        if not ensemble_pred:
+            # Fallback to base price with adjustments
+            ensemble_pred = float(room.base_price) * (1 + (occupancy_rate / 100 * 0.15))
+        return ensemble_pred
+
     def _estimate_occupancy(self, room, date_obj):
         """Estimate occupancy rate for a room on a given date."""
         from room.models import Booking

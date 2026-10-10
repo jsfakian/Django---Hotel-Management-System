@@ -433,6 +433,31 @@ class CustomReportViewSet(viewsets.ModelViewSet):
         })
 
 
+def _latest_dashboard_data(property_id, dashboard_type):
+    """Serialize the latest record of each dashboard selected by ``dashboard_type``."""
+    # (selector, response key, model, ordering field, serializer)
+    dashboards = (
+        ('executive', DashboardExecutiveMetrics, '-metric_date',
+         DashboardExecutiveMetricsSerializer),
+        ('operational', DashboardOperationalStatus, '-status_time',
+         DashboardOperationalStatusSerializer),
+        ('revenue', DashboardRevenueMetrics, '-metric_date',
+         DashboardRevenueMetricsSerializer),
+        ('guest', DashboardGuestAnalytics, '-analytics_date',
+         DashboardGuestAnalyticsSerializer),
+    )
+    data = {}
+    for key, model, ordering, serializer_class in dashboards:
+        if dashboard_type not in [key, 'all']:
+            continue
+        latest = model.objects.filter(
+            property_id=property_id
+        ).order_by(ordering).first()
+        if latest:
+            data[key] = serializer_class(latest).data
+    return data
+
+
 class AnalyticsDashboardViewSet(viewsets.ViewSet):
     """
     Combined Analytics Dashboard endpoint
@@ -465,43 +490,7 @@ class AnalyticsDashboardViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        data = {}
-        
-        # Executive Dashboard
-        if dashboard_type in ['executive', 'all']:
-            exec_metrics = DashboardExecutiveMetrics.objects.filter(
-                property_id=property_id
-            ).order_by('-metric_date').first()
-            
-            if exec_metrics:
-                data['executive'] = DashboardExecutiveMetricsSerializer(exec_metrics).data
-        
-        # Operational Dashboard
-        if dashboard_type in ['operational', 'all']:
-            op_status = DashboardOperationalStatus.objects.filter(
-                property_id=property_id
-            ).order_by('-status_time').first()
-            
-            if op_status:
-                data['operational'] = DashboardOperationalStatusSerializer(op_status).data
-        
-        # Revenue Analytics
-        if dashboard_type in ['revenue', 'all']:
-            rev_metrics = DashboardRevenueMetrics.objects.filter(
-                property_id=property_id
-            ).order_by('-metric_date').first()
-            
-            if rev_metrics:
-                data['revenue'] = DashboardRevenueMetricsSerializer(rev_metrics).data
-        
-        # Guest Analytics
-        if dashboard_type in ['guest', 'all']:
-            guest_analytics = DashboardGuestAnalytics.objects.filter(
-                property_id=property_id
-            ).order_by('-analytics_date').first()
-            
-            if guest_analytics:
-                data['guest'] = DashboardGuestAnalyticsSerializer(guest_analytics).data
+        data = _latest_dashboard_data(property_id, dashboard_type)
         
         return Response({
             'property_id': property_id,
@@ -989,6 +978,36 @@ class NoShowPredictionViewSet(viewsets.ReadOnlyModelViewSet):
         })
 
 
+_FORECASTING_MODEL_NAMES = (
+    'occupancy_prophet', 'occupancy_sarima', 'revenue_prophet',
+    'cancellation_xgb', 'noshow_xgb'
+)
+
+
+def _latest_forecasting_metrics(queryset):
+    """Latest metrics summary for each known forecasting model."""
+    latest_metrics = {}
+    for model_name in _FORECASTING_MODEL_NAMES:
+        metric = queryset.filter(model_name=model_name).order_by('-evaluation_date').first()
+        if metric:
+            latest_metrics[model_name] = {
+                'is_acceptable': metric.is_acceptable,
+                'needs_retraining': metric.needs_retraining,
+                'last_evaluated': metric.evaluation_date,
+                'mape': float(metric.mape) if metric.mape else None,
+                'f1_score': float(metric.f1_score) if metric.f1_score else None,
+            }
+    return latest_metrics
+
+
+def _forecasting_health_status(latest_metrics):
+    any_need_retraining = any(m['needs_retraining'] for m in latest_metrics.values())
+    if any_need_retraining:
+        return 'red'
+    all_acceptable = all(m['is_acceptable'] for m in latest_metrics.values())
+    return 'green' if all_acceptable else 'yellow'
+
+
 class ForecastingModelMetricsViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Forecasting Model Metrics ViewSet - Monitor model performance
@@ -1032,32 +1051,9 @@ class ForecastingModelMetricsViewSet(viewsets.ReadOnlyModelViewSet):
         if not _user_is_analytics_admin(request.user):
             queryset = queryset.filter(property__in=_accessible_property_queryset(request.user))
         
-        # Get latest metrics for each model
-        latest_metrics = {}
-        for model_name in [
-            'occupancy_prophet', 'occupancy_sarima', 'revenue_prophet',
-            'cancellation_xgb', 'noshow_xgb'
-        ]:
-            metric = queryset.filter(model_name=model_name).order_by('-evaluation_date').first()
-            if metric:
-                latest_metrics[model_name] = {
-                    'is_acceptable': metric.is_acceptable,
-                    'needs_retraining': metric.needs_retraining,
-                    'last_evaluated': metric.evaluation_date,
-                    'mape': float(metric.mape) if metric.mape else None,
-                    'f1_score': float(metric.f1_score) if metric.f1_score else None,
-                }
-        
-        # Determine overall status
-        all_acceptable = all(m['is_acceptable'] for m in latest_metrics.values())
+        latest_metrics = _latest_forecasting_metrics(queryset)
         any_need_retraining = any(m['needs_retraining'] for m in latest_metrics.values())
-        
-        if all_acceptable and not any_need_retraining:
-            health_status = 'green'
-        elif any_need_retraining:
-            health_status = 'red'
-        else:
-            health_status = 'yellow'
+        health_status = _forecasting_health_status(latest_metrics)
         
         return Response({
             'property_id': property_id,

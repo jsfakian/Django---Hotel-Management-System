@@ -6,7 +6,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorAlert from '../../components/common/ErrorAlert'
 import { useGetExecutiveDashboardQuery } from '../../features/analytics/analyticsApi'
 
-function KpiCard({ title, value, trend, color }) {
+function KpiCard({ title, value, trend }) {
   const isUp = trend > 0
   return (
     <Card>
@@ -24,68 +24,78 @@ function KpiCard({ title, value, trend, color }) {
   )
 }
 
+const num = (v) => Number(v || 0)
+
+function KpiGrid({ kpis }) {
+  const items = [
+    ['Total Revenue', `€${num(kpis.total_revenue).toLocaleString()}`, kpis.revenue_trend_pct],
+    ['Occupancy Rate', `${num(kpis.occupancy_rate).toFixed(1)}%`, kpis.occupancy_trend_pct],
+    ['ADR (Avg Daily Rate)', `€${num(kpis.adr).toFixed(2)}`, kpis.adr_trend_pct],
+    ['RevPAR', `€${num(kpis.revpar).toFixed(2)}`, kpis.revpar_trend_pct],
+  ]
+  return (
+    <Grid container spacing={2} sx={{ mb: 4 }}>
+      {items.map(([title, value, trend]) => (
+        <Grid item xs={12} sm={6} md={3} key={title}><KpiCard title={title} value={value} trend={trend} /></Grid>
+      ))}
+    </Grid>
+  )
+}
+
+function TableSection({ title, headers, rows, sx = { p: 2, mb: 3 } }) {
+  if (rows.length === 0) return null
+  return (
+    <Paper sx={sx}>
+      <Typography variant="h6" gutterBottom>{title}</Typography>
+      <Divider sx={{ mb: 2 }} />
+      <Table size="small">
+        <TableHead><TableRow>{headers.map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead>
+        <TableBody>
+          {rows.map((cells, i) => <TableRow key={i}>{cells.map((c, j) => <TableCell key={j}>{c}</TableCell>)}</TableRow>)}
+        </TableBody>
+      </Table>
+    </Paper>
+  )
+}
+
+const trendRows = (trend) => trend.map((r) => [r.date, `€${num(r.revenue).toFixed(2)}`, r.bookings, `${num(r.occupancy).toFixed(1)}%`])
+const topRows = (props) => props.map((p) => [p.name, `€${num(p.revenue).toFixed(2)}`, `${num(p.occupancy).toFixed(1)}%`, `€${num(p.adr).toFixed(2)}`])
+const yoyRows = (yoy) => yoy.map((r) => [
+  r.metric, r.this_year, r.last_year,
+  <Chip key="chg" size="small" label={`${r.change_pct > 0 ? '+' : ''}${r.change_pct}%`} color={r.change_pct >= 0 ? 'success' : 'error'} />,
+])
+
+function PeriodSelect({ period, onChange }) {
+  return (
+    <Box sx={{ display: 'flex', gap: 2 }}>
+      <FormControl size="small" sx={{ minWidth: 120 }}>
+        <InputLabel>Period</InputLabel>
+        <Select value={period} label="Period" onChange={(e) => onChange(e.target.value)}>
+          {['day', 'week', 'month', 'year'].map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+        </Select>
+      </FormControl>
+    </Box>
+  )
+}
+
 export default function ExecutiveDashboard() {
-  const [property, setProperty] = useState('')
+  const [property] = useState('')
   const [period, setPeriod] = useState('month')
-  const { data, isLoading, error } = useGetExecutiveDashboardQuery({ property: property || undefined, period })
+  const { data = {}, isLoading, error } = useGetExecutiveDashboardQuery({ property: property || undefined, period })
 
   if (isLoading) return <AppLayout><LoadingSpinner /></AppLayout>
-
-  const kpis = data?.kpis || {}
-  const trend = data?.revenue_trend || []
-  const topProps = data?.top_properties || []
-  const yoy = data?.year_over_year || []
 
   return (
     <AppLayout>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">Executive Dashboard</Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Period</InputLabel>
-            <Select value={period} label="Period" onChange={(e) => setPeriod(e.target.value)}>
-              {['day', 'week', 'month', 'year'].map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
-            </Select>
-          </FormControl>
-        </Box>
+        <PeriodSelect period={period} onChange={setPeriod} />
       </Box>
       {error && <ErrorAlert error={error} />}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}><KpiCard title="Total Revenue" value={`€${Number(kpis.total_revenue || 0).toLocaleString()}`} trend={kpis.revenue_trend_pct} /></Grid>
-        <Grid item xs={12} sm={6} md={3}><KpiCard title="Occupancy Rate" value={`${Number(kpis.occupancy_rate || 0).toFixed(1)}%`} trend={kpis.occupancy_trend_pct} /></Grid>
-        <Grid item xs={12} sm={6} md={3}><KpiCard title="ADR (Avg Daily Rate)" value={`€${Number(kpis.adr || 0).toFixed(2)}`} trend={kpis.adr_trend_pct} /></Grid>
-        <Grid item xs={12} sm={6} md={3}><KpiCard title="RevPAR" value={`€${Number(kpis.revpar || 0).toFixed(2)}`} trend={kpis.revpar_trend_pct} /></Grid>
-      </Grid>
-      {trend.length > 0 && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Revenue Trend</Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Table size="small">
-            <TableHead><TableRow>{['Date', 'Revenue (€)', 'Bookings', 'Occupancy %'].map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead>
-            <TableBody>{trend.map((row, i) => <TableRow key={i}><TableCell>{row.date}</TableCell><TableCell>€{Number(row.revenue || 0).toFixed(2)}</TableCell><TableCell>{row.bookings}</TableCell><TableCell>{Number(row.occupancy || 0).toFixed(1)}%</TableCell></TableRow>)}</TableBody>
-          </Table>
-        </Paper>
-      )}
-      {topProps.length > 0 && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Top Properties</Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Table size="small">
-            <TableHead><TableRow>{['Property', 'Revenue (€)', 'Occupancy %', 'ADR (€)'].map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead>
-            <TableBody>{topProps.map((p, i) => <TableRow key={i}><TableCell>{p.name}</TableCell><TableCell>€{Number(p.revenue || 0).toFixed(2)}</TableCell><TableCell>{Number(p.occupancy || 0).toFixed(1)}%</TableCell><TableCell>€{Number(p.adr || 0).toFixed(2)}</TableCell></TableRow>)}</TableBody>
-          </Table>
-        </Paper>
-      )}
-      {yoy.length > 0 && (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>Year-over-Year Comparison</Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Table size="small">
-            <TableHead><TableRow>{['Metric', 'This Year', 'Last Year', 'Change %'].map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow></TableHead>
-            <TableBody>{yoy.map((r, i) => <TableRow key={i}><TableCell>{r.metric}</TableCell><TableCell>{r.this_year}</TableCell><TableCell>{r.last_year}</TableCell><TableCell><Chip size="small" label={`${r.change_pct > 0 ? '+' : ''}${r.change_pct}%`} color={r.change_pct >= 0 ? 'success' : 'error'} /></TableCell></TableRow>)}</TableBody>
-          </Table>
-        </Paper>
-      )}
+      <KpiGrid kpis={data.kpis || {}} />
+      <TableSection title="Revenue Trend" headers={['Date', 'Revenue (€)', 'Bookings', 'Occupancy %']} rows={trendRows(data.revenue_trend || [])} />
+      <TableSection title="Top Properties" headers={['Property', 'Revenue (€)', 'Occupancy %', 'ADR (€)']} rows={topRows(data.top_properties || [])} />
+      <TableSection title="Year-over-Year Comparison" headers={['Metric', 'This Year', 'Last Year', 'Change %']} rows={yoyRows(data.year_over_year || [])} sx={{ p: 2 }} />
     </AppLayout>
   )
 }

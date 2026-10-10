@@ -95,6 +95,105 @@ def get_dynamic_price(request, room_id):
     })
 
 
+def _can_view_guest_recommendations(user, guest, own_profile):
+    role = get_user_role(user)
+    if role in ('admin', 'manager', 'receptionist', 'staff') or user.is_superuser:
+        return True
+    return bool(own_profile) and own_profile.id == guest.id
+
+
+def _validate_recommendation_dates(check_in, check_out):
+    """Return an error message for invalid date filters, else None."""
+    if bool(check_in) != bool(check_out):
+        return "Both check_in_date and check_out_date are required when filtering by date."
+    if check_in and check_out and check_out <= check_in:
+        return "check_out_date must be after check_in_date."
+    return None
+
+
+def _parse_recommendation_limit(raw_limit):
+    try:
+        return max(1, min(int(raw_limit), 20))
+    except (TypeError, ValueError):
+        return 5
+
+
+def _available_candidate_rooms(check_in, check_out):
+    candidate_rooms = Room.objects.select_related('property').filter(status='available')
+    if check_in and check_out:
+        overlapping_booking_rooms = (
+            Room.objects.filter(
+                bookings__status__in=['pending', 'confirmed', 'checked_in'],
+                bookings__check_in_date__lt=check_out,
+                bookings__check_out_date__gt=check_in,
+            )
+            .values_list('id', flat=True)
+            .distinct()
+        )
+        candidate_rooms = candidate_rooms.exclude(id__in=overlapping_booking_rooms)
+    return candidate_rooms
+
+
+def _extract_guest_preferences(preferences):
+    return {
+        'room_type': str(preferences.get('room_type', '')).strip().lower(),
+        'floor': preferences.get('floor'),
+        'budget_max': preferences.get('max_price'),
+        'amenities': _normalize_amenities(preferences.get('amenities', [])),
+    }
+
+
+def _budget_score(room, budget_max):
+    """Return (score_delta, reason) for the budget preference."""
+    try:
+        within_budget = float(room.current_price) <= float(budget_max)
+    except (TypeError, ValueError):
+        return 0, None
+    if within_budget:
+        return 3, 'within_budget'
+    return -2, None
+
+
+def _score_room(room, preferences):
+    score = 0
+    reasons = []
+
+    if preferences['room_type'] and room.room_type.lower() == preferences['room_type']:
+        score += 5
+        reasons.append('room_type_match')
+
+    room_amenities = _normalize_amenities(room.amenities)
+    matched_amenities = sorted(set(preferences['amenities']).intersection(room_amenities))
+    if matched_amenities:
+        score += len(matched_amenities) * 2
+        reasons.append(f"amenities:{','.join(matched_amenities)}")
+
+    preferred_floor = preferences['floor']
+    if preferred_floor is not None and str(room.floor) == str(preferred_floor):
+        score += 1
+        reasons.append('preferred_floor')
+
+    if preferences['budget_max'] is not None:
+        delta, reason = _budget_score(room, preferences['budget_max'])
+        score += delta
+        if reason:
+            reasons.append(reason)
+
+    return {
+        'room_id': room.id,
+        'room_number': room.room_number,
+        'property_id': room.property_id,
+        'property_name': room.property.name,
+        'room_type': room.room_type,
+        'floor': room.floor,
+        'capacity': room.capacity,
+        'current_price': room.current_price,
+        'amenities': room.amenities,
+        'score': score,
+        'reasons': reasons,
+    }
+
+
 @extend_schema(
     responses=inline_serializer(
         name='RoomRecommendationsResponse',
@@ -117,98 +216,23 @@ def get_room_recommendations(request, guest_id):
         return Response({"error": "Guest not found"}, status=404)
 
     own = getattr(request.user, 'guest_profile', None)
-    role = get_user_role(request.user)
-    if role not in ('admin', 'manager', 'receptionist', 'staff') and not request.user.is_superuser:
-        if not own or own.id != guest.id:
-            return Response({"error": "Forbidden"}, status=403)
-
-    preferences = guest.preferences or {}
-    preferred_room_type = str(preferences.get('room_type', '')).strip().lower()
-    preferred_floor = preferences.get('floor')
-    budget_max = preferences.get('max_price')
-    preferred_amenities = _normalize_amenities(preferences.get('amenities', []))
+    if not _can_view_guest_recommendations(request.user, guest, own):
+        return Response({"error": "Forbidden"}, status=403)
 
     check_in = _parse_iso_date(request.query_params.get('check_in_date'))
     check_out = _parse_iso_date(request.query_params.get('check_out_date'))
-    if (check_in and not check_out) or (check_out and not check_in):
-        return Response(
-            {"error": "Both check_in_date and check_out_date are required when filtering by date."},
-            status=400,
-        )
-    if check_in and check_out and check_out <= check_in:
-        return Response({"error": "check_out_date must be after check_in_date."}, status=400)
+    date_error = _validate_recommendation_dates(check_in, check_out)
+    if date_error:
+        return Response({"error": date_error}, status=400)
 
-    top_n = request.query_params.get('limit', 5)
-    try:
-        top_n = max(1, min(int(top_n), 20))
-    except (TypeError, ValueError):
-        top_n = 5
+    top_n = _parse_recommendation_limit(request.query_params.get('limit', 5))
+    candidate_rooms = _available_candidate_rooms(check_in, check_out)
 
-    candidate_rooms = Room.objects.select_related('property').filter(status='available')
-
-    if check_in and check_out:
-        overlapping_booking_rooms = (
-            Room.objects.filter(
-                bookings__status__in=['pending', 'confirmed', 'checked_in'],
-                bookings__check_in_date__lt=check_out,
-                bookings__check_out_date__gt=check_in,
-            )
-            .values_list('id', flat=True)
-            .distinct()
-        )
-        candidate_rooms = candidate_rooms.exclude(id__in=overlapping_booking_rooms)
-
-    scored = []
-    for room in candidate_rooms:
-        score = 0
-        reasons = []
-
-        if preferred_room_type and room.room_type.lower() == preferred_room_type:
-            score += 5
-            reasons.append('room_type_match')
-
-        room_amenities = _normalize_amenities(room.amenities)
-        matched_amenities = sorted(set(preferred_amenities).intersection(set(room_amenities)))
-        if matched_amenities:
-            score += len(matched_amenities) * 2
-            reasons.append(f"amenities:{','.join(matched_amenities)}")
-
-        if preferred_floor is not None and str(room.floor) == str(preferred_floor):
-            score += 1
-            reasons.append('preferred_floor')
-
-        if budget_max is not None:
-            try:
-                budget_value = float(budget_max)
-                room_price = float(room.current_price)
-                if room_price <= budget_value:
-                    score += 3
-                    reasons.append('within_budget')
-                else:
-                    score -= 2
-            except (TypeError, ValueError):
-                pass
-
-        scored.append(
-            {
-                'room_id': room.id,
-                'room_number': room.room_number,
-                'property_id': room.property_id,
-                'property_name': room.property.name,
-                'room_type': room.room_type,
-                'floor': room.floor,
-                'capacity': room.capacity,
-                'current_price': room.current_price,
-                'amenities': room.amenities,
-                'score': score,
-                'reasons': reasons,
-            }
-        )
-
+    preferences = _extract_guest_preferences(guest.preferences or {})
+    scored = [_score_room(room, preferences) for room in candidate_rooms]
     scored.sort(key=lambda row: (-row['score'], float(row['current_price'])))
     recommendations = scored[:top_n]
 
-    own = getattr(request.user, 'guest_profile', None)
     email = guest.email if (own and own.id == guest.id) else None
 
     return Response(
@@ -230,6 +254,16 @@ def get_room_recommendations(request, guest_id):
 # PRICING API ENDPOINTS - AI-Powered Dynamic Pricing
 # Per: PRICING_MODULE_FE_REDESIGN_PLAN.md Phase 1
 # ============================================================================
+
+
+def _parse_optional_float(value):
+    """Parse an optional numeric query parameter; invalid values become None."""
+    if not value:
+        return value
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
 
 
 @extend_schema(
@@ -274,12 +308,7 @@ def predict_pricing(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Parse optional numeric parameters
-        if occupancy_rate:
-            try:
-                occupancy_rate = float(occupancy_rate)
-            except (ValueError, TypeError):
-                occupancy_rate = None
+        occupancy_rate = _parse_optional_float(occupancy_rate)
         
         # Get pricing recommendation
         analyzer = get_pricing_analyzer()
@@ -365,6 +394,32 @@ def pricing_history(request):
         )
 
 
+def _build_scenario_overrides(data):
+    overrides = {}
+    if data.get('occupancy_rate'):
+        overrides['occupancy_rate'] = float(data['occupancy_rate'])
+    if data.get('season'):
+        overrides['season'] = data['season']
+    if data.get('competitor_price'):
+        overrides['competitor_price'] = float(data['competitor_price'])
+    return overrides
+
+
+def _add_scenario_deltas(analyzer, recommendation, room_id, date_obj):
+    """Add scenario-specific fields comparing against the current recommendation."""
+    current_rec = analyzer.get_pricing_recommendation(room_id, date_obj)
+    if not current_rec:
+        return
+    price_change = recommendation['ensemble_prediction'] - current_rec['ensemble_prediction']
+    recommendation['price_change'] = price_change
+    recommendation['price_change_percent'] = (
+        (price_change / current_rec['ensemble_prediction'] * 100)
+        if current_rec['ensemble_prediction'] > 0 else 0
+    )
+    recommendation['revenue_impact_per_night'] = price_change
+    recommendation['revenue_impact_per_3night_stay'] = price_change * 3
+
+
 @extend_schema(
     summary="Analyze pricing under different scenarios",
     description="Returns price recommendation with overridden parameters (what-if analysis)",
@@ -398,13 +453,7 @@ def analyze_scenario(request):
         date_obj = data['date']
         
         # Build overrides dict
-        overrides = {}
-        if 'occupancy_rate' in data and data['occupancy_rate']:
-            overrides['occupancy_rate'] = float(data['occupancy_rate'])
-        if 'season' in data and data['season']:
-            overrides['season'] = data['season']
-        if 'competitor_price' in data and data['competitor_price']:
-            overrides['competitor_price'] = float(data['competitor_price'])
+        overrides = _build_scenario_overrides(data)
         
         analyzer = get_pricing_analyzer()
         recommendation = analyzer.analyze_scenario(
@@ -419,19 +468,7 @@ def analyze_scenario(request):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Add scenario-specific fields
-        current_rec = analyzer.get_pricing_recommendation(room_id, date_obj)
-        if current_rec:
-            recommendation['price_change'] = (
-                recommendation['ensemble_prediction'] - 
-                current_rec['ensemble_prediction']
-            )
-            recommendation['price_change_percent'] = (
-                (recommendation['price_change'] / current_rec['ensemble_prediction'] * 100)
-                if current_rec['ensemble_prediction'] > 0 else 0
-            )
-            recommendation['revenue_impact_per_night'] = recommendation['price_change']
-            recommendation['revenue_impact_per_3night_stay'] = recommendation['price_change'] * 3
+        _add_scenario_deltas(analyzer, recommendation, room_id, date_obj)
         
         serializer = ScenarioAnalysisResponseSerializer(recommendation)
         return Response(serializer.data)

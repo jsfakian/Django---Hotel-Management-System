@@ -15,6 +15,35 @@ import { Visibility, VisibilityOff } from '@mui/icons-material'
 import axiosInstance from '../../services/axiosInstance'
 import AuthShell from '../../components/auth/AuthShell'
 
+function PasswordField({ value, onChange }) {
+  const [showPw, setShowPw] = useState(false)
+  return (
+    <TextField
+      fullWidth
+      required
+      label="Password"
+      name="password"
+      type={showPw ? 'text' : 'password'}
+      value={value}
+      onChange={onChange}
+      margin="normal"
+      InputProps={{
+        endAdornment: (
+          <InputAdornment position="end">
+            <IconButton
+              onClick={() => setShowPw((v) => !v)}
+              edge="end"
+              aria-label={showPw ? 'Hide password' : 'Show password'}
+            >
+              {showPw ? <VisibilityOff /> : <Visibility />}
+            </IconButton>
+          </InputAdornment>
+        ),
+      }}
+    />
+  )
+}
+
 export default function RegisterPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({
@@ -24,7 +53,6 @@ export default function RegisterPage() {
     password: '',
     confirm_password: '',
   })
-  const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -66,24 +94,8 @@ export default function RegisterPage() {
       )}
       <Box component="form" onSubmit={handleSubmit}>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <TextField
-            fullWidth
-            required
-            label="First Name"
-            name="first_name"
-            value={form.first_name}
-            onChange={handleChange}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            required
-            label="Last Name"
-            name="last_name"
-            value={form.last_name}
-            onChange={handleChange}
-            margin="normal"
-          />
+          <TextField fullWidth required label="First Name" name="first_name" value={form.first_name} onChange={handleChange} margin="normal" />
+          <TextField fullWidth required label="Last Name" name="last_name" value={form.last_name} onChange={handleChange} margin="normal" />
         </Box>
         <TextField
           fullWidth
@@ -96,29 +108,7 @@ export default function RegisterPage() {
           margin="normal"
           autoComplete="email"
         />
-        <TextField
-          fullWidth
-          required
-          label="Password"
-          name="password"
-          type={showPw ? 'text' : 'password'}
-          value={form.password}
-          onChange={handleChange}
-          margin="normal"
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  onClick={() => setShowPw((v) => !v)}
-                  edge="end"
-                  aria-label={showPw ? 'Hide password' : 'Show password'}
-                >
-                  {showPw ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              </InputAdornment>
-            ),
-          }}
-        />
+        <PasswordField value={form.password} onChange={handleChange} />
         <TextField
           fullWidth
           required

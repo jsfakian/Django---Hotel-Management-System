@@ -47,6 +47,105 @@ const SECONDARY = [
   { label: 'Refunds', path: '/guest/refunds', icon: MoneyOff },
 ]
 
+function GuestDrawerNav({ pathname, onNavigate, onLogout }) {
+  return (
+    <Box sx={{ width: 280, py: 2 }} role="navigation" aria-label="Guest">
+      <Typography
+        variant="h5"
+        sx={{ px: 3, mb: 2, fontFamily: '"Fraunces", Georgia, serif', color: 'primary.main' }}
+      >
+        Nephele
+      </Typography>
+      <List>
+        {[...NAV, ...SECONDARY].map(({ label, path, icon: Icon }) => (
+          <ListItemButton key={path} selected={pathname.startsWith(path)} onClick={() => onNavigate(path)}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <Icon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary={label} />
+          </ListItemButton>
+        ))}
+        <ListItemButton onClick={onLogout}>
+          <ListItemIcon sx={{ minWidth: 40 }}>
+            <Logout fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Sign out" />
+        </ListItemButton>
+      </List>
+    </Box>
+  )
+}
+
+function DesktopNav({ pathname, onNavigate }) {
+  return (
+    <Box sx={{ display: 'flex', gap: 0.5, flexGrow: 1 }}>
+      {NAV.map(({ label, path }) => {
+        const active = pathname.startsWith(path)
+        return (
+          <Button
+            key={path}
+            color={active ? 'primary' : 'inherit'}
+            onClick={() => onNavigate(path)}
+            sx={{
+              fontWeight: active ? 700 : 500,
+              bgcolor: active ? 'rgba(11,95,107,0.08)' : 'transparent',
+            }}
+          >
+            {label}
+          </Button>
+        )
+      })}
+    </Box>
+  )
+}
+
+function GuestAppBar({ isMobile, pathname, user, onOpenMenu, onNavigate, onLogout }) {
+  return (
+    <AppBar
+      position="sticky"
+      elevation={0}
+      sx={{
+        bgcolor: 'background.paper',
+        color: 'text.primary',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Toolbar sx={{ gap: 1, px: { xs: 2, md: 4 } }}>
+        {isMobile && (
+          <IconButton edge="start" onClick={onOpenMenu} aria-label="Open menu">
+            <MenuIcon />
+          </IconButton>
+        )}
+        <Typography
+          component={RouterLink}
+          to="/guest/dashboard"
+          variant="h5"
+          sx={{
+            textDecoration: 'none',
+            color: 'primary.main',
+            fontFamily: '"Fraunces", Georgia, serif',
+            mr: 3,
+          }}
+        >
+          Nephele
+        </Typography>
+
+        {!isMobile && <DesktopNav pathname={pathname} onNavigate={onNavigate} />}
+
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            {user?.first_name || user?.username || 'Guest'}
+          </Typography>
+          <Button color="inherit" size="small" onClick={onLogout} startIcon={<Logout />}>
+            Sign out
+          </Button>
+        </Box>
+      </Toolbar>
+    </AppBar>
+  )
+}
+
 export default function GuestLayout({ children }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -68,105 +167,24 @@ export default function GuestLayout({ children }) {
     navigate('/login', { replace: true })
   }
 
-  const navList = (
-    <Box sx={{ width: 280, py: 2 }} role="navigation" aria-label="Guest">
-      <Typography
-        variant="h5"
-        sx={{ px: 3, mb: 2, fontFamily: '"Fraunces", Georgia, serif', color: 'primary.main' }}
-      >
-        Nephele
-      </Typography>
-      <List>
-        {[...NAV, ...SECONDARY].map(({ label, path, icon: Icon }) => (
-          <ListItemButton
-            key={path}
-            selected={location.pathname.startsWith(path)}
-            onClick={() => {
-              navigate(path)
-              setOpen(false)
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <Icon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary={label} />
-          </ListItemButton>
-        ))}
-        <ListItemButton onClick={handleLogout}>
-          <ListItemIcon sx={{ minWidth: 40 }}>
-            <Logout fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Sign out" />
-        </ListItemButton>
-      </List>
-    </Box>
-  )
+  const handleDrawerNavigate = (path) => {
+    navigate(path)
+    setOpen(false)
+  }
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar
-        position="sticky"
-        elevation={0}
-        sx={{
-          bgcolor: 'background.paper',
-          color: 'text.primary',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Toolbar sx={{ gap: 1, px: { xs: 2, md: 4 } }}>
-          {isMobile && (
-            <IconButton edge="start" onClick={() => setOpen(true)} aria-label="Open menu">
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Typography
-            component={RouterLink}
-            to="/guest/dashboard"
-            variant="h5"
-            sx={{
-              textDecoration: 'none',
-              color: 'primary.main',
-              fontFamily: '"Fraunces", Georgia, serif',
-              mr: 3,
-            }}
-          >
-            Nephele
-          </Typography>
-
-          {!isMobile && (
-            <Box sx={{ display: 'flex', gap: 0.5, flexGrow: 1 }}>
-              {NAV.map(({ label, path }) => (
-                <Button
-                  key={path}
-                  color={location.pathname.startsWith(path) ? 'primary' : 'inherit'}
-                  onClick={() => navigate(path)}
-                  sx={{
-                    fontWeight: location.pathname.startsWith(path) ? 700 : 500,
-                    bgcolor: location.pathname.startsWith(path)
-                      ? 'rgba(11,95,107,0.08)'
-                      : 'transparent',
-                  }}
-                >
-                  {label}
-                </Button>
-              ))}
-            </Box>
-          )}
-
-          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-              {user?.first_name || user?.username || 'Guest'}
-            </Typography>
-            <Button color="inherit" size="small" onClick={handleLogout} startIcon={<Logout />}>
-              Sign out
-            </Button>
-          </Box>
-        </Toolbar>
-      </AppBar>
+      <GuestAppBar
+        isMobile={isMobile}
+        pathname={location.pathname}
+        user={user}
+        onOpenMenu={() => setOpen(true)}
+        onNavigate={navigate}
+        onLogout={handleLogout}
+      />
 
       <Drawer open={open} onClose={() => setOpen(false)}>
-        {navList}
+        <GuestDrawerNav pathname={location.pathname} onNavigate={handleDrawerNavigate} onLogout={handleLogout} />
       </Drawer>
 
       <Box

@@ -65,7 +65,7 @@ export default function AnnouncementsListPage() {
         </Box>
       </Dialog>
       <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)}>
-        <DialogTitle>Delete "{deleteTarget?.title}"?</DialogTitle>
+        <DialogTitle>Delete &quot;{deleteTarget?.title}&quot;?</DialogTitle>
         <DialogContent>This cannot be undone.</DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>

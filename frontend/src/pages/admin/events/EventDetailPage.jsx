@@ -54,7 +54,7 @@ export default function EventDetailPage() {
       <Typography variant="h6" sx={{ mb: 1 }}>Attendees</Typography>
       <DataTable columns={attendeeColumns} rows={event.attendees || []} />
       <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>Delete "{event.title}"?</DialogTitle>
+        <DialogTitle>Delete &quot;{event.title}&quot;?</DialogTitle>
         <DialogContent>This cannot be undone.</DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>

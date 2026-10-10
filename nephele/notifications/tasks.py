@@ -13,6 +13,78 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _channel_alert_context(booking, channel_name, property):
+    return {
+        'channel_name': channel_name,
+        'guest_name': f"{booking.guest.first_name} {booking.guest.last_name}",
+        'guest_email': booking.guest.email,
+        'guest_phone': booking.guest.phone or 'Not provided',
+        'room_number': booking.room.room_number,
+        'room_type': booking.room.get_room_type_display(),
+        'check_in': booking.check_in_date,
+        'check_out': booking.check_out_date,
+        'nights': (booking.check_out_date - booking.check_in_date).days,
+        'guests': booking.number_of_guests,
+        'price': booking.actual_price or booking.base_price,
+        'currency': 'USD',  # Configurable
+        'special_requests': booking.special_requests or 'None',
+        'booking_id': booking.id,
+        'property_name': property.name,
+    }
+
+
+def _channel_alert_html(context, channel_name, booking_id):
+    # Simple HTML email (can be enhanced with template later)
+    return f"""
+<html>
+<head></head>
+<body>
+<p>Hi,</p>
+<p>A new booking has been received from <strong>{channel_name}</strong></p>
+
+<h2>Booking Details</h2>
+<ul>
+<li><strong>Guest:</strong> {context['guest_name']} ({context['guest_email']})</li>
+<li><strong>Phone:</strong> {context['guest_phone']}</li>
+<li><strong>Room:</strong> {context['room_number']} ({context['room_type']})</li>
+<li><strong>Check-in:</strong> {context['check_in']} at 3:00 PM</li>
+<li><strong>Check-out:</strong> {context['check_out']} at 11:00 AM</li>
+<li><strong>Nights:</strong> {context['nights']}</li>
+<li><strong>Guests:</strong> {context['guests']} {('adult' if context['guests'] == 1 else 'adults')}</li>
+<li><strong>Total Price:</strong> ${context['price']} USD</li>
+<li><strong>Special Requests:</strong> {context['special_requests']}</li>
+</ul>
+
+<p><a href="/admin/room/booking/{booking_id}/change/">View in NEPHELE</a></p>
+
+<p>Best regards,<br/>NEPHELE</p>
+</body>
+</html>
+"""
+
+
+def _deliver_channel_alert(booking, staff_users, property, subject, html_message):
+    """Email the alert to all staff with an address (failures are only logged)."""
+    recipient_list = [user.email for user in staff_users if user.email]
+
+    if not recipient_list:
+        logger.warning(f"No email addresses found for staff at property {property}")
+        return
+
+    try:
+        send_mail(
+            subject=subject,
+            message=strip_tags(html_message),
+            from_email='nephele-alerts@nephele.io',
+            recipient_list=recipient_list,
+            html_message=html_message,
+            fail_silently=False
+        )
+        logger.info(f"Channel booking alert sent to {len(recipient_list)} staff for booking {booking.id}")
+    except Exception as e:
+        logger.error(f"Failed to send channel booking alert: {e}")
+
+
 @shared_task
 def send_channel_booking_alert(booking_id, channel_name):
     """
@@ -42,74 +114,11 @@ def send_channel_booking_alert(booking_id, channel_name):
             logger.warning(f"No active staff found for property {property}")
             return
         
-        # Prepare email data
-        context = {
-            'channel_name': channel_name,
-            'guest_name': f"{booking.guest.first_name} {booking.guest.last_name}",
-            'guest_email': booking.guest.email,
-            'guest_phone': booking.guest.phone or 'Not provided',
-            'room_number': booking.room.room_number,
-            'room_type': booking.room.get_room_type_display(),
-            'check_in': booking.check_in_date,
-            'check_out': booking.check_out_date,
-            'nights': (booking.check_out_date - booking.check_in_date).days,
-            'guests': booking.number_of_guests,
-            'price': booking.actual_price or booking.base_price,
-            'currency': 'USD',  # Configurable
-            'special_requests': booking.special_requests or 'None',
-            'booking_id': booking.id,
-            'property_name': property.name,
-        }
-        
-        # Send email to each staff member
+        context = _channel_alert_context(booking, channel_name, property)
+        html_message = _channel_alert_html(context, channel_name, booking_id)
         subject = f"New {channel_name} Booking - {booking.room.room_number}, {booking.check_in_date.strftime('%b %d')} to {booking.check_out_date.strftime('%b %d')}"
-        
-        # Simple HTML email (can be enhanced with template later)
-        html_message = f"""
-<html>
-<head></head>
-<body>
-<p>Hi,</p>
-<p>A new booking has been received from <strong>{channel_name}</strong></p>
 
-<h2>Booking Details</h2>
-<ul>
-<li><strong>Guest:</strong> {context['guest_name']} ({context['guest_email']})</li>
-<li><strong>Phone:</strong> {context['guest_phone']}</li>
-<li><strong>Room:</strong> {context['room_number']} ({context['room_type']})</li>
-<li><strong>Check-in:</strong> {context['check_in']} at 3:00 PM</li>
-<li><strong>Check-out:</strong> {context['check_out']} at 11:00 AM</li>
-<li><strong>Nights:</strong> {context['nights']}</li>
-<li><strong>Guests:</strong> {context['guests']} {('adult' if context['guests'] == 1 else 'adults')}</li>
-<li><strong>Total Price:</strong> ${context['price']} USD</li>
-<li><strong>Special Requests:</strong> {context['special_requests']}</li>
-</ul>
-
-<p><a href="/admin/room/booking/{booking_id}/change/">View in NEPHELE</a></p>
-
-<p>Best regards,<br/>NEPHELE</p>
-</body>
-</html>
-"""
-        
-        # Send to all staff
-        recipient_list = [user.email for user in staff_users if user.email]
-        
-        if recipient_list:
-            try:
-                send_mail(
-                    subject=subject,
-                    message=strip_tags(html_message),
-                    from_email='nephele-alerts@nephele.io',
-                    recipient_list=recipient_list,
-                    html_message=html_message,
-                    fail_silently=False
-                )
-                logger.info(f"Channel booking alert sent to {len(recipient_list)} staff for booking {booking_id}")
-            except Exception as e:
-                logger.error(f"Failed to send channel booking alert: {e}")
-        else:
-            logger.warning(f"No email addresses found for staff at property {property}")
+        _deliver_channel_alert(booking, staff_users, property, subject, html_message)
     
     except Booking.DoesNotExist:
         logger.error(f"Booking {booking_id} not found")

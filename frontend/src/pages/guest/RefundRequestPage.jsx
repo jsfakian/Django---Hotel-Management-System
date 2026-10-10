@@ -21,7 +21,7 @@ export default function RefundRequestPage() {
   return (
     <GuestLayout>
       <Typography variant="h5" sx={{ mb: 3 }}>Request a Refund</Typography>
-      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(false)}>Refund request submitted. We'll review it shortly.</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(false)}>Refund request submitted. We&apos;ll review it shortly.</Alert>}
       {error && <ErrorAlert error={error} />}
       <Paper sx={{ p: 3, maxWidth: 600 }}>
         <Box component="form" onSubmit={handleSubmit}>

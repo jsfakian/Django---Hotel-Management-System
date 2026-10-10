@@ -3,7 +3,8 @@ Celery tasks for channel integration
 """
 
 from celery import shared_task
-from django.db import transaction
+from django.db import models, transaction
+from django.utils import timezone
 from datetime import timedelta
 import logging
 
@@ -12,6 +13,66 @@ from inventory.models import RoomAvailability, AvailabilitySyncLog
 from room.models import Room
 
 logger = logging.getLogger(__name__)
+
+
+def _room_availability_records(room, date_from, date_to):
+    avail_records = RoomAvailability.objects.filter(room=room)
+    if date_from and date_to:
+        return avail_records.filter(
+            date__gte=date_from,
+            date__lt=date_to
+        )
+    # Default to next 30 days
+    from_date = avail_records.aggregate(models.Min('date'))['date__min'] or timezone.now().date()
+    to_date = from_date + timedelta(days=30)
+    return avail_records.filter(date__gte=from_date, date__lt=to_date)
+
+
+def _push_room_availability(channel, channel_room_id, avail_records):
+    # Format for channel API (placeholder - actual implementation depends on channel)
+    for avail in avail_records:
+        channel_payload = {
+            'room_id': channel_room_id,
+            'date': avail.date.isoformat(),
+            'available': avail.available_units,
+            'booked': avail.booked_units,
+            'price': float(avail.dynamic_price) if avail.dynamic_price else float(avail.base_price)
+        }
+
+        # Call channel-specific API (implement per channel)
+        _sync_to_channel_api(channel, channel_payload)
+
+
+def _sync_rooms_to_channel(channel, date_from, date_to):
+    """Push availability for every mapped room. Returns the number of rooms synced."""
+    rooms = Room.objects.filter(property=channel.property)
+    rooms_affected = 0
+
+    # Build availability data for channel API
+    for room in rooms:
+        # Get mapping from channel config
+        mappings = channel.mapping_config.get('room_mappings', {})
+        channel_room_id = mappings.get(str(room.id))
+
+        if not channel_room_id:
+            logger.warning(f"No mapping for room {room.id} in channel {channel}")
+            continue
+
+        avail_records = _room_availability_records(room, date_from, date_to)
+        _push_room_availability(channel, channel_room_id, avail_records)
+        rooms_affected += 1
+    return rooms_affected
+
+
+def _mark_sync_log_failed(channel, exc):
+    sync_log = AvailabilitySyncLog.objects.filter(
+        channel=channel, sync_status='in_progress'
+    ).first()
+    if sync_log:
+        sync_log.sync_status = 'failed'
+        sync_log.error_message = str(exc)
+        sync_log.completed_at = __import__('django.utils.timezone', fromlist=['now']).now()
+        sync_log.save()
 
 
 @shared_task(bind=True, max_retries=5)
@@ -43,47 +104,7 @@ def sync_availability_to_channel(self, channel_id, sync_type='full_sync', date_f
                 date_to=date_to
             )
             
-            # Get rooms to sync
-            rooms = Room.objects.filter(property=channel.property)
-            rooms_affected = 0
-            
-            # Build availability data for channel API
-            for room in rooms:
-                # Get mapping from channel config
-                mappings = channel.mapping_config.get('room_mappings', {})
-                channel_room_id = mappings.get(str(room.id))
-                
-                if not channel_room_id:
-                    logger.warning(f"No mapping for room {room.id} in channel {channel}")
-                    continue
-                
-                # Get availability records
-                avail_records = RoomAvailability.objects.filter(room=room)
-                if date_from and date_to:
-                    avail_records = avail_records.filter(
-                        date__gte=date_from,
-                        date__lt=date_to
-                    )
-                else:
-                    # Default to next 30 days
-                    from_date = avail_records.aggregate(models.Min('date'))['date__min'] or datetime.now().date()
-                    to_date = from_date + timedelta(days=30)
-                    avail_records = avail_records.filter(date__gte=from_date, date__lt=to_date)
-                
-                # Format for channel API (placeholder - actual implementation depends on channel)
-                for avail in avail_records:
-                    channel_payload = {
-                        'room_id': channel_room_id,
-                        'date': avail.date.isoformat(),
-                        'available': avail.available_units,
-                        'booked': avail.booked_units,
-                        'price': float(avail.dynamic_price) if avail.dynamic_price else float(avail.base_price)
-                    }
-                    
-                    # Call channel-specific API (implement per channel)
-                    _sync_to_channel_api(channel, channel_payload)
-                
-                rooms_affected += 1
+            rooms_affected = _sync_rooms_to_channel(channel, date_from, date_to)
             
             # Mark sync as successful
             sync_log.sync_status = 'success'
@@ -111,15 +132,7 @@ def sync_availability_to_channel(self, channel_id, sync_type='full_sync', date_f
         if self.request.retries < self.max_retries:
             countdown = 2 ** self.request.retries  # 2, 4, 8, 16, 32...
             raise self.retry(exc=exc, countdown=countdown)
-        else:
-            sync_log = AvailabilitySyncLog.objects.filter(
-                channel=channel, sync_status='in_progress'
-            ).first()
-            if sync_log:
-                sync_log.sync_status = 'failed'
-                sync_log.error_message = str(exc)
-                sync_log.completed_at = __import__('django.utils.timezone', fromlist=['now']).now()
-                sync_log.save()
+        _mark_sync_log_failed(channel, exc)
 
 
 @shared_task

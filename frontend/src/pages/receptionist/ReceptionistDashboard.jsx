@@ -28,7 +28,7 @@ export default function ReceptionistDashboard() {
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5">Reception Dashboard</Typography>
         <Typography variant="body2" color="text.secondary">
-          Today's activity at a glance
+          Today&apos;s activity at a glance
         </Typography>
       </Box>
 

@@ -134,13 +134,6 @@ class TravelAgency(models.Model):
     def __str__(self):
         return self.name
 
-        booked_rooms = Booking.objects.filter(
-            roomNumber__property=self,
-            startDate__lte=today,
-            endDate__gt=today
-        ).count()
-        return total_rooms - booked_rooms
-
 
 class PropertyAmenity(models.Model):
     """

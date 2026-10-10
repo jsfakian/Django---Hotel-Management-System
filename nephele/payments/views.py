@@ -57,6 +57,65 @@ def send_verification_email(payment, verification_code):
         return False
 
 
+def _send_payment_confirmation(guest, payment, amount):
+    try:
+        send_mail(
+            'Payment Confirmation',
+            f'Your payment of {amount} {payment.currency} has been processed successfully. Reference: {payment.reference_code}',
+            settings.DEFAULT_FROM_EMAIL,
+            [guest.user.email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+
+
+def _submit_payment(request, form, guest, booking, booking_id):
+    """Create the payment for a valid form and return the redirect response."""
+    payment_method = form.cleaned_data['payment_method']
+    amount = form.cleaned_data['amount']
+
+    # Create payment record
+    with db_transaction.atomic():
+        payment = Payment.objects.create(
+            guest=guest,
+            booking=booking,
+            payment_method=payment_method,
+            amount=amount,
+            currency='EUR',
+            transaction_id=generate_transaction_id(),
+            reference_code=generate_reference_code(),
+            status='processing',
+            description='Payment for booking' if booking else 'Service payment'
+        )
+
+        # Generate verification code if required
+        if payment_method.requires_verification:
+            code = payment.generate_verification_code()
+            if send_verification_email(payment, code):
+                messages.success(request, 'Verification code sent to your email.')
+                return redirect('payment-verify', payment_id=payment.id)
+            messages.error(request, 'Failed to send verification code. Please try again.')
+            payment.delete()
+            return redirect('payment-process', booking_id=booking_id)
+
+        # Mark as completed for non-verification methods
+        payment.mark_as_completed()
+        messages.success(request, f'Payment of {amount} {payment.currency} completed successfully!')
+
+        _send_payment_confirmation(guest, payment, amount)
+        return redirect('payment-success', payment_id=payment.id)
+
+
+def _initial_payment_amount(booking):
+    """Calculate the default amount based on the booking's stay length."""
+    if not booking:
+        return 0
+    start = datetime.strptime(str(booking.startDate), '%Y-%m-%d').date()
+    end = datetime.strptime(str(booking.endDate), '%Y-%m-%d').date()
+    return booking.roomNumber.price * (end - start).days
+
+
 @login_required(login_url='login')
 @require_http_methods(["GET", "POST"])
 def process_payment(request, booking_id=None):
@@ -83,64 +142,9 @@ def process_payment(request, booking_id=None):
     if request.method == 'POST':
         form = PaymentForm(request.POST)
         if form.is_valid():
-            payment_method = form.cleaned_data['payment_method']
-            amount = form.cleaned_data['amount']
-            
-            # Create payment record
-            with db_transaction.atomic():
-                payment = Payment.objects.create(
-                    guest=guest,
-                    booking=booking,
-                    payment_method=payment_method,
-                    amount=amount,
-                    currency='EUR',
-                    transaction_id=generate_transaction_id(),
-                    reference_code=generate_reference_code(),
-                    status='processing',
-                    description=f'Payment for booking' if booking else 'Service payment'
-                )
-                
-                # Generate verification code if required
-                if payment_method.requires_verification:
-                    code = payment.generate_verification_code()
-                    success = send_verification_email(payment, code)
-                    
-                    if success:
-                        messages.success(request, 'Verification code sent to your email.')
-                        return redirect('payment-verify', payment_id=payment.id)
-                    else:
-                        messages.error(request, 'Failed to send verification code. Please try again.')
-                        payment.delete()
-                        return redirect('payment-process', booking_id=booking_id)
-                else:
-                    # Mark as completed for non-verification methods
-                    payment.mark_as_completed()
-                    messages.success(request, f'Payment of {amount} {payment.currency} completed successfully!')
-                    
-                    # Send confirmation email
-                    try:
-                        send_mail(
-                            'Payment Confirmation',
-                            f'Your payment of {amount} {payment.currency} has been processed successfully. Reference: {payment.reference_code}',
-                            settings.DEFAULT_FROM_EMAIL,
-                            [guest.user.email],
-                            fail_silently=True,
-                        )
-                    except:
-                        pass
-                    
-                    return redirect('payment-success', payment_id=payment.id)
+            return _submit_payment(request, form, guest, booking, booking_id)
     else:
-        # Calculate amount based on booking
-        initial_amount = 0
-        if booking:
-            from datetime import date as date_class
-            start = datetime.strptime(str(booking.startDate), '%Y-%m-%d').date()
-            end = datetime.strptime(str(booking.endDate), '%Y-%m-%d').date()
-            days = (end - start).days
-            initial_amount = booking.roomNumber.price * days
-        
-        form = PaymentForm(initial={'amount': initial_amount})
+        form = PaymentForm(initial={'amount': _initial_payment_amount(booking)})
     
     context = {
         'role': role,

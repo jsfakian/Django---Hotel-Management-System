@@ -19,6 +19,44 @@ from .forms import *
 
 
 
+def _booking_is_free(booking, fd, ed):
+    return booking.startDate > ed.date() or booking.endDate < fd.date()
+
+
+def _check_availability(rooms, fd, ed):
+    availableRooms = []
+    for room in rooms:
+        availList = []
+        bookingList = Booking.objects.filter(roomNumber=room)
+        if room.statusStartDate is None:
+            availList = [_booking_is_free(b, fd, ed) for b in bookingList]
+            if all(availList):
+                availableRooms.append(room)
+        elif room.statusStartDate > ed.date() or room.statusEndDate < fd.date():
+            for booking in bookingList:
+                availList.append(_booking_is_free(booking, fd, ed))
+                if all(availList):
+                    availableRooms.append(room)
+    return availableRooms
+
+
+_ROOM_FILTER_LOOKUPS = (
+    # (POST key, queryset lookup)
+    ("number", "number__contains"),
+    ("capacity", "capacity__gte"),
+    ("nob", "numberOfBeds__gte"),
+    ("type", "roomType__contains"),
+    ("price", "price__lte"),
+)
+
+
+def _filter_rooms(rooms, post):
+    for key, lookup in _ROOM_FILTER_LOOKUPS:
+        if post.get(key) != "":
+            rooms = rooms.filter(**{lookup: post.get(key)})
+    return rooms
+
+
 @ login_required(login_url='login')
 def rooms(request):
     role = str(request.user.groups.all()[0])
@@ -26,31 +64,6 @@ def rooms(request):
     rooms = Room.objects.all()
     firstDayStr = None
     lastDateStr = None
-
-    def chech_availability(fd, ed):
-        availableRooms = []
-        for room in rooms:
-            availList = []
-            bookingList = Booking.objects.filter(roomNumber=room)
-            if room.statusStartDate == None:
-                for booking in bookingList:
-                    if booking.startDate > ed.date() or booking.endDate < fd.date():
-                        availList.append(True)
-                    else:
-                        availList.append(False)
-                if all(availList):
-                    availableRooms.append(room)
-            else:
-                if room.statusStartDate > ed.date() or room.statusEndDate < fd.date():
-                    for booking in bookingList:
-                        if booking.startDate > ed.date() or booking.endDate < fd.date():
-                            availList.append(True)
-                        else:
-                            availList.append(False)
-                        if all(availList):
-                            availableRooms.append(room)
-
-        return availableRooms
 
     if request.method == "POST":
         if "dateFilter" in request.POST:
@@ -60,28 +73,10 @@ def rooms(request):
             firstDay = datetime.strptime(firstDayStr, '%Y-%m-%d')
             lastDate = datetime.strptime(lastDateStr, '%Y-%m-%d')
 
-            rooms = chech_availability(firstDay, lastDate)
+            rooms = _check_availability(rooms, firstDay, lastDate)
 
         if "filter" in request.POST:
-            if (request.POST.get("number") != ""):
-                rooms = rooms.filter(
-                    number__contains=request.POST.get("number"))
-
-            if (request.POST.get("capacity") != ""):
-                rooms = rooms.filter(
-                    capacity__gte=request.POST.get("capacity"))
-
-            if (request.POST.get("nob") != ""):
-                rooms = rooms.filter(
-                    numberOfBeds__gte=request.POST.get("nob"))
-
-            if (request.POST.get("type") != ""):
-                rooms = rooms.filter(
-                    roomType__contains=request.POST.get("type"))
-
-            if (request.POST.get("price") != ""):
-                rooms = rooms.filter(
-                    price__lte=request.POST.get("price"))
+            rooms = _filter_rooms(rooms, request.POST)
 
             context = {
                 "role": role,
@@ -134,6 +129,37 @@ def add_room(request):
     return render(request, path + "add-room.html", context)
 
 
+def _lock_room(request, room, bookings):
+    fd = datetime.strptime(request.POST.get("bsd"), '%Y-%m-%d')
+    ed = datetime.strptime(request.POST.get("bed"), '%Y-%m-%d')
+    has_conflict = any(
+        b.endDate >= fd.date() and b.startDate <= ed.date() for b in bookings
+    )
+    if has_conflict:
+        messages.error(request, "There is a booking in the interval!")
+        return
+    room.statusStartDate = fd
+    room.statusEndDate = ed
+    room.save()
+
+
+def _unlock_room(room):
+    room.statusStartDate = None
+    room.statusEndDate = None
+    room.save()
+
+
+def _delete_room(request, room, bookings):
+    """Delete the room unless it has bookings. Returns True when deleted."""
+    today = datetime.now().date()
+    can_delete = not any(b.startDate <= today or b.endDate >= today for b in bookings)
+    if can_delete:
+        room.delete()
+        return True
+    messages.error(request, "There is a booking in the interval!")
+    return False
+
+
 @login_required(login_url='login')
 def room_profile(request, id):
     role = str(request.user.groups.all()[0])
@@ -152,35 +178,11 @@ def room_profile(request, id):
 
     if request.method == "POST":
         if "lockRoom" in request.POST:
-            fd = request.POST.get("bsd")
-            ed = request.POST.get("bed")
-            fd = datetime.strptime(fd, '%Y-%m-%d')
-            ed = datetime.strptime(ed, '%Y-%m-%d')
-            check = True
-            for b in bookings:
-                if b.endDate >= fd.date() and b.startDate <= ed.date():
-                    check = False
-                    break
-            if check:
-                tempRoom.statusStartDate = fd
-                tempRoom.statusEndDate = ed
-                tempRoom.save()
-            else:
-                messages.error(request, "There is a booking in the interval!")
+            _lock_room(request, tempRoom, bookings)
         if "unlockRoom" in request.POST:
-            tempRoom.statusStartDate = None
-            tempRoom.statusEndDate = None
-            tempRoom.save()
-        if "deleteRoom" in request.POST:
-            check = True
-            for b in bookings:
-                if b.startDate <= datetime.now().date() or b.endDate >= datetime.now().date():
-                    check = False
-            if check:
-                tempRoom.delete()
-                return redirect("rooms")
-            else:
-                messages.error(request, "There is a booking in the interval!")
+            _unlock_room(tempRoom)
+        if "deleteRoom" in request.POST and _delete_room(request, tempRoom, bookings):
+            return redirect("rooms")
 
     return render(request, path + "room-profile.html", context)
 
@@ -220,10 +222,45 @@ def room_services(request):
     return render(request, path + "room-services.html", context)
 
 
-@login_required(login_url='login')
-def current_room_services(request):
+_SERVICE_REQUESTS = (
+    # (POST key, price, service type, task description)
+    ("foodReq", 50.0, 'Food', "Food Request"),
+    ("cleaningReq", 0.0, 'Cleaning', "Cleaning Request"),
+    ("techReq", 0.0, 'Technical', "Tech Request"),
+)
+
+
+def _available_employees(max_task_num=10):
+    group = Group.objects.get(name='staff')
+    users = User.objects.filter(groups=group)
+    all_employees = Employee.objects.filter(user__in=users)
+    return [
+        e for e in all_employees
+        if Task.objects.filter(employee=e).count() < max_task_num
+    ]
+
+
+def _create_service_request(cur_booking, cur_room, available_employees,
+                            price, services_type, description):
     import datetime
 
+    RoomServices(
+        curBooking=cur_booking, price=price, room=cur_room,
+        servicesType=services_type).save()
+
+    chosen_employee = random.choice(available_employees)
+    last_task = Task.objects.filter(employee=chosen_employee).last()
+    if last_task is not None:
+        start_time = last_task.endTime
+    else:
+        start_time = datetime.datetime.now()
+    Task(employee=chosen_employee, startTime=start_time,
+         endTime=start_time + datetime.timedelta(minutes=30),
+         description=description).save()
+
+
+@login_required(login_url='login')
+def current_room_services(request):
     role = str(request.user.groups.all()[0])
     path = role + "/"
 
@@ -241,19 +278,7 @@ def current_room_services(request):
 
     room_services = RoomServices.objects.all()
 
-    group = Group.objects.get(name='staff')
-    users = User.objects.filter(groups=group)
-    allEmployees = Employee.objects.filter(user__in=users)
-    availableEmployee = list()
-    maxTaskNum = 10
-
-    for e in allEmployees:
-        counter = 0
-        empTasks = Task.objects.filter(employee=e)
-        for t in empTasks:
-            counter += 1
-        if counter < maxTaskNum:
-            availableEmployee.append(e)
+    availableEmployee = _available_employees()
 
     context = {
         "role": role,
@@ -265,52 +290,12 @@ def current_room_services(request):
     }
 
     if request.method == "POST":
-        if "foodReq" in request.POST:
-            newServiceReq = RoomServices(
-                curBooking=curBooking, price=50.0, room=curRoom,  servicesType='Food')
-            newServiceReq.save()
-
-            chosenEmp = random.choice(availableEmployee)
-            lastTask = Task.objects.filter(employee=chosenEmp).last()
-            if(lastTask != None):
-                newTask = Task(employee=chosenEmp, startTime=lastTask.endTime,
-                               endTime=lastTask.endTime+datetime.timedelta(minutes=30), description="Food Request")
-            else:
-                newTask = Task(employee=chosenEmp, startTime=datetime.datetime.now(),
-                               endTime=datetime.datetime.now()+datetime.timedelta(minutes=30), description="Food Request")
-            newTask.save()
-            return redirect("current-room-services")
-
-        if "cleaningReq" in request.POST:
-            newServiceReq = RoomServices(
-                curBooking=curBooking, price=0.0, room=curRoom,  servicesType='Cleaning')
-            newServiceReq.save()
-            chosenEmp = random.choice(availableEmployee)
-            lastTask = Task.objects.filter(employee=chosenEmp).last()
-
-            if(lastTask != None):
-                newTask = Task(employee=chosenEmp, startTime=lastTask.endTime,
-                               endTime=lastTask.endTime+datetime.timedelta(minutes=30), description="Cleaning Request")
-            else:
-                newTask = Task(employee=chosenEmp, startTime=datetime.datetime.now(),
-                               endTime=datetime.datetime.now()+datetime.timedelta(minutes=30), description="Cleaning Request")
-            newTask.save()
-            return redirect("current-room-services")
-
-        if "techReq" in request.POST:
-            newServiceReq = RoomServices(
-                curBooking=curBooking, price=0.0, room=curRoom,  servicesType='Technical')
-            newServiceReq.save()
-            chosenEmp = random.choice(availableEmployee)
-            lastTask = Task.objects.filter(employee=chosenEmp).last()
-            if(lastTask != None):
-                newTask = Task(employee=chosenEmp, startTime=lastTask.endTime,
-                               endTime=lastTask.endTime+datetime.timedelta(minutes=30), description="Tech Request")
-            else:
-                newTask = Task(employee=chosenEmp, startTime=datetime.datetime.now(),
-                               endTime=datetime.datetime.now()+datetime.timedelta(minutes=30), description="Tech Request")
-            newTask.save()
-            return redirect("current-room-services")
+        for post_key, price, services_type, description in _SERVICE_REQUESTS:
+            if post_key in request.POST:
+                _create_service_request(
+                    curBooking, curRoom, availableEmployee,
+                    price, services_type, description)
+                return redirect("current-room-services")
 
     return render(request, path + "current-room-services.html", context)
 
@@ -382,6 +367,31 @@ def bookings(request):
     return render(request, path + "bookings.html", context)
 
 
+def _dependee_names(post, room):
+    names = [post.get("depName")]
+    for i in range(room.capacity-2):
+        nameid = "name" + str(i+1)
+        if post.get(nameid) != "":
+            names.append(post.get(nameid))
+    return names
+
+
+def _book_room_for_guest(request, room):
+    post = request.POST
+    if "guest" in post:
+        curguest = Guest.objects.get(id=post.get("guest"))
+    else:
+        curguest = request.user.guest
+    curbooking = Booking(guest=curguest, roomNumber=room, startDate=post.get(
+        "fd"), endDate=post.get("ld"))
+    curbooking.save()
+
+    for i in range(room.capacity-1):
+        nameid = "name" + str(i+1)
+        if post.get(nameid) not in ("", None):
+            Dependees(booking=curbooking, name=post.get(nameid)).save()
+
+
 @login_required(login_url='login')
 def booking_make(request):
     role = str(request.user.groups.all()[0])
@@ -404,29 +414,10 @@ def booking_make(request):
         total = price * numberOfDays
 
         if 'add' in request.POST:  # add dependee
-            name = request.POST.get("depName")
-            names.append(name)
-            for i in range(room.capacity-2):
-                nameid = "name" + str(i+1)
-                if request.POST.get(nameid) != "":
-                    names.append(request.POST.get(nameid))
+            names = _dependee_names(request.POST, room)
 
         if 'bookGuestButton' in request.POST:
-            if "guest" in request.POST:
-                curguest = Guest.objects.get(id=request.POST.get("guest"))
-            else:
-                curguest = request.user.guest
-            curbooking = Booking(guest=curguest, roomNumber=room, startDate=request.POST.get(
-                "fd"), endDate=request.POST.get("ld"))
-            curbooking.save()
-
-            for i in range(room.capacity-1):
-                nameid = "name" + str(i+1)
-                if request.POST.get(nameid) != "":
-                    if request.POST.get(nameid) != None:
-                        d = Dependees(booking=curbooking,
-                                      name=request.POST.get(nameid))
-                        d.save()
+            _book_room_for_guest(request, room)
             return redirect("payment")
 
     context = {
@@ -460,6 +451,73 @@ def deleteBooking(request, pk):
     return render(request, path + "deleteBooking.html", context)
 
 
+_REFUND_APPROVED_TEXT = """
+                    Dear {guestName},
+                    We are pleased to confirm that your refund request has been accepted.
+                    The amount of refund will be on your account in 24 hours.
+                    This time interval can change up to 48 hours according to your bank.
+                    We are very sorry for this inconvenience. We hope to see you soon.
+                """
+
+_REFUND_DECLINED_TEXT = """
+                    Dear {guestName},
+                    We are sorry to inform you that your refund request has been declined.
+                    After our examinations, we see that your request can not be done according to our Hotel Policy.
+                    We are very sorry for this inconvenience. We hope to see you soon.
+                """
+
+
+def _send_refund_feedback(request, receiver, refund_id, text_template):
+    """Email the guest about their refund decision and remove the refund request."""
+    receiver_name = receiver.user.first_name + " " + receiver.user.last_name
+    subject = "Refund"
+    text = text_template.format(guestName=receiver_name)
+
+    send_mail(
+        receiver_name + " " + subject,    # subject
+        text,                             # message
+        'hms@support.com',                # from email
+        [receiver.user.email],            # to email
+        fail_silently=False,
+    )
+
+    messages.success(request, 'Feedback E-Mail Was Successfully Sent')
+    Refund.objects.filter(id=refund_id).delete()
+
+
+def _handle_refund_decision(request):
+    refundId = request.POST.get("refund", "")
+    guestUserId = request.POST.get("guestUserId", "")
+
+    tempUser = User.objects.get(id=guestUserId)
+    receiver = Guest.objects.get(user=tempUser)
+
+    if "decline" in request.POST:
+        _send_refund_feedback(request, receiver, refundId, _REFUND_DECLINED_TEXT)
+    if "approve" in request.POST:
+        _send_refund_feedback(request, receiver, refundId, _REFUND_APPROVED_TEXT)
+
+
+def _filter_refunds(post, refunds):
+    users = User.objects.all()
+    if post.get("gid") != "":
+        users = users.filter(id__contains=post.get("gid"))
+        refunds = refunds.filter(guest__in=Guest.objects.filter(user__in=users))
+
+    if post.get("name") != "":
+        users = users.filter(
+            Q(first_name__contains=post.get("name")) | Q(last_name__contains=post.get("name")))
+        refunds = refunds.filter(guest__in=Guest.objects.filter(user__in=users))
+
+    if post.get("booking") != "":
+        booking = Booking.objects.get(id=post.get("booking"))
+        refunds = refunds.filter(reservation=booking)
+
+    if post.get("reason") != "":
+        refunds = refunds.filter(reason__contains=post.get("reason"))
+    return refunds
+
+
 @ login_required(login_url='login')
 def refunds(request):
     role = str(request.user.groups.all()[0])
@@ -473,94 +531,12 @@ def refunds(request):
 
     if request.method == "POST":
         if "decline" in request.POST or "approve" in request.POST:
-            refundId = request.POST.get("refund", "")
-            guestUserId = request.POST.get("guestUserId", "")
-
-            tempUser = User.objects.get(id=guestUserId)
-            receiver = Guest.objects.get(user=tempUser)
-
-            def send(request, receiver, text, subject):
-
-                message_email = 'hms@support.com'
-                message = text
-                receiver_name = receiver.user.first_name + " " + receiver.user.last_name
-
-                # send email
-                send_mail(
-                    receiver_name + " " + subject,   # subject
-                    message,                          # message
-                    message_email,                    # from email
-                    [receiver.user.email],                    # to email
-                    fail_silently=False,              # for user in users :
-                    # user.email
-                )
-
-                messages.success(
-                    request, 'Feedback E-Mail Was Successfully Sent')
-
-                Refund.objects.filter(id=refundId).delete()
-                return render(request, path + "refunds.html", context)
-
-            def send_mail_refund_approved(request, receiver):
-                subject = "Refund"
-                text = """
-                    Dear {guestName},
-                    We are pleased to confirm that your refund request has been accepted.
-                    The amount of refund will be on your account in 24 hours.
-                    This time interval can change up to 48 hours according to your bank.
-                    We are very sorry for this inconvenience. We hope to see you soon.
-                """
-                email_text = text.format(
-                    guestName=receiver.user.first_name + " " + receiver.user.last_name)
-
-                send(request, receiver, email_text, subject)
-
-            def send_mail_refund_declined(request, receiver):
-                subject = "Refund"
-                text = """
-                    Dear {guestName},
-                    We are sorry to inform you that your refund request has been declined.
-                    After our examinations, we see that your request can not be done according to our Hotel Policy.
-                    We are very sorry for this inconvenience. We hope to see you soon.
-                """
-                email_text = text.format(
-                    guestName=receiver.user.first_name + " " + receiver.user.last_name)
-
-                send(request, receiver, email_text, subject)
-
-            if "decline" in request.POST:
-                send_mail_refund_declined(request, receiver)
-            if "approve" in request.POST:
-                send_mail_refund_approved(request, receiver)
-
-            refundId = None
-            statu = None
+            _handle_refund_decision(request)
 
         if "filter" in request.POST:
-            users = User.objects.all()
-            if (request.POST.get("gid") != ""):
-                users = users.filter(
-                    id__contains=request.POST.get("gid"))
-                guests = Guest.objects.filter(user__in=users)
-                refunds = refunds.filter(guest__in=guests)
-
-            if (request.POST.get("name") != ""):
-                users = users.filter(
-                    Q(first_name__contains=request.POST.get("name")) | Q(last_name__contains=request.POST.get("name")))
-                guests = Guest.objects.filter(user__in=users)
-                refunds = refunds.filter(guest__in=guests)
-
-            if (request.POST.get("booking") != ""):
-                booking = Booking.objects.get(id=request.POST.get("booking"))
-                refunds = refunds.filter(reservation=booking)
-
-            if (request.POST.get("reason") != ""):
-                refunds = refunds.filter(
-                    reason__contains=request.POST.get("reason"))
-
             context = {
                 "role": role,
-                "refunds": refunds,
+                "refunds": _filter_refunds(request.POST, refunds),
                 "gid": request.POST.get("gid"),
                 "name": request.POST.get("name"),
                 "booking": request.POST.get("booking"),

@@ -8,6 +8,57 @@ import GuestLayout from '../../components/layout/GuestLayout'
 import { useRequestDataExportMutation, useRequestDataDeletionMutation, useCheckExportStatusQuery } from '../../features/gdpr/gdprApi'
 import axiosInstance from '../../services/axiosInstance'
 
+async function downloadExportFile() {
+  const response = await axiosInstance.get('/gdpr/download-export/', { responseType: 'blob' })
+  const href = URL.createObjectURL(new Blob([response.data]))
+  const link = document.createElement('a')
+  link.href = href
+  link.download = 'my-data-export.json'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(href)
+}
+
+function ExportStatus({ status }) {
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Typography variant="body2">Export status:</Typography>
+        <Chip size="small" label={status} color={status === 'completed' ? 'success' : 'info'} />
+      </Box>
+      {status !== 'completed' && <LinearProgress />}
+    </Box>
+  )
+}
+
+function DeleteDialog({ open, reason, onReasonChange, onClose, onConfirm, deleting }) {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Request Data Deletion</DialogTitle>
+      <DialogContent>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          This will permanently delete your account. You will lose all booking history and data.
+        </Alert>
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          label="Reason (optional)"
+          value={reason}
+          onChange={(e) => onReasonChange(e.target.value)}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button color="error" variant="contained" onClick={onConfirm} disabled={deleting}>
+          {deleting ? 'Submitting…' : 'Confirm Deletion Request'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 export default function GDPRPage() {
   const [exportMsg, setExportMsg] = useState(null)
   const [taskId, setTaskId] = useState(null)
@@ -39,15 +90,7 @@ export default function GDPRPage() {
   const handleDownload = async () => {
     setDownloading(true)
     try {
-      const response = await axiosInstance.get('/gdpr/download-export/', { responseType: 'blob' })
-      const href = URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = href
-      link.download = 'my-data-export.json'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(href)
+      await downloadExportFile()
     } catch {
       setExportMsg({ type: 'error', text: 'Download failed. Please try again.' })
     } finally {
@@ -84,15 +127,7 @@ export default function GDPRPage() {
         </Typography>
         {exportMsg && <Alert severity={exportMsg.type} sx={{ mb: 2 }} onClose={() => setExportMsg(null)}>{exportMsg.text}</Alert>}
         {deleteMsg && <Alert severity={deleteMsg.type} sx={{ mb: 2 }} onClose={() => setDeleteMsg(null)}>{deleteMsg.text}</Alert>}
-        {taskId && statusData && (
-          <Box sx={{ mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <Typography variant="body2">Export status:</Typography>
-              <Chip size="small" label={statusData.status} color={statusData.status === 'completed' ? 'success' : 'info'} />
-            </Box>
-            {statusData.status !== 'completed' && <LinearProgress />}
-          </Box>
-        )}
+        {taskId && statusData && <ExportStatus status={statusData.status} />}
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button variant="contained" startIcon={<Download />} onClick={handleExport} disabled={exporting}>
             {exporting ? 'Requesting…' : 'Request Export'}
@@ -119,28 +154,14 @@ export default function GDPRPage() {
         </Button>
       </Paper>
 
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Request Data Deletion</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            This will permanently delete your account. You will lose all booking history and data.
-          </Alert>
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            label="Reason (optional)"
-            value={deleteReason}
-            onChange={(e) => setDeleteReason(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Submitting…' : 'Confirm Deletion Request'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DeleteDialog
+        open={deleteOpen}
+        reason={deleteReason}
+        onReasonChange={setDeleteReason}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={handleDelete}
+        deleting={deleting}
+      />
     </GuestLayout>
   )
 }

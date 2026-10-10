@@ -1,0 +1,39 @@
+name: Python/Django Hygiene
+
+on:
+  push:
+    branches: [ main, develop, nephele ]
+    paths:
+      - 'nephele/**'
+      - 'requirements*.txt'
+      - 'scripts/hygiene-python.sh'
+      - '.github/workflows/hygiene-python.yml'
+  pull_request:
+    branches: [ main, develop, nephele ]
+    paths:
+      - 'nephele/**'
+      - 'requirements*.txt'
+      - 'scripts/hygiene-python.sh'
+      - '.github/workflows/hygiene-python.yml'
+  workflow_dispatch:
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: nephele/requirements-hygiene.txt
+
+      - name: Install hygiene tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r nephele/requirements-hygiene.txt
+
+      - name: Run Python/Django hygiene
+        run: bash scripts/hygiene-python.sh

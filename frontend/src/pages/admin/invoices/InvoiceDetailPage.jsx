@@ -10,6 +10,96 @@ import { downloadFile, siteOrigin } from '../../../services/downloadFile'
 
 const STATUS_COLORS = { draft: 'default', sent: 'info', paid: 'success', overdue: 'error', cancelled: 'warning' }
 
+const DASH = '—'
+const fmtDate = (v) => (v ? new Date(v).toLocaleDateString() : DASH)
+const eur = (v) => `€${Number(v || 0).toFixed(2)}`
+
+function InvoiceHeader({ invoice }) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Box>
+        <Typography variant="h5">Invoice {invoice.invoice_number}</Typography>
+        <Typography color="text.secondary">Booking #{invoice.booking}</Typography>
+      </Box>
+      <Box sx={{ textAlign: 'right' }}>
+        <Chip label={invoice.status} color={STATUS_COLORS[invoice.status] || 'default'} sx={{ mb: 1 }} />
+        <br />
+        <Chip size="small" label={invoice.mydata_sent ? 'MyData Sent' : 'MyData Pending'} color={invoice.mydata_sent ? 'success' : 'warning'} />
+      </Box>
+    </Box>
+  )
+}
+
+function InvoiceMeta({ invoice }) {
+  const fields = [
+    ['Guest', invoice.guest_name || invoice.guest],
+    ['Issue Date', fmtDate(invoice.issue_date)],
+    ['Due Date', fmtDate(invoice.due_date)],
+  ]
+  return (
+    <Grid container spacing={2} sx={{ mb: 3 }}>
+      {fields.map(([label, val]) => (
+        <Grid item xs={12} sm={4} key={label}>
+          <Typography variant="caption" color="text.secondary">{label}</Typography>
+          <Typography>{val || DASH}</Typography>
+        </Grid>
+      ))}
+    </Grid>
+  )
+}
+
+function LineItemsTable({ items }) {
+  return (
+    <>
+      <Typography variant="h6" sx={{ mb: 1 }}>Line Items</Typography>
+      <Table size="small" sx={{ mb: 3 }}>
+        <TableHead>
+          <TableRow>{['Description', 'Qty', 'Unit Price', 'Total'].map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map((item, i) => (
+            <TableRow key={i}>
+              <TableCell>{item.description}</TableCell>
+              <TableCell>{item.quantity}</TableCell>
+              <TableCell>{eur(item.unit_price)}</TableCell>
+              <TableCell>{eur(item.total)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </>
+  )
+}
+
+function InvoiceTotals({ invoice }) {
+  const rows = [['Subtotal', invoice.subtotal], ['Tax', invoice.tax_amount], ['Total', invoice.total_amount || invoice.total]]
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ minWidth: 240 }}>
+        {rows.map(([label, val]) => (
+          <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+            <Typography fontWeight={label === 'Total' ? 700 : 400}>{label}</Typography>
+            <Typography fontWeight={label === 'Total' ? 700 : 400}>{eur(val)}</Typography>
+          </Box>
+        ))}
+      </Box>
+    </Box>
+  )
+}
+
+function InvoiceBody({ invoice }) {
+  const lineItems = invoice.line_items || invoice.items || []
+  return (
+    <Paper sx={{ p: 3 }}>
+      <InvoiceHeader invoice={invoice} />
+      <InvoiceMeta invoice={invoice} />
+      {lineItems.length > 0 && <LineItemsTable items={lineItems} />}
+      <Divider sx={{ my: 2 }} />
+      <InvoiceTotals invoice={invoice} />
+    </Paper>
+  )
+}
+
 export default function InvoiceDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -21,8 +111,6 @@ export default function InvoiceDetailPage() {
   if (isLoading) return <AppLayout><LoadingSpinner /></AppLayout>
   if (error) return <AppLayout><ErrorAlert error={error} /></AppLayout>
   if (!invoice) return null
-
-  const lineItems = invoice.line_items || invoice.items || []
 
   const handlePdf = async () => {
     setPdfLoading(true)
@@ -63,62 +151,7 @@ export default function InvoiceDetailPage() {
           )}
         </Box>
       </Box>
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-          <Box>
-            <Typography variant="h5">Invoice {invoice.invoice_number}</Typography>
-            <Typography color="text.secondary">Booking #{invoice.booking}</Typography>
-          </Box>
-          <Box sx={{ textAlign: 'right' }}>
-            <Chip label={invoice.status} color={STATUS_COLORS[invoice.status] || 'default'} sx={{ mb: 1 }} />
-            <br />
-            <Chip size="small" label={invoice.mydata_sent ? 'MyData Sent' : 'MyData Pending'} color={invoice.mydata_sent ? 'success' : 'warning'} />
-          </Box>
-        </Box>
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {[
-            ['Guest', invoice.guest_name || invoice.guest],
-            ['Issue Date', invoice.issue_date ? new Date(invoice.issue_date).toLocaleDateString() : '—'],
-            ['Due Date', invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : '—'],
-          ].map(([label, val]) => (
-            <Grid item xs={12} sm={4} key={label}>
-              <Typography variant="caption" color="text.secondary">{label}</Typography>
-              <Typography>{val || '—'}</Typography>
-            </Grid>
-          ))}
-        </Grid>
-        {lineItems.length > 0 && (
-          <>
-            <Typography variant="h6" sx={{ mb: 1 }}>Line Items</Typography>
-            <Table size="small" sx={{ mb: 3 }}>
-              <TableHead>
-                <TableRow>{['Description', 'Qty', 'Unit Price', 'Total'].map((h) => <TableCell key={h}>{h}</TableCell>)}</TableRow>
-              </TableHead>
-              <TableBody>
-                {lineItems.map((item, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>€{Number(item.unit_price || 0).toFixed(2)}</TableCell>
-                    <TableCell>€{Number(item.total || 0).toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </>
-        )}
-        <Divider sx={{ my: 2 }} />
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Box sx={{ minWidth: 240 }}>
-            {[['Subtotal', invoice.subtotal], ['Tax', invoice.tax_amount], ['Total', invoice.total_amount || invoice.total]].map(([label, val]) => (
-              <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
-                <Typography fontWeight={label === 'Total' ? 700 : 400}>{label}</Typography>
-                <Typography fontWeight={label === 'Total' ? 700 : 400}>€{Number(val || 0).toFixed(2)}</Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      </Paper>
+      <InvoiceBody invoice={invoice} />
     </AppLayout>
   )
 }

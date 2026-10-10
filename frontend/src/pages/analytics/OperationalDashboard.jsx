@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Box, Grid, Card, CardContent, Typography, IconButton, Paper, List, ListItem, ListItemAvatar, ListItemText, Avatar, Chip, Divider } from '@mui/material'
-import { Refresh, Hotel, CleaningServices, Build, Block } from '@mui/icons-material'
+import { Refresh } from '@mui/icons-material'
 import AppLayout from '../../components/layout/AppLayout'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorAlert from '../../components/common/ErrorAlert'
@@ -18,17 +18,75 @@ const taskColumns = [
   { field: 'due_time', headerName: 'Due', width: 120 },
 ]
 
+const STATUS_TILES = [
+  ['Occupied', 'occupied', 'primary'], ['Available', 'available', 'success'], ['Cleaning', 'cleaning', 'warning'],
+  ['Maintenance', 'maintenance', 'error'], ['Blocked', 'blocked', 'default'], ['Total', 'total', 'info'],
+]
+
+function StatusTiles({ status }) {
+  return (
+    <Grid container spacing={2} sx={{ mb: 4 }}>
+      {STATUS_TILES.map(([label, key, color]) => (
+        <Grid item xs={6} sm={4} md={2} key={label}>
+          <Card><CardContent sx={{ textAlign: 'center', py: 2 }}>
+            <Typography variant="h4" fontWeight={700} color={`${color}.main`}>{status[key] || 0}</Typography>
+            <Typography variant="body2" color="text.secondary">{label}</Typography>
+          </CardContent></Card>
+        </Grid>
+      ))}
+    </Grid>
+  )
+}
+
+function GuestMovementList({ title, items, emptyText, avatarColor }) {
+  return (
+    <Paper sx={{ p: 2, height: '100%' }}>
+      <Typography variant="h6" gutterBottom>{title} ({items.length})</Typography>
+      <Divider sx={{ mb: 1 }} />
+      <List dense>{items.length ? items.map((c, i) => (
+        <ListItem key={i}><ListItemAvatar><Avatar sx={{ bgcolor: avatarColor, width: 32, height: 32, fontSize: 14 }}>{(c.guest_name || 'G')[0]}</Avatar></ListItemAvatar><ListItemText primary={c.guest_name} secondary={`Room ${c.room_number} · Booking #${c.booking_id}`} /></ListItem>
+      )) : <Typography color="text.secondary" variant="body2">{emptyText}</Typography>}</List>
+    </Paper>
+  )
+}
+
+function RoomGrid({ rooms }) {
+  return (
+    <Paper sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>Room Status Grid</Typography>
+      <Divider sx={{ mb: 2 }} />
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        {rooms.map((r) => (
+          <Box key={r.id} sx={{ width: 70, height: 50, bgcolor: ROOM_COLORS[r.status] || '#aaa', borderRadius: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'default' }}>
+            <Typography variant="caption" color="white" fontWeight={700}>{r.room_number}</Typography>
+            <Typography variant="caption" color="white" sx={{ fontSize: 9 }}>{r.status}</Typography>
+          </Box>
+        ))}
+      </Box>
+    </Paper>
+  )
+}
+
+function TasksPanel({ tasks }) {
+  return (
+    <Paper sx={{ p: 2, mb: 4 }}>
+      <Typography variant="h6" gutterBottom>Staff Tasks</Typography>
+      <Divider sx={{ mb: 1 }} />
+      <DataTable columns={taskColumns} rows={tasks} />
+    </Paper>
+  )
+}
+
 export default function OperationalDashboard() {
   const [, forceRefresh] = useState(0)
-  const { data, isLoading, error, refetch } = useGetOperationalDashboardQuery()
+  const { data = {}, isLoading, error, refetch } = useGetOperationalDashboardQuery()
 
   if (isLoading) return <AppLayout><LoadingSpinner /></AppLayout>
 
-  const status = data?.room_status || {}
-  const checkIns = data?.checkins_today || []
-  const checkOuts = data?.checkouts_today || []
-  const tasks = data?.staff_tasks || []
-  const rooms = data?.rooms || []
+  const checkIns = data.checkins_today || []
+  const checkOuts = data.checkouts_today || []
+  const tasks = data.staff_tasks || []
+  const rooms = data.rooms || []
 
   return (
     <AppLayout>
@@ -37,57 +95,17 @@ export default function OperationalDashboard() {
         <IconButton onClick={() => { refetch(); forceRefresh(n => n + 1) }}><Refresh /></IconButton>
       </Box>
       {error && <ErrorAlert error={error} />}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        {[['Occupied', status.occupied, 'primary'], ['Available', status.available, 'success'], ['Cleaning', status.cleaning, 'warning'], ['Maintenance', status.maintenance, 'error'], ['Blocked', status.blocked, 'default'], ['Total', status.total, 'info']].map(([label, count, color]) => (
-          <Grid item xs={6} sm={4} md={2} key={label}>
-            <Card><CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" fontWeight={700} color={`${color}.main`}>{count || 0}</Typography>
-              <Typography variant="body2" color="text.secondary">{label}</Typography>
-            </CardContent></Card>
-          </Grid>
-        ))}
-      </Grid>
+      <StatusTiles status={data.room_status || {}} />
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>Check-ins Today ({checkIns.length})</Typography>
-            <Divider sx={{ mb: 1 }} />
-            <List dense>{checkIns.length ? checkIns.map((c, i) => (
-              <ListItem key={i}><ListItemAvatar><Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: 14 }}>{(c.guest_name || 'G')[0]}</Avatar></ListItemAvatar><ListItemText primary={c.guest_name} secondary={`Room ${c.room_number} · Booking #${c.booking_id}`} /></ListItem>
-            )) : <Typography color="text.secondary" variant="body2">No check-ins today.</Typography>}</List>
-          </Paper>
+          <GuestMovementList title="Check-ins Today" items={checkIns} emptyText="No check-ins today." avatarColor="primary.main" />
         </Grid>
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>Check-outs Today ({checkOuts.length})</Typography>
-            <Divider sx={{ mb: 1 }} />
-            <List dense>{checkOuts.length ? checkOuts.map((c, i) => (
-              <ListItem key={i}><ListItemAvatar><Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32, fontSize: 14 }}>{(c.guest_name || 'G')[0]}</Avatar></ListItemAvatar><ListItemText primary={c.guest_name} secondary={`Room ${c.room_number} · Booking #${c.booking_id}`} /></ListItem>
-            )) : <Typography color="text.secondary" variant="body2">No check-outs today.</Typography>}</List>
-          </Paper>
+          <GuestMovementList title="Check-outs Today" items={checkOuts} emptyText="No check-outs today." avatarColor="secondary.main" />
         </Grid>
       </Grid>
-      {tasks.length > 0 && (
-        <Paper sx={{ p: 2, mb: 4 }}>
-          <Typography variant="h6" gutterBottom>Staff Tasks</Typography>
-          <Divider sx={{ mb: 1 }} />
-          <DataTable columns={taskColumns} rows={tasks} />
-        </Paper>
-      )}
-      {rooms.length > 0 && (
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>Room Status Grid</Typography>
-          <Divider sx={{ mb: 2 }} />
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {rooms.map((r) => (
-              <Box key={r.id} sx={{ width: 70, height: 50, bgcolor: ROOM_COLORS[r.status] || '#aaa', borderRadius: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'default' }}>
-                <Typography variant="caption" color="white" fontWeight={700}>{r.room_number}</Typography>
-                <Typography variant="caption" color="white" sx={{ fontSize: 9 }}>{r.status}</Typography>
-              </Box>
-            ))}
-          </Box>
-        </Paper>
-      )}
+      {tasks.length > 0 && <TasksPanel tasks={tasks} />}
+      {rooms.length > 0 && <RoomGrid rooms={rooms} />}
     </AppLayout>
   )
 }

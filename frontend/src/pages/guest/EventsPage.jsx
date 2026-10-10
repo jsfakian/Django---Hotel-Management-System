@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Grid, Alert } from '@mui/material'
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Grid, Alert } from '@mui/material'
 import { EventNote } from '@mui/icons-material'
 import GuestLayout from '../../components/layout/GuestLayout'
 import DataTable from '../../components/common/DataTable'

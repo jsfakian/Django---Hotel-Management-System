@@ -220,25 +220,30 @@ def check_object_access(user, obj, required_role='admin'):
         return True
     
     # Check if object has a manager/owner field
-    if hasattr(obj, 'manager') and obj.manager == user:
-        return True
-    
-    if hasattr(obj, 'owner') and obj.owner == user:
-        return True
-    
-    if hasattr(obj, 'user') and obj.user == user:
+    if _is_object_owner(user, obj):
         return True
     
     # Check for guest-specific access
     if user_role == 'guest' and hasattr(obj, 'guest'):
-        from accounts.models import Guest
-        try:
-            guest = Guest.objects.get(user=user)
-            return obj.guest == guest
-        except Guest.DoesNotExist:
-            return False
+        return _is_object_guest(user, obj)
     
     return False
+
+
+def _is_object_owner(user, obj):
+    return any(
+        hasattr(obj, attr_name) and getattr(obj, attr_name) == user
+        for attr_name in ('manager', 'owner', 'user')
+    )
+
+
+def _is_object_guest(user, obj):
+    from accounts.models import Guest
+    try:
+        guest = Guest.objects.get(user=user)
+        return obj.guest == guest
+    except Guest.DoesNotExist:
+        return False
 
 
 class RoleBasedAccessMiddleware:

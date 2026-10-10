@@ -141,7 +141,6 @@ const ROLE_DASHBOARDS = {
   guest: '/guest/dashboard',
 }
 
-const STAFF_ADMIN = ['admin', 'manager', 'receptionist', 'staff']
 const ADMIN_MANAGER = ['admin', 'manager']
 const RECEPTION_UP = ['admin', 'manager', 'receptionist']
 const ALL_ROLES = ['admin', 'manager', 'receptionist', 'staff', 'guest']
@@ -165,21 +164,10 @@ function PR({ roles, children }) {
   return <ProtectedRoute allowedRoles={roles}>{children}</ProtectedRoute>
 }
 
-export default function App() {
+// Route groups are plain functions returning fragments (valid children of <Routes>).
+function adminRoutes() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        {/* Root */}
-        <Route path="/" element={<RootRedirect />} />
-
-        {/* Public */}
-        <Route path="/landing" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/payment-success" element={<PaymentSuccessPage />} />
-        <Route path="/payments/:id/verify" element={<PR roles={ALL_ROLES}><PaymentVerifyPage /></PR>} />
-
+    <>
         {/* ── ADMIN ── */}
         <Route path="/admin/dashboard" element={<PR roles={['admin']}><AdminDashboard /></PR>} />
 
@@ -267,6 +255,26 @@ export default function App() {
 
         {/* Inventory */}
         <Route path="/admin/inventory" element={<PR roles={ADMIN_MANAGER}><InventoryPage /></PR>} />
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* Root */}
+        <Route path="/" element={<RootRedirect />} />
+
+        {/* Public */}
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/payment-success" element={<PaymentSuccessPage />} />
+        <Route path="/payments/:id/verify" element={<PR roles={ALL_ROLES}><PaymentVerifyPage /></PR>} />
+
+        {adminRoutes()}
 
         {/* ── ANALYTICS ── */}
         <Route path="/analytics" element={<PR roles={ADMIN_MANAGER}><AnalyticsHubPage /></PR>} />

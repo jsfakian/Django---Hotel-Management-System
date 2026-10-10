@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Typography } from '@mui/material'
+import { Typography } from '@mui/material'
 import AppLayout from '../../../components/layout/AppLayout'
 import DataTable from '../../../components/common/DataTable'
 import ErrorAlert from '../../../components/common/ErrorAlert'

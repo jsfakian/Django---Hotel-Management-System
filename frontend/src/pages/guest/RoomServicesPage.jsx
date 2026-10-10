@@ -46,6 +46,85 @@ const SERVICE_LABELS = {
   other: 'Other',
 }
 
+function ServiceCard({ row }) {
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Typography fontWeight={700}>
+            {SERVICE_LABELS[row.service_type] || row.service_type}
+          </Typography>
+          <Chip
+            size="small"
+            label={(row.status || '').replace('_', ' ')}
+            color={STATUS_COLORS[row.status] || 'default'}
+            sx={{ textTransform: 'capitalize' }}
+          />
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          {row.description || '—'}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {row.requested_at ? new Date(row.requested_at).toLocaleString() : ''}
+        </Typography>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ServiceGrid({ rows }) {
+  return (
+    <Grid container spacing={2}>
+      {rows.map((row) => (
+        <Grid item xs={12} sm={6} key={row.id || `${row.service_type}-${row.requested_at}`}>
+          <ServiceCard row={row} />
+        </Grid>
+      ))}
+    </Grid>
+  )
+}
+
+function RequestServiceDialog({ open, form, setForm, onClose, onSubmit, creating }) {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Request a service</DialogTitle>
+      <Box component="form" onSubmit={onSubmit}>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Service type</InputLabel>
+            <Select
+              value={form.service_type}
+              label="Service type"
+              onChange={(e) => setForm((f) => ({ ...f, service_type: e.target.value }))}
+            >
+              {Object.entries(SERVICE_LABELS).map(([value, label]) => (
+                <MenuItem key={value} value={value}>
+                  {label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            required
+            label="How can we help?"
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="contained" disabled={creating}>
+            Submit
+          </Button>
+        </DialogActions>
+      </Box>
+    </Dialog>
+  )
+}
+
 export default function RoomServicesPage() {
   const [viewMode, setViewMode] = useState('current')
   const [newOpen, setNewOpen] = useState(false)
@@ -117,71 +196,10 @@ export default function RoomServicesPage() {
           icon={<RoomService fontSize="large" />}
         />
       ) : (
-        <Grid container spacing={2}>
-          {rows.map((row) => (
-            <Grid item xs={12} sm={6} key={row.id || `${row.service_type}-${row.requested_at}`}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography fontWeight={700}>
-                      {SERVICE_LABELS[row.service_type] || row.service_type}
-                    </Typography>
-                    <Chip
-                      size="small"
-                      label={(row.status || '').replace('_', ' ')}
-                      color={STATUS_COLORS[row.status] || 'default'}
-                      sx={{ textTransform: 'capitalize' }}
-                    />
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    {row.description || '—'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {row.requested_at ? new Date(row.requested_at).toLocaleString() : ''}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        <ServiceGrid rows={rows} />
       )}
 
-      <Dialog open={newOpen} onClose={() => setNewOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Request a service</DialogTitle>
-        <Box component="form" onSubmit={handleCreate}>
-          <DialogContent>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Service type</InputLabel>
-              <Select
-                value={form.service_type}
-                label="Service type"
-                onChange={(e) => setForm((f) => ({ ...f, service_type: e.target.value }))}
-              >
-                {Object.entries(SERVICE_LABELS).map(([value, label]) => (
-                  <MenuItem key={value} value={value}>
-                    {label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              required
-              label="How can we help?"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setNewOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={creating}>
-              Submit
-            </Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
+      <RequestServiceDialog open={newOpen} form={form} setForm={setForm} onClose={() => setNewOpen(false)} onSubmit={handleCreate} creating={creating} />
     </GuestLayout>
   )
 }
