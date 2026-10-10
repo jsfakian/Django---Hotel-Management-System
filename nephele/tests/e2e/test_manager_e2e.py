@@ -6,7 +6,6 @@ from playwright.sync_api import expect
 
 from tests.e2e.conftest import do_login
 
-
 pytestmark = [pytest.mark.e2e, pytest.mark.slow]
 
 
@@ -18,7 +17,7 @@ def logged_in_as_manager(page, base_url, manager_credentials):
         manager_credentials["username"],
         manager_credentials["password"],
     )
-    page.wait_for_url(f"{base_url}/manager/dashboard")
+    expect(page).to_have_url(f"{base_url}/manager/dashboard", timeout=15000)
 
 
 class TestManagerDashboard:
@@ -26,8 +25,8 @@ class TestManagerDashboard:
         expect(page).to_have_url(f"{base_url}/manager/dashboard")
 
     def test_branding_visible(self, page):
-        expect(page.get_by_text("Nephele")).to_be_visible()
+        expect(page.get_by_text("Nephele").first).to_be_visible()
 
     def test_manager_cannot_access_admin_dashboard(self, page, base_url):
         page.goto(f"{base_url}/admin/dashboard")
-        assert page.url != f"{base_url}/admin/dashboard"
+        expect(page).not_to_have_url(f"{base_url}/admin/dashboard", timeout=10000)

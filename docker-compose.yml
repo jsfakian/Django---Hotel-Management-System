@@ -67,6 +67,8 @@ services:
       DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
       DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
       DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin123}
+      # Playwright e2e logs in many times; raise burst limit when running browser tests.
+      AUTH_BURST_THROTTLE_RATE: ${AUTH_BURST_THROTTLE_RATE:-1000/minute}
     ports:
       - "8000:8000"
     volumes:

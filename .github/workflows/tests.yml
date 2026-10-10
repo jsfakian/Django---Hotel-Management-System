@@ -117,9 +117,10 @@ jobs:
         docker compose up -d --build postgres redis django frontend
         echo "Waiting for API..."
         for i in $(seq 1 90); do
-          if curl -fsS http://localhost:8000/api/v1/schema/ >/dev/null 2>&1 \
-            || curl -fsS http://localhost:8000/ >/dev/null 2>&1; then
-            echo "API is up"
+          # Schema may require auth (401); treat any HTTP response as "up".
+          code=$(curl -sS -o /dev/null -w '%{http_code}' http://localhost:8000/api/v1/auth/login/ || true)
+          if [[ "$code" =~ ^(200|400|401|405)$ ]]; then
+            echo "API is up (HTTP $code)"
             break
           fi
           if [[ "$i" -eq 90 ]]; then
@@ -174,16 +175,33 @@ jobs:
         DJANGO_SUPERUSER_PASSWORD: admin123
         DJANGO_SETTINGS_MODULE: config.test_settings
         SECRET_KEY: test-secret-key-for-ci
+        PWDEBUG: '0'
       run: |
         cd nephele
-        pytest tests/e2e/ -v --tb=short -m e2e --junitxml=e2e-results.xml
+        set +e
+        pytest tests/e2e/ -v --tb=short -m e2e \
+          --junitxml=e2e-results.xml \
+          --html=e2e-report.html --self-contained-html \
+          2>&1 | tee e2e-pytest.log
+        status=${PIPESTATUS[0]}
+        echo "pytest exit=$status"
+        if [[ "$status" -ne 0 ]]; then
+          echo "::group::e2e failure tail"
+          tail -n 120 e2e-pytest.log || true
+          echo "::endgroup::"
+        fi
+        exit "$status"
 
     - name: Upload e2e results
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: e2e-test-results
-        path: nephele/e2e-results.xml
+        path: |
+          nephele/e2e-results.xml
+          nephele/e2e-pytest.log
+          nephele/e2e-report.html
+          nephele/test-results/
         if-no-files-found: ignore
 
     - name: Stop app stack

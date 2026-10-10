@@ -11,10 +11,12 @@ const extractMessage = (error) => {
   if (typeof data === 'string') return data
   if (data.detail) return data.detail
   if (data.non_field_errors) return data.non_field_errors.join(' ')
+  // Nephele custom exception envelope: { error: { message, code, details } }
+  if (data.error?.message) return data.error.message
 
   // Collect field-level errors
   const fieldErrors = Object.entries(data)
-    .filter(([, val]) => val)
+    .filter(([key, val]) => val && key !== 'error' && key !== 'meta')
     .map(([field, messages]) => {
       const msg = Array.isArray(messages) ? messages.join(' ') : String(messages)
       return `${field}: ${msg}`

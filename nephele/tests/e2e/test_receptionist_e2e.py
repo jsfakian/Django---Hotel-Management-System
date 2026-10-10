@@ -6,7 +6,6 @@ from playwright.sync_api import expect
 
 from tests.e2e.conftest import do_login
 
-
 pytestmark = [pytest.mark.e2e, pytest.mark.slow]
 
 
@@ -18,7 +17,7 @@ def logged_in_as_receptionist(page, base_url, receptionist_credentials):
         receptionist_credentials["username"],
         receptionist_credentials["password"],
     )
-    page.wait_for_url(f"{base_url}/receptionist/dashboard")
+    expect(page).to_have_url(f"{base_url}/receptionist/dashboard", timeout=15000)
 
 
 class TestReceptionistDashboard:
@@ -26,13 +25,14 @@ class TestReceptionistDashboard:
         expect(page).to_have_url(f"{base_url}/receptionist/dashboard")
 
     def test_branding_visible(self, page):
-        expect(page.get_by_text("Nephele")).to_be_visible()
+        expect(page.get_by_text("Nephele").first).to_be_visible()
 
 
 class TestCheckInPage:
     @pytest.fixture(autouse=True)
     def navigate_to_check_in(self, page, base_url):
         page.goto(f"{base_url}/receptionist/check-in")
+        expect(page.get_by_text("Check-In / Check-Out")).to_be_visible()
 
     def test_heading_visible(self, page):
         expect(page.get_by_text("Check-In / Check-Out")).to_be_visible()

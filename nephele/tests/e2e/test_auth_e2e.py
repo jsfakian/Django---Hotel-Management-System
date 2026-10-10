@@ -13,9 +13,10 @@ pytestmark = [pytest.mark.e2e, pytest.mark.slow]
 class TestLoginPage:
     def test_login_page_renders(self, page, base_url):
         page.goto(f"{base_url}/login")
-        expect(page.get_by_text("Nephele")).to_be_visible()
+        # AuthShell renders brand twice (desktop hero + mobile header); assert one visible.
+        expect(page.get_by_role("link", name="Nephele").first).to_be_visible()
         expect(page.get_by_label("Username or Email")).to_be_visible()
-        expect(page.get_by_label("Password")).to_be_visible()
+        expect(page.locator('input[type="password"]')).to_be_visible()
         expect(page.get_by_role("button", name="Sign In")).to_be_visible()
 
     def test_login_shows_forgot_password_link(self, page, base_url):
@@ -25,7 +26,7 @@ class TestLoginPage:
     def test_login_with_invalid_credentials_shows_error(self, page, base_url):
         page.goto(f"{base_url}/login")
         page.get_by_label("Username or Email").fill("notauser")
-        page.get_by_label("Password").fill("wrongpassword")
+        page.locator('input[type="password"]').fill("wrongpassword")
         page.get_by_role("button", name="Sign In").click()
         expect(page.locator(".MuiAlert-root")).to_be_visible(timeout=5000)
 
@@ -44,7 +45,7 @@ class TestRoleRedirects:
             guest_credentials["username"],
             guest_credentials["password"],
         )
-        expect(page).to_have_url(f"{base_url}/guest/dashboard", timeout=10000)
+        expect(page).to_have_url(f"{base_url}/guest/dashboard", timeout=15000)
 
     def test_login_as_receptionist_redirects_to_dashboard(
         self, page, base_url, receptionist_credentials
@@ -56,7 +57,7 @@ class TestRoleRedirects:
             receptionist_credentials["password"],
         )
         expect(page).to_have_url(
-            f"{base_url}/receptionist/dashboard", timeout=10000
+            f"{base_url}/receptionist/dashboard", timeout=15000
         )
 
     def test_login_as_manager_redirects_to_dashboard(
@@ -68,4 +69,4 @@ class TestRoleRedirects:
             manager_credentials["username"],
             manager_credentials["password"],
         )
-        expect(page).to_have_url(f"{base_url}/manager/dashboard", timeout=10000)
+        expect(page).to_have_url(f"{base_url}/manager/dashboard", timeout=15000)

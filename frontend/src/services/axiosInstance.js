@@ -34,12 +34,23 @@ const processQueue = (error, token = null) => {
   failedQueue = []
 }
 
+const isAuthRequest = (config) => {
+  const url = config?.url || ''
+  return (
+    url.includes('/auth/login') ||
+    url.includes('/auth/refresh') ||
+    url.includes('/auth/register') ||
+    url.includes('/auth/forgot-password')
+  )
+}
+
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Never run refresh/redirect on auth endpoints — let the UI show the error.
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest(originalRequest)) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })

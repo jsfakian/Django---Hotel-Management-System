@@ -221,6 +221,9 @@ else:
         'http://localhost:8000',
         'http://127.0.0.1:3000',
         'http://127.0.0.1:8000',
+        # Alternate local e2e ports (docker-compose host remaps)
+        'http://localhost:13000',
+        'http://127.0.0.1:13000',
     ]
 
 # Internationalization

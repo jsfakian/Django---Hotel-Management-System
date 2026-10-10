@@ -79,7 +79,7 @@ export default function LoginPage() {
                 <IconButton
                   onClick={() => setShowPassword((v) => !v)}
                   edge="end"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Hide password visibility' : 'Show password visibility'}
                 >
                   {showPassword ? <VisibilityOff /> : <Visibility />}
                 </IconButton>

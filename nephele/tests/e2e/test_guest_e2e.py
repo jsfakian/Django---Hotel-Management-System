@@ -17,7 +17,7 @@ def logged_in_as_guest(page, base_url, guest_credentials):
         guest_credentials["username"],
         guest_credentials["password"],
     )
-    page.wait_for_url(f"{base_url}/guest/dashboard", timeout=15000)
+    expect(page).to_have_url(f"{base_url}/guest/dashboard", timeout=15000)
 
 
 class TestGuestDashboard:
@@ -25,12 +25,16 @@ class TestGuestDashboard:
         expect(page.get_by_text("Welcome,", exact=False)).to_be_visible()
 
     def test_upcoming_stays_section_visible(self, page):
-        expect(page.get_by_text("Upcoming stays")).to_be_visible()
+        expect(
+            page.get_by_role("heading", name="Upcoming stays", exact=True)
+        ).to_be_visible()
 
     def test_empty_or_populated_bookings(self, page):
-        no_bookings = page.get_by_text("No upcoming stays")
-        booking_card = page.locator(".MuiCard-root").first
-        assert no_bookings.is_visible() or booking_card.is_visible()
+        # Seeded e2e guest has no bookings — empty state heading.
+        # Use exact=True so "No upcoming stays" does not also match "Upcoming stays".
+        expect(
+            page.get_by_role("heading", name="No upcoming stays", exact=True)
+        ).to_be_visible(timeout=10000)
 
     def test_navigate_to_bookings_via_view_all(self, page, base_url):
         page.get_by_role("button", name="View all").click()

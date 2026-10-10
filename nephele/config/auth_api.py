@@ -1,3 +1,4 @@
+import os
 from uuid import uuid4
 
 from django.contrib.auth.models import Group, User
@@ -16,7 +17,8 @@ from accounts.permissions import get_user_role
 
 
 class AuthBurstThrottle(AnonRateThrottle):
-    rate = '20/minute'
+    # Override with AUTH_BURST_THROTTLE_RATE (e.g. 1000/minute for e2e).
+    rate = os.environ.get('AUTH_BURST_THROTTLE_RATE', '20/minute')
 
 
 class NepheleTokenObtainPairSerializer(TokenObtainPairSerializer):
