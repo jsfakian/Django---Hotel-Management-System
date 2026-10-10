@@ -51,6 +51,9 @@ export SECRET_KEY="${SECRET_KEY:-test-secret-key-for-ci}"
 export DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-admin}"
 export DJANGO_SUPERUSER_PASSWORD="${DJANGO_SUPERUSER_PASSWORD:-admin123}"
 
+echo "Seeding e2e users..."
+docker compose exec -T django python manage.py seed_e2e_users
+
 echo "Running Playwright e2e suite..."
 cd "${ROOT}/nephele"
 exec "${VENV_PY}" -m pytest tests/e2e/ -v --tb=short -m e2e "$@"

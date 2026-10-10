@@ -163,6 +163,9 @@ jobs:
           sleep 2
         done
 
+    - name: Seed e2e users
+      run: docker compose exec -T django python manage.py seed_e2e_users
+
     - name: Run Playwright e2e tests
       env:
         E2E_FRONTEND_URL: http://localhost:3000

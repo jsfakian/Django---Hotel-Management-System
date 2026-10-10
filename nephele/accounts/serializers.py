@@ -95,32 +95,51 @@ class TaskSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model"""
-    
+
+    password = serializers.CharField(write_only=True, required=False, allow_blank=False)
+    role = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'email', 'first_name', 'last_name',
-            'is_staff', 'is_active', 'date_joined'
+            'id',
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'password',
+            'role',
+            'is_staff',
+            'is_active',
+            'date_joined',
         ]
         read_only_fields = ['id', 'date_joined', 'is_staff', 'is_active']
-        extra_kwargs = {
-            'password': {'write_only': True, 'required': False}
-        }
 
-    
+    def _apply_role(self, user, role):
+        if not role:
+            return
+        from django.contrib.auth.models import Group
+
+        group, _ = Group.objects.get_or_create(name=role.lower())
+        user.groups.set([group])
+
     def create(self, validated_data):
         password = validated_data.pop('password', None)
-        instance = User.objects.create(**validated_data)
-        if password:
-            instance.set_password(password)
-            instance.save()
-        return instance
-    
+        role = validated_data.pop('role', None)
+        if not password:
+            raise serializers.ValidationError({'password': 'This field is required.'})
+        user = User.objects.create_user(password=password, **validated_data)
+        self._apply_role(user, role)
+        return user
+
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
+        role = validated_data.pop('role', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
         instance.save()
+        if role is not None:
+            self._apply_role(instance, role)
         return instance

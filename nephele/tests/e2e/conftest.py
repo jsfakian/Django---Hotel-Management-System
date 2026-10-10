@@ -4,6 +4,26 @@ import os
 import pytest
 import requests
 
+# Deterministic users created by `python manage.py seed_e2e_users`.
+E2E_USERS = {
+    "guest": {"username": "e2e_guest", "password": "E2eGuest!123"},
+    "receptionist": {
+        "username": "e2e_receptionist",
+        "password": "E2eRecep!123",
+    },
+    "manager": {"username": "e2e_manager", "password": "E2eMgr!123"},
+}
+
+
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    # Desktop viewport so AuthShell brand (md+) and ops Sidebar are visible.
+    return {
+        **browser_context_args,
+        "viewport": {"width": 1280, "height": 720},
+        "ignore_https_errors": True,
+    }
+
 
 @pytest.fixture(scope="session")
 def base_url():
@@ -16,79 +36,34 @@ def api_url():
 
 
 @pytest.fixture(scope="session")
-def admin_token(api_url):
-    # Defaults match docker-compose bootstrap (see DJANGO_SUPERUSER_*).
-    username = os.getenv("DJANGO_SUPERUSER_USERNAME", "admin")
-    password = os.getenv("DJANGO_SUPERUSER_PASSWORD", "admin123")
-    response = requests.post(
-        f"{api_url}/api/v1/auth/login/",
-        json={"username": username, "password": password},
-        timeout=10,
-    )
-    response.raise_for_status()
-    return response.json()["access"]
+def guest_credentials():
+    return E2E_USERS["guest"]
 
 
 @pytest.fixture(scope="session")
-def api_session(admin_token):
-    session = requests.Session()
-    session.headers["Authorization"] = f"Bearer {admin_token}"
-    return session
-
-
-def _create_user(api_session, api_url, username, password, role):
-    response = api_session.post(
-        f"{api_url}/api/v1/users/",
-        json={"username": username, "password": password, "role": role},
-        timeout=10,
-    )
-    if response.status_code not in (200, 201, 409):
-        response.raise_for_status()
-    return {"username": username, "password": password}
-
-
-def _delete_user(api_session, api_url, username):
-    response = api_session.get(
-        f"{api_url}/api/v1/users/",
-        params={"username": username},
-        timeout=10,
-    )
-    if response.status_code != 200:
-        return
-    data = response.json()
-    results = data.get("results", data) if isinstance(data, dict) else data
-    for user in results:
-        if user.get("username") == username:
-            api_session.delete(
-                f"{api_url}/api/v1/users/{user['id']}/",
-                timeout=10,
-            )
-            break
+def receptionist_credentials():
+    return E2E_USERS["receptionist"]
 
 
 @pytest.fixture(scope="session")
-def guest_credentials(api_session, api_url):
-    creds = _create_user(api_session, api_url, "e2e_guest", "E2eGuest!123", "guest")
-    yield creds
-    _delete_user(api_session, api_url, "e2e_guest")
+def manager_credentials():
+    return E2E_USERS["manager"]
 
 
-@pytest.fixture(scope="session")
-def receptionist_credentials(api_session, api_url):
-    creds = _create_user(
-        api_session, api_url, "e2e_receptionist", "E2eRecep!123", "receptionist"
-    )
-    yield creds
-    _delete_user(api_session, api_url, "e2e_receptionist")
-
-
-@pytest.fixture(scope="session")
-def manager_credentials(api_session, api_url):
-    creds = _create_user(
-        api_session, api_url, "e2e_manager", "E2eMgr!123", "manager"
-    )
-    yield creds
-    _delete_user(api_session, api_url, "e2e_manager")
+@pytest.fixture(scope="session", autouse=True)
+def _verify_api_reachable(api_url):
+    """Fail fast with a clear message if the stack is not up."""
+    try:
+        response = requests.get(f"{api_url}/api/v1/schema/", timeout=5)
+        if response.status_code >= 500:
+            pytest.exit(f"API unhealthy at {api_url}: HTTP {response.status_code}", 1)
+    except requests.RequestException as exc:
+        pytest.exit(
+            f"API not reachable at {api_url}. Start stack + seed users "
+            f"(make up && docker compose exec django python manage.py seed_e2e_users). "
+            f"Error: {exc}",
+            1,
+        )
 
 
 def do_login(page, base_url, username, password):
