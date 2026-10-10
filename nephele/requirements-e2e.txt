@@ -1,5 +1,5 @@
 # Browser E2E extras (install after requirements-ci / requirements-test)
-# Used by: make playwright-install, make test-e2e-browser, CI e2e job
+# Playwright >=1.45 required for Ubuntu 24.04 (GitHub Actions ubuntu-latest).
 
-playwright==1.40.0
-pytest-playwright==0.4.4
+playwright==1.49.1
+pytest-playwright==0.6.2

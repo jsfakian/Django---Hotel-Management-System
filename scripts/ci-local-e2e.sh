@@ -15,7 +15,7 @@ if [[ ! -x "${VENV_PY}" ]]; then
 fi
 
 "${VENV_PY}" -m pip install -q -r "${ROOT}/nephele/requirements-e2e.txt"
-"${ROOT}/.venv/bin/playwright" install --with-deps chromium
+"${VENV_PY}" -m playwright install --with-deps chromium
 
 E2E_FRONTEND_URL="${E2E_FRONTEND_URL:-http://localhost:3000}"
 E2E_API_URL="${E2E_API_URL:-http://localhost:8000}"

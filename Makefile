@@ -242,7 +242,7 @@ playwright-install:
 	@echo "Installing Playwright e2e dependencies..."
 	@test -x .venv/bin/python || python3 -m venv .venv
 	.venv/bin/pip install -q -r nephele/requirements-e2e.txt
-	.venv/bin/playwright install --with-deps chromium
+	.venv/bin/python -m playwright install --with-deps chromium
 	@echo "Playwright browsers installed"
 
 # Run browser-based E2E tests with Playwright (requires stack running: make up)
