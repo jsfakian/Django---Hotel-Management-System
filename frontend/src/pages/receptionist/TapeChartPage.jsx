@@ -209,9 +209,9 @@ export default function TapeChartPage() {
 
   return (
     <AppLayout>
-      <Typography variant="h5" sx={{ mb: 1, fontFamily: '"Fraunces", Georgia, serif' }}>Tape chart</Typography>
+      <Typography variant="h5" sx={{ mb: 1, fontFamily: '"Fraunces", Georgia, serif' }}>Calendar</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Drag an unassigned booking onto a room row (or select + Assign) to place it.
+        Room timeline — drag an unassigned booking onto a room row (or select + Assign) to place it.
       </Typography>
 
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, FormControl, InputLabel, Select, MenuItem, TextField, Chip } from '@mui/material'
-import AppLayout from '../../../components/layout/AppLayout'
+import PageShell from '../../../components/common/PageShell'
 import DataTable from '../../../components/common/DataTable'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import PageHeader from '../../../components/common/PageHeader'
@@ -18,7 +18,7 @@ const columns = [
   { field: 'created_at', headerName: 'Date', width: 120, renderCell: (r) => r.created_at ? new Date(r.created_at).toLocaleDateString() : '—' },
 ]
 
-export default function PaymentsListPage() {
+export default function PaymentsListPage({ embedded = false }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
   const [dateAfter, setDateAfter] = useState('')
@@ -27,8 +27,8 @@ export default function PaymentsListPage() {
   const rows = data?.results || data || []
 
   return (
-    <AppLayout>
-      <PageHeader title="Payments" subtitle="Filter and review guest payments" />
+    <PageShell embedded={embedded}>
+      {!embedded && <PageHeader title="Payments" subtitle="Filter and review guest payments" />}
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <InputLabel>Status</InputLabel>
@@ -41,6 +41,6 @@ export default function PaymentsListPage() {
       </Box>
       {error && <ErrorAlert error={error} />}
       <DataTable columns={columns} rows={rows} loading={isLoading} onRowClick={(r) => navigate(`/admin/payments/${r.id}`)} />
-    </AppLayout>
+    </PageShell>
   )
 }

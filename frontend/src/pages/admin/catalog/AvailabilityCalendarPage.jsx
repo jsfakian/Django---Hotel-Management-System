@@ -4,7 +4,7 @@ import {
   TextField, Typography, Table, TableHead, TableBody, TableRow, TableCell,
   Paper, Switch, Alert,
 } from '@mui/material'
-import AppLayout from '../../../components/layout/AppLayout'
+import PageShell from '../../../components/common/PageShell'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import {
   useGetRoomTypesQuery,
@@ -121,7 +121,7 @@ function BulkToolbar({ applyBulk }) {
   )
 }
 
-export default function AvailabilityCalendarPage() {
+export default function AvailabilityCalendarPage({ embedded = false }) {
   const today = new Date()
   const defaultFrom = today.toISOString().slice(0, 10)
   const defaultTo = new Date(today.getTime() + 7 * 86400000).toISOString().slice(0, 10)
@@ -202,13 +202,17 @@ export default function AvailabilityCalendarPage() {
   }
 
   return (
-    <AppLayout>
-      <Typography variant="h5" sx={{ mb: 2, fontFamily: '"Fraunces", Georgia, serif' }}>
-        Availability calendar
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Edit allotment, min stay, and stop-sell by room type for a date range.
-      </Typography>
+    <PageShell embedded={embedded}>
+      {!embedded && (
+        <>
+          <Typography variant="h5" sx={{ mb: 2, fontFamily: '"Fraunces", Georgia, serif' }}>
+            Availability calendar
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Edit allotment, min stay, and stop-sell by room type for a date range.
+          </Typography>
+        </>
+      )}
 
       {error && <ErrorAlert error={error} />}
       {saveError && <ErrorAlert error={saveError} />}
@@ -241,6 +245,6 @@ export default function AvailabilityCalendarPage() {
           <CalendarGrid dates={dates} dayState={dayState} setDayState={setDayState} />
         </>
       )}
-    </AppLayout>
+    </PageShell>
   )
 }

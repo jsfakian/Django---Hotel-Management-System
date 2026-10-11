@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import {
@@ -15,6 +15,8 @@ import {
   Divider,
   Button,
   ListSubheader,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import {
   Dashboard,
@@ -51,9 +53,12 @@ import {
   ViewTimeline,
   CleaningServices,
   Settings,
+  PushPin,
+  PushPinOutlined,
 } from '@mui/icons-material'
 import { clearCredentials, selectCurrentUser, selectUserRole } from '../../features/auth/authSlice'
 import { SIDEBAR_ITEMS, groupSidebarItems } from './sidebarConfig'
+import { loadPins, togglePin } from './navPins'
 
 const DRAWER_WIDTH = 260
 
@@ -101,7 +106,49 @@ const ROLE_LABELS = {
   guest: 'Guest',
 }
 
-function SidebarGroup({ group, pathname, onNavigate }) {
+function NavItem({ item, pathname, pinned, onNavigate, onTogglePin, showPin }) {
+  const IconComponent = ICON_MAP[item.icon]
+  const isActive =
+    pathname === item.path ||
+    (item.path !== '/' && pathname.startsWith(`${item.path}/`)) ||
+    (item.path.includes('?') && pathname === item.path.split('?')[0])
+
+  return (
+    <ListItem
+      disablePadding
+      secondaryAction={
+        showPin ? (
+          <Tooltip title={pinned ? 'Unpin' : 'Pin'}>
+            <IconButton
+              edge="end"
+              size="small"
+              aria-label={pinned ? 'Unpin' : 'Pin'}
+              onClick={(e) => {
+                e.stopPropagation()
+                onTogglePin(item.path)
+              }}
+              sx={{ mr: 0.5, opacity: pinned ? 1 : 0.35 }}
+            >
+              {pinned ? <PushPin fontSize="inherit" /> : <PushPinOutlined fontSize="inherit" />}
+            </IconButton>
+          </Tooltip>
+        ) : null
+      }
+    >
+      <ListItemButton selected={isActive} onClick={() => onNavigate(item.path)} sx={{ pr: showPin ? 6 : undefined }}>
+        <ListItemIcon sx={{ minWidth: 36 }}>
+          {IconComponent ? <IconComponent fontSize="small" /> : null}
+        </ListItemIcon>
+        <ListItemText
+          primary={item.label}
+          primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isActive ? 600 : 500 }}
+        />
+      </ListItemButton>
+    </ListItem>
+  )
+}
+
+function SidebarGroup({ group, pathname, pins, onNavigate, onTogglePin, showPin }) {
   return (
     <List
       dense
@@ -122,26 +169,17 @@ function SidebarGroup({ group, pathname, onNavigate }) {
         </ListSubheader>
       }
     >
-      {group.items.map((item) => {
-        const IconComponent = ICON_MAP[item.icon]
-        const isActive =
-          pathname === item.path ||
-          (item.path !== '/' && pathname.startsWith(`${item.path}/`))
-
-        return (
-          <ListItem key={item.path} disablePadding>
-            <ListItemButton selected={isActive} onClick={() => onNavigate(item.path)}>
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                {IconComponent ? <IconComponent fontSize="small" /> : null}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: isActive ? 600 : 500 }}
-              />
-            </ListItemButton>
-          </ListItem>
-        )
-      })}
+      {group.items.map((item) => (
+        <NavItem
+          key={item.path}
+          item={item}
+          pathname={pathname}
+          pinned={pins.includes(item.path)}
+          onNavigate={onNavigate}
+          onTogglePin={onTogglePin}
+          showPin={showPin}
+        />
+      ))}
     </List>
   )
 }
@@ -152,9 +190,20 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
   const dispatch = useDispatch()
   const user = useSelector(selectCurrentUser)
   const role = useSelector(selectUserRole)
-
   const items = SIDEBAR_ITEMS[role] || []
+  const [pins, setPins] = useState(() => loadPins(role))
+
+  useEffect(() => {
+    setPins(loadPins(role))
+  }, [role])
+
   const groups = groupSidebarItems(items)
+  const showPin = role !== 'guest'
+  const pinnedItems = items.filter((i) => pins.includes(i.path))
+
+  const handleTogglePin = (path) => {
+    setPins(togglePin(role, path))
+  }
 
   const handleLogout = () => {
     dispatch(clearCredentials())
@@ -189,8 +238,26 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
       <Divider />
 
       <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
+        {pinnedItems.length > 0 && (
+          <SidebarGroup
+            group={{ name: 'Pinned', items: pinnedItems }}
+            pathname={location.pathname}
+            pins={pins}
+            onNavigate={navigate}
+            onTogglePin={handleTogglePin}
+            showPin={showPin}
+          />
+        )}
         {groups.map((group) => (
-          <SidebarGroup key={group.name} group={group} pathname={location.pathname} onNavigate={navigate} />
+          <SidebarGroup
+            key={group.name}
+            group={group}
+            pathname={location.pathname}
+            pins={pins}
+            onNavigate={navigate}
+            onTogglePin={handleTogglePin}
+            showPin={showPin}
+          />
         ))}
       </Box>
 

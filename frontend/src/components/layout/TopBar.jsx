@@ -15,6 +15,7 @@ import {
   Divider,
   Box,
   Chip,
+  Button,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -22,10 +23,12 @@ import {
   AccountCircle,
   Logout,
   Settings,
+  Add,
 } from '@mui/icons-material'
 import { clearCredentials, selectCurrentUser, selectUserRole } from '../../features/auth/authSlice'
 import { useLogoutMutation } from '../../features/auth/authApi'
 import { DRAWER_WIDTH } from './Sidebar'
+import GlobalSearch from './GlobalSearch'
 
 const ROLE_LABELS = {
   admin: 'Administrator',
@@ -33,6 +36,13 @@ const ROLE_LABELS = {
   receptionist: 'Reception',
   staff: 'Staff',
   guest: 'Guest',
+}
+
+function newBookingPath(role) {
+  if (role === 'admin' || role === 'manager' || role === 'receptionist') {
+    return '/admin/bookings/new'
+  }
+  return null
 }
 
 function UserAccountMenu({ user, role, anchorEl, onClose, onProfile, onSettings, onLogout }) {
@@ -79,6 +89,7 @@ export default function TopBar({ onDrawerToggle }) {
   const role = useSelector(selectUserRole)
   const [logout] = useLogoutMutation()
   const [anchorEl, setAnchorEl] = useState(null)
+  const bookingPath = newBookingPath(role)
 
   const closeMenu = () => setAnchorEl(null)
 
@@ -122,7 +133,12 @@ export default function TopBar({ onDrawerToggle }) {
         <Typography
           variant="h6"
           component="div"
-          sx={{ fontFamily: '"Fraunces", Georgia, serif', fontWeight: 600, mr: 2 }}
+          sx={{
+            fontFamily: '"Fraunces", Georgia, serif',
+            fontWeight: 600,
+            mr: 2,
+            display: { xs: 'none', sm: 'block' },
+          }}
         >
           Nephele
         </Typography>
@@ -131,16 +147,41 @@ export default function TopBar({ onDrawerToggle }) {
           label={ROLE_LABELS[role] || role || 'Workspace'}
           color="primary"
           variant="outlined"
-          sx={{ mr: 'auto', display: { xs: 'none', sm: 'inline-flex' } }}
+          sx={{ mr: 2, display: { xs: 'none', md: 'inline-flex' } }}
         />
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <GlobalSearch />
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {bookingPath && (
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => navigate(bookingPath)}
+              sx={{ mr: 0.5, display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              New booking
+            </Button>
+          )}
+          {bookingPath && (
+            <IconButton
+              color="primary"
+              aria-label="New booking"
+              onClick={() => navigate(bookingPath)}
+              sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+            >
+              <Add />
+            </IconButton>
+          )}
           <IconButton color="inherit" aria-label="Notifications">
             <Badge badgeContent={0} color="error">
               <Notifications />
             </Badge>
           </IconButton>
-          <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small" sx={{ ml: 1 }}>
+          <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small" sx={{ ml: 0.5 }}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.875rem' }}>
               {userInitial}
             </Avatar>

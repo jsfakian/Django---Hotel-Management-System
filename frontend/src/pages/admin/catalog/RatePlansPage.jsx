@@ -5,7 +5,7 @@ import {
   Switch, MenuItem, Typography,
 } from '@mui/material'
 import { Add } from '@mui/icons-material'
-import AppLayout from '../../../components/layout/AppLayout'
+import PageShell from '../../../components/common/PageShell'
 import DataTable from '../../../components/common/DataTable'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import {
@@ -151,7 +151,7 @@ function BulkCsvUpload({ ratePlans }) {
   )
 }
 
-export default function RatePlansPage() {
+export default function RatePlansPage({ embedded = false }) {
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -212,7 +212,7 @@ export default function RatePlansPage() {
   }
 
   return (
-    <AppLayout>
+    <PageShell embedded={embedded}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         <Button variant="contained" startIcon={<Add />} onClick={() => { setForm(EMPTY); setOpen(true) }}>Add Rate Plan</Button>
       </Box>
@@ -249,6 +249,6 @@ export default function RatePlansPage() {
           <Button color="error" disabled={deleting} onClick={async () => { await deleteRatePlan(deleteTarget.id); setDeleteTarget(null) }}>Delete</Button>
         </DialogActions>
       </Dialog>
-    </AppLayout>
+    </PageShell>
   )
 }

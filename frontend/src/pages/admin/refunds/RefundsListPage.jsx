@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, FormControl, InputLabel, Select, MenuItem, Chip } from '@mui/material'
-import AppLayout from '../../../components/layout/AppLayout'
+import PageShell from '../../../components/common/PageShell'
 import DataTable from '../../../components/common/DataTable'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import { useGetRefundsQuery } from '../../../features/refunds/refundsApi'
@@ -17,14 +17,14 @@ const columns = [
   { field: 'created_at', headerName: 'Requested', width: 120, renderCell: (r) => r.created_at ? new Date(r.created_at).toLocaleDateString() : '—' },
 ]
 
-export default function RefundsListPage() {
+export default function RefundsListPage({ embedded = false }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
   const { data, isLoading, error } = useGetRefundsQuery({ status: status || undefined })
   const rows = data?.results || data || []
 
   return (
-    <AppLayout>
+    <PageShell embedded={embedded}>
       <Box sx={{ mb: 2 }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>Status</InputLabel>
@@ -35,6 +35,6 @@ export default function RefundsListPage() {
       </Box>
       {error && <ErrorAlert error={error} />}
       <DataTable columns={columns} rows={rows} loading={isLoading} onRowClick={(r) => navigate(`/admin/refunds/${r.id}`)} />
-    </AppLayout>
+    </PageShell>
   )
 }

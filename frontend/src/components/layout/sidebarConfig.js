@@ -1,8 +1,8 @@
 /**
- * Ops sidebar — Phase 1 simplified IA.
+ * Ops sidebar — simplified IA (Phases 1–4).
  * Primary nav stays short; setup lives under Settings hubs.
  *
- * Groups: Operations | Revenue | Distribution | (Settings is separate)
+ * Groups: Operations | Revenue | Distribution | Account
  */
 
 /** Nested links shown on /admin/settings (and role variants). */
@@ -19,21 +19,9 @@ export const SETTINGS_SECTIONS = {
       ],
     },
     {
-      name: 'Rates catalog',
-      description: 'Room types, plans, and inventory',
+      name: 'Billing & pricing',
+      description: 'Contracts and dynamic pricing',
       items: [
-        { label: 'Room types', path: '/admin/room-types', icon: 'Category' },
-        { label: 'Rate plans', path: '/admin/rate-plans', icon: 'LocalOffer' },
-        { label: 'Availability calendar', path: '/admin/availability-calendar', icon: 'CalendarMonth' },
-        { label: 'Inventory', path: '/admin/inventory', icon: 'GridView' },
-      ],
-    },
-    {
-      name: 'Billing',
-      description: 'Invoices, refunds, and contracts',
-      items: [
-        { label: 'Invoices', path: '/admin/invoices', icon: 'Receipt' },
-        { label: 'Refunds', path: '/admin/refunds', icon: 'MoneyOff' },
         { label: 'Contracts', path: '/admin/contracts', icon: 'Description' },
         { label: 'Dynamic pricing', path: '/admin/pricing', icon: 'TrendingUp' },
       ],
@@ -91,9 +79,10 @@ export const SIDEBAR_ITEMS = {
 
   manager: [
     { label: 'Dashboard', path: '/manager/dashboard', icon: 'Dashboard', group: 'Operations' },
+    { label: 'Calendar', path: '/receptionist/tape-chart', icon: 'ViewTimeline', group: 'Operations' },
     { label: 'Reservations', path: '/manager/bookings', icon: 'EventNote', group: 'Operations' },
     { label: 'Rooms', path: '/manager/rooms', icon: 'MeetingRoom', group: 'Operations' },
-    { label: 'Payments', path: '/manager/payments', icon: 'Payment', group: 'Revenue' },
+    { label: 'Payments', path: '/admin/payments', icon: 'Payment', group: 'Revenue' },
     { label: 'Reports', path: '/manager/analytics', icon: 'BarChart', group: 'Revenue' },
     { label: 'Settings', path: '/manager/settings', icon: 'Settings', group: 'Account' },
   ],
@@ -105,7 +94,6 @@ export const SIDEBAR_ITEMS = {
     { label: 'Check-in / out', path: '/receptionist/check-in', icon: 'HotelOutlined', group: 'Operations' },
     { label: 'Guests', path: '/receptionist/guests', icon: 'People', group: 'Operations' },
     { label: 'Housekeeping', path: '/receptionist/housekeeping', icon: 'CleaningServices', group: 'Operations' },
-    { label: 'Payments', path: '/receptionist/payments', icon: 'Payment', group: 'Revenue' },
   ],
 
   staff: [

@@ -5,7 +5,7 @@ import {
   DialogActions, Alert, CircularProgress,
 } from '@mui/material'
 import { Refresh } from '@mui/icons-material'
-import AppLayout from '../../../components/layout/AppLayout'
+import PageShell from '../../../components/common/PageShell'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import {
   useGetPropertyAvailabilityQuery,
@@ -106,7 +106,38 @@ function PropertyPicker({ propertyList, propertyId, onChange, onRefresh, disable
   )
 }
 
-export default function InventoryPage() {
+function InventoryBody({
+  embedded, msg, setMsg, properties, propertyId, setPropertyId, refetch, isLoading,
+  error, rooms, handleEdit, syncLog, editTarget, editStatus, setEditStatus, setEditTarget,
+  handleUpdate, updating,
+}) {
+  return (
+    <PageShell embedded={embedded}>
+      {!embedded && <Typography variant="h5" sx={{ mb: 3 }}>Inventory Management</Typography>}
+      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
+
+      <PropertyPicker propertyList={listOf(properties)} propertyId={propertyId} onChange={setPropertyId}
+        onRefresh={refetch} disabled={!propertyId || isLoading} />
+
+      {error && <ErrorAlert error={error} />}
+
+      {isLoading && <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress /></Box>}
+
+      {!isLoading && rooms.length > 0 && <RoomsTable rooms={rooms} onEdit={handleEdit} />}
+
+      {!isLoading && propertyId && rooms.length === 0 && (
+        <Typography color="text.secondary">No rooms found for this property.</Typography>
+      )}
+
+      {Array.isArray(syncLog) && syncLog.length > 0 && <SyncLogTable entries={syncLog} />}
+
+      <EditStatusDialog target={editTarget} status={editStatus} onStatusChange={setEditStatus}
+        onClose={() => setEditTarget(null)} onSubmit={handleUpdate} updating={updating} />
+    </PageShell>
+  )
+}
+
+export default function InventoryPage({ embedded = false }) {
   const [propertyId, setPropertyId] = useState('')
   const [editTarget, setEditTarget] = useState(null)
   const [editStatus, setEditStatus] = useState('')
@@ -129,30 +160,26 @@ export default function InventoryPage() {
     setEditTarget(null)
   }
 
-  const handleEdit = (room) => { setEditTarget(room); setEditStatus(room.status) }
-
   return (
-    <AppLayout>
-      <Typography variant="h5" sx={{ mb: 3 }}>Inventory Management</Typography>
-      {msg && <Alert severity={msg.type} sx={{ mb: 2 }} onClose={() => setMsg(null)}>{msg.text}</Alert>}
-
-      <PropertyPicker propertyList={listOf(properties)} propertyId={propertyId} onChange={setPropertyId}
-        onRefresh={refetch} disabled={!propertyId || isLoading} />
-
-      {error && <ErrorAlert error={error} />}
-
-      {isLoading && <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress /></Box>}
-
-      {!isLoading && rooms.length > 0 && <RoomsTable rooms={rooms} onEdit={handleEdit} />}
-
-      {!isLoading && propertyId && rooms.length === 0 && (
-        <Typography color="text.secondary">No rooms found for this property.</Typography>
-      )}
-
-      {Array.isArray(syncLog) && syncLog.length > 0 && <SyncLogTable entries={syncLog} />}
-
-      <EditStatusDialog target={editTarget} status={editStatus} onStatusChange={setEditStatus}
-        onClose={() => setEditTarget(null)} onSubmit={handleUpdate} updating={updating} />
-    </AppLayout>
+    <InventoryBody
+      embedded={embedded}
+      msg={msg}
+      setMsg={setMsg}
+      properties={properties}
+      propertyId={propertyId}
+      setPropertyId={setPropertyId}
+      refetch={refetch}
+      isLoading={isLoading}
+      error={error}
+      rooms={rooms}
+      handleEdit={(room) => { setEditTarget(room); setEditStatus(room.status) }}
+      syncLog={syncLog}
+      editTarget={editTarget}
+      editStatus={editStatus}
+      setEditStatus={setEditStatus}
+      setEditTarget={setEditTarget}
+      handleUpdate={handleUpdate}
+      updating={updating}
+    />
   )
 }

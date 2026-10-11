@@ -42,17 +42,10 @@ const GuestFormPage = lazy(() => import('./pages/admin/guests/GuestFormPage'))
 const UsersListPage = lazy(() => import('./pages/admin/users/UsersListPage'))
 const UserDetailPage = lazy(() => import('./pages/admin/users/UserDetailPage'))
 
-// Admin — payments
-const PaymentsListPage = lazy(() => import('./pages/admin/payments/PaymentsListPage'))
+// Admin — payments / invoices / refunds (lists live in PaymentsHubPage)
 const PaymentDetailPage = lazy(() => import('./pages/admin/payments/PaymentDetailPage'))
 const PaymentProcessPage = lazy(() => import('./pages/admin/payments/PaymentProcessPage'))
-
-// Admin — invoices
-const InvoicesListPage = lazy(() => import('./pages/admin/invoices/InvoicesListPage'))
 const AdminInvoiceDetailPage = lazy(() => import('./pages/admin/invoices/InvoiceDetailPage'))
-
-// Admin — refunds
-const RefundsListPage = lazy(() => import('./pages/admin/refunds/RefundsListPage'))
 const AdminRefundDetailPage = lazy(() => import('./pages/admin/refunds/RefundDetailPage'))
 
 // Admin — employees
@@ -92,17 +85,10 @@ const PricingAnalysisPage = lazy(() => import('./pages/admin/pricing/PricingAnal
 // Admin — channels (OTA)
 const ChannelsListPage = lazy(() => import('./pages/admin/channels/ChannelsListPage'))
 
-// Admin — catalog (room types / rate plans / availability)
-const RoomTypesPage = lazy(() => import('./pages/admin/catalog/RoomTypesPage'))
-const RatePlansPage = lazy(() => import('./pages/admin/catalog/RatePlansPage'))
-const AvailabilityCalendarPage = lazy(() => import('./pages/admin/catalog/AvailabilityCalendarPage'))
-
-// Admin — inventory
-const InventoryPage = lazy(() => import('./pages/admin/inventory/InventoryPage'))
-
-// Admin — IA hubs (Phase 1 simplified nav)
+// Admin — IA hubs (simplified nav)
 const SettingsHubPage = lazy(() => import('./pages/admin/SettingsHubPage'))
 const RatesHubPage = lazy(() => import('./pages/admin/RatesHubPage'))
+const PaymentsHubPage = lazy(() => import('./pages/admin/PaymentsHubPage'))
 
 // Public booking engine
 const BookingSearchPage = lazy(() => import('./pages/public/booking/BookingSearchPage'))
@@ -205,7 +191,7 @@ function adminRoutes() {
 
         {/* Bookings */}
         <Route path="/admin/bookings" element={<PR roles={['admin']}><BookingsListPage /></PR>} />
-        <Route path="/admin/bookings/new" element={<PR roles={['admin']}><BookingFormPage /></PR>} />
+        <Route path="/admin/bookings/new" element={<PR roles={['admin', 'manager', 'receptionist']}><BookingFormPage /></PR>} />
         <Route path="/admin/bookings/:id" element={<PR roles={['admin']}><BookingDetailPage /></PR>} />
         <Route path="/admin/bookings/:id/edit" element={<PR roles={['admin']}><BookingFormPage /></PR>} />
 
@@ -219,17 +205,13 @@ function adminRoutes() {
         <Route path="/admin/users" element={<PR roles={['admin']}><UsersListPage /></PR>} />
         <Route path="/admin/users/:id" element={<PR roles={['admin']}><UserDetailPage /></PR>} />
 
-        {/* Payments */}
-        <Route path="/admin/payments" element={<PR roles={ADMIN_MANAGER}><PaymentsListPage /></PR>} />
+        {/* Payments hub (payments / invoices / refunds tabs) */}
+        <Route path="/admin/payments" element={<PR roles={ADMIN_MANAGER}><PaymentsHubPage /></PR>} />
         <Route path="/admin/payments/new" element={<PR roles={ADMIN_MANAGER}><PaymentProcessPage /></PR>} />
         <Route path="/admin/payments/:id" element={<PR roles={ADMIN_MANAGER}><PaymentDetailPage /></PR>} />
-
-        {/* Invoices */}
-        <Route path="/admin/invoices" element={<PR roles={ADMIN_MANAGER}><InvoicesListPage /></PR>} />
+        <Route path="/admin/invoices" element={<Navigate to="/admin/payments?tab=invoices" replace />} />
         <Route path="/admin/invoices/:id" element={<PR roles={ADMIN_MANAGER}><AdminInvoiceDetailPage /></PR>} />
-
-        {/* Refunds */}
-        <Route path="/admin/refunds" element={<PR roles={ADMIN_MANAGER}><RefundsListPage /></PR>} />
+        <Route path="/admin/refunds" element={<Navigate to="/admin/payments?tab=refunds" replace />} />
         <Route path="/admin/refunds/:id" element={<PR roles={ADMIN_MANAGER}><AdminRefundDetailPage /></PR>} />
 
         {/* Employees */}
@@ -272,16 +254,13 @@ function adminRoutes() {
         {/* OTA Channels */}
         <Route path="/admin/channels" element={<PR roles={['admin']}><ChannelsListPage /></PR>} />
 
-        {/* Catalog */}
-        <Route path="/admin/room-types" element={<PR roles={ADMIN_MANAGER}><RoomTypesPage /></PR>} />
-        <Route path="/admin/rate-plans" element={<PR roles={ADMIN_MANAGER}><RatePlansPage /></PR>} />
-        <Route path="/admin/availability-calendar" element={<PR roles={ADMIN_MANAGER}><AvailabilityCalendarPage /></PR>} />
-
-        {/* Inventory */}
-        <Route path="/admin/inventory" element={<PR roles={ADMIN_MANAGER}><InventoryPage /></PR>} />
-
-        {/* Simplified nav hubs */}
+        {/* Catalog + inventory → Rates hub (legacy paths redirect) */}
         <Route path="/admin/rates" element={<PR roles={ADMIN_MANAGER}><RatesHubPage /></PR>} />
+        <Route path="/admin/room-types" element={<Navigate to="/admin/rates?tab=room-types" replace />} />
+        <Route path="/admin/rate-plans" element={<Navigate to="/admin/rates?tab=rate-plans" replace />} />
+        <Route path="/admin/availability-calendar" element={<Navigate to="/admin/rates?tab=availability" replace />} />
+        <Route path="/admin/inventory" element={<Navigate to="/admin/rates?tab=inventory" replace />} />
+
         <Route path="/admin/settings" element={<PR roles={['admin']}><SettingsHubPage /></PR>} />
     </>
   )
@@ -323,7 +302,7 @@ export default function App() {
         <Route path="/manager/dashboard" element={<PR roles={['manager']}><ManagerDashboard /></PR>} />
         <Route path="/manager/bookings" element={<PR roles={['manager']}><BookingsListPage /></PR>} />
         <Route path="/manager/rooms" element={<PR roles={['manager']}><RoomsListPage /></PR>} />
-        <Route path="/manager/payments" element={<PR roles={['manager']}><PaymentsListPage /></PR>} />
+        <Route path="/manager/payments" element={<Navigate to="/admin/payments" replace />} />
         <Route path="/manager/analytics" element={<PR roles={['manager']}><AnalyticsHubPage /></PR>} />
         <Route path="/manager/events" element={<PR roles={['manager']}><EventsListPage /></PR>} />
         <Route path="/manager/contracts" element={<PR roles={['manager']}><ContractsListPage /></PR>} />

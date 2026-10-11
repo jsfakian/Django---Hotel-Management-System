@@ -4,7 +4,7 @@ import {
   TextField, Grid, Chip, FormControlLabel, Switch,
 } from '@mui/material'
 import { Add } from '@mui/icons-material'
-import AppLayout from '../../../components/layout/AppLayout'
+import PageShell from '../../../components/common/PageShell'
 import DataTable from '../../../components/common/DataTable'
 import ErrorAlert from '../../../components/common/ErrorAlert'
 import {
@@ -73,7 +73,7 @@ function toPayload(form) {
   }
 }
 
-export default function RoomTypesPage() {
+export default function RoomTypesPage({ embedded = false }) {
   const [open, setOpen] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -119,7 +119,7 @@ export default function RoomTypesPage() {
   }
 
   return (
-    <AppLayout>
+    <PageShell embedded={embedded}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         <Button variant="contained" startIcon={<Add />} onClick={() => { setForm(EMPTY); setOpen(true) }}>Add Room Type</Button>
       </Box>
@@ -155,6 +155,6 @@ export default function RoomTypesPage() {
           <Button color="error" disabled={deleting} onClick={async () => { await deleteRoomType(deleteTarget.id); setDeleteTarget(null) }}>Delete</Button>
         </DialogActions>
       </Dialog>
-    </AppLayout>
+    </PageShell>
   )
 }
