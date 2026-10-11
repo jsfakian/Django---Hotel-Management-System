@@ -1,137 +1,127 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Grid, Box } from '@mui/material'
 import {
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Button,
-} from '@mui/material'
-import {
-  Login as CheckInIcon,
-  Logout as CheckOutIcon,
+  Login as ArrivalsIcon,
+  Logout as DeparturesIcon,
+  People,
+  Hotel,
+  MeetingRoom,
   Add,
+  ViewTimeline,
   EventNote,
+  HotelOutlined,
+  CleaningServices,
+  PersonOutline,
 } from '@mui/icons-material'
 import { useGetDashboardStatsQuery } from '../../features/dashboard/dashboardApi'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ErrorAlert from '../../components/common/ErrorAlert'
+import PageHeader from '../../components/common/PageHeader'
 import AppLayout from '../../components/layout/AppLayout'
+import OpsKpiStrip from '../../components/dashboard/OpsKpiStrip'
+import IconQuickActions from '../../components/dashboard/IconQuickActions'
+import TodayPanel from '../../components/dashboard/TodayPanel'
+
+const ACTIONS = [
+  { label: 'New booking', icon: Add, path: '/admin/bookings/new', color: 'primary' },
+  { label: 'Calendar', icon: ViewTimeline, path: '/receptionist/tape-chart', color: 'primary' },
+  { label: 'Check-in', icon: HotelOutlined, path: '/receptionist/check-in', color: 'success' },
+  { label: 'Reservations', icon: EventNote, path: '/receptionist/bookings', color: 'primary' },
+  { label: 'Guests', icon: PersonOutline, path: '/receptionist/guests', color: 'secondary' },
+  { label: 'Housekeeping', icon: CleaningServices, path: '/receptionist/housekeeping', color: 'warning' },
+]
 
 export default function ReceptionistDashboard() {
-  const navigate = useNavigate()
   const { data: stats, isLoading, error } = useGetDashboardStatsQuery()
+  const todayLabel = stats?.as_of
+    ? new Date(`${stats.as_of}T12:00:00`).toLocaleDateString(undefined, {
+      weekday: 'long', day: 'numeric', month: 'short',
+    })
+    : 'Today'
+
+  const kpis = stats
+    ? [
+      {
+        label: 'Arrivals',
+        value: stats.arrivals_today ?? stats.checkins_today,
+        hint: stats.pending_arrivals != null ? `${stats.pending_arrivals} remaining` : undefined,
+        icon: ArrivalsIcon,
+        accent: 'success.main',
+      },
+      {
+        label: 'Departures',
+        value: stats.departures_today ?? stats.checkouts_today,
+        hint: stats.pending_departures != null ? `${stats.pending_departures} remaining` : undefined,
+        icon: DeparturesIcon,
+        accent: 'warning.main',
+      },
+      {
+        label: 'In-house',
+        value: stats.in_house ?? stats.active_guests,
+        icon: People,
+        accent: 'primary.main',
+      },
+      {
+        label: 'Stayovers',
+        value: stats.stayovers,
+        icon: Hotel,
+        accent: 'secondary.main',
+      },
+      {
+        label: 'Available',
+        value: stats.available_rooms,
+        icon: MeetingRoom,
+        accent: 'info.main',
+      },
+      {
+        label: 'Occupancy',
+        value: stats.occupancy_rate != null ? `${stats.occupancy_rate}%` : '—',
+        icon: Hotel,
+        accent: 'primary.dark',
+      },
+    ]
+    : []
 
   return (
     <AppLayout>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5">Reception Dashboard</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Today&apos;s activity at a glance
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Front desk"
+        subtitle={`${todayLabel} — what needs action now`}
+      />
 
       {isLoading && <LoadingSpinner />}
       {error && <ErrorAlert error={error} title="Failed to load dashboard" />}
 
       {stats && (
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6}>
-            <Card>
-              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'success.light',
-                  }}
-                >
-                  <CheckInIcon sx={{ color: 'success.main', fontSize: 28 }} />
-                </Box>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Check-ins Today
-                  </Typography>
-                  <Typography variant="h4" fontWeight={700}>
-                    {stats.checkins_today ?? '—'}
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <IconQuickActions actions={ACTIONS} />
+          <OpsKpiStrip items={kpis} />
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TodayPanel
+                title="Arrivals"
+                count={stats.arrivals_today ?? stats.checkins_today}
+                pending={stats.pending_arrivals}
+                description="Check guests in and assign rooms from the calendar if needed."
+                ctaLabel="Check in"
+                ctaPath="/receptionist/check-in"
+                accent="success.main"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TodayPanel
+                title="Departures"
+                count={stats.departures_today ?? stats.checkouts_today}
+                pending={stats.pending_departures}
+                description="Complete check-out and release rooms to housekeeping."
+                ctaLabel="Open calendar"
+                ctaPath="/receptionist/tape-chart"
+                accent="warning.main"
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6}>
-            <Card>
-              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: 'warning.light',
-                  }}
-                >
-                  <CheckOutIcon sx={{ color: 'warning.main', fontSize: 28 }} />
-                </Box>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Check-outs Today
-                  </Typography>
-                  <Typography variant="h4" fontWeight={700}>
-                    {stats.checkouts_today ?? '—'}
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        </Box>
       )}
-
-      {/* Quick actions */}
-      <Card>
-        <CardContent>
-          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-            Quick Actions
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1 }}>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => navigate('/receptionist/bookings')}
-            >
-              New Booking
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<CheckInIcon />}
-              onClick={() => navigate('/receptionist/check-in')}
-            >
-              Check In
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<CheckOutIcon />}
-              onClick={() => navigate('/receptionist/check-in')}
-            >
-              Check Out
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<EventNote />}
-              onClick={() => navigate('/receptionist/bookings')}
-            >
-              View All Bookings
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
     </AppLayout>
   )
 }

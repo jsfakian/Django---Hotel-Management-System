@@ -1,16 +1,19 @@
 import React from 'react'
-import {
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Box,
-} from '@mui/material'
+import { Grid, Box } from '@mui/material'
 import {
   EventNote,
   AttachMoney,
   Hotel,
+  MeetingRoom,
+  Login as ArrivalsIcon,
+  Logout as DeparturesIcon,
   People,
+  Add,
+  ViewTimeline,
+  CleaningServices,
+  Payment,
+  Settings,
+  CloudSync,
 } from '@mui/icons-material'
 import { useGetDashboardStatsQuery } from '../../features/dashboard/dashboardApi'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
@@ -18,47 +21,84 @@ import ErrorAlert from '../../components/common/ErrorAlert'
 import PageHeader from '../../components/common/PageHeader'
 import EmptyState from '../../components/common/EmptyState'
 import AppLayout from '../../components/layout/AppLayout'
+import OpsKpiStrip from '../../components/dashboard/OpsKpiStrip'
+import IconQuickActions from '../../components/dashboard/IconQuickActions'
+import TodayPanel from '../../components/dashboard/TodayPanel'
 
-function StatCard({ title, value, icon: Icon, color }) {
-  return (
-    <Card>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              {title}
-            </Typography>
-            <Typography variant="h4" fontWeight={700}>
-              {value ?? '—'}
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: `${color}.light`,
-            }}
-          >
-            <Icon sx={{ color: `${color}.main`, fontSize: 28 }} />
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  )
+function formatEur(n) {
+  if (n == null) return '—'
+  return `€${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+}
+
+const ACTIONS = [
+  { label: 'New booking', icon: Add, path: '/admin/bookings/new', color: 'primary' },
+  { label: 'Calendar', icon: ViewTimeline, path: '/receptionist/tape-chart', color: 'primary' },
+  { label: 'Reservations', icon: EventNote, path: '/admin/bookings', color: 'primary' },
+  { label: 'Housekeeping', icon: CleaningServices, path: '/receptionist/housekeeping', color: 'warning' },
+  { label: 'Payments', icon: Payment, path: '/admin/payments', color: 'success' },
+  { label: 'Channels', icon: CloudSync, path: '/admin/channels', color: 'secondary' },
+  { label: 'Settings', icon: Settings, path: '/admin/settings', color: 'inherit' },
+]
+
+function buildKpis(stats) {
+  return [
+    {
+      label: 'Arrivals',
+      value: stats.arrivals_today ?? stats.checkins_today,
+      hint: stats.pending_arrivals != null ? `${stats.pending_arrivals} to check in` : undefined,
+      icon: ArrivalsIcon,
+      accent: 'success.main',
+    },
+    {
+      label: 'Departures',
+      value: stats.departures_today ?? stats.checkouts_today,
+      hint: stats.pending_departures != null ? `${stats.pending_departures} to check out` : undefined,
+      icon: DeparturesIcon,
+      accent: 'warning.main',
+    },
+    {
+      label: 'In-house',
+      value: stats.in_house ?? stats.active_guests,
+      icon: People,
+      accent: 'primary.main',
+    },
+    {
+      label: 'Occupancy',
+      value: stats.occupancy_rate != null ? `${stats.occupancy_rate}%` : '—',
+      hint: stats.occupied_rooms != null
+        ? `${stats.occupied_rooms}/${stats.total_rooms || '—'} rooms`
+        : undefined,
+      icon: Hotel,
+      accent: 'secondary.main',
+    },
+    {
+      label: 'Available',
+      value: stats.available_rooms,
+      icon: MeetingRoom,
+      accent: 'info.main',
+    },
+    {
+      label: 'Revenue MTD',
+      value: formatEur(stats.revenue_mtd ?? stats.total_revenue),
+      icon: AttachMoney,
+      accent: 'success.dark',
+    },
+  ]
 }
 
 export default function AdminDashboard() {
   const { data: stats, isLoading, error } = useGetDashboardStatsQuery()
+  const todayLabel = stats?.as_of
+    ? new Date(`${stats.as_of}T12:00:00`).toLocaleDateString(undefined, {
+      weekday: 'long', day: 'numeric', month: 'short',
+    })
+    : 'Today'
 
   return (
     <AppLayout>
       <PageHeader
-        title="Operations overview"
-        subtitle="Live snapshot of bookings, revenue, occupancy, and guests"
+        title="Dashboard"
+        subtitle={`${todayLabel} — arrivals, house status, and shortcuts`}
       />
 
       {isLoading && <LoadingSpinner />}
@@ -71,48 +111,34 @@ export default function AdminDashboard() {
       )}
 
       {stats && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} lg={3}>
-            <StatCard
-              title="Total Bookings"
-              value={stats.total_bookings}
-              icon={EventNote}
-              color="primary"
-            />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <IconQuickActions actions={ACTIONS} />
+          <OpsKpiStrip items={buildKpis(stats)} />
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TodayPanel
+                title="Arrivals today"
+                count={stats.arrivals_today ?? stats.checkins_today}
+                pending={stats.pending_arrivals}
+                description="Guests expected to check in. Use Calendar or Check-in to place rooms."
+                ctaLabel="Go to check-in"
+                ctaPath="/receptionist/check-in"
+                accent="success.main"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TodayPanel
+                title="Departures today"
+                count={stats.departures_today ?? stats.checkouts_today}
+                pending={stats.pending_departures}
+                description="Stays ending today. Clear folios and mark rooms for housekeeping."
+                ctaLabel="Open calendar"
+                ctaPath="/receptionist/tape-chart"
+                accent="warning.main"
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6} lg={3}>
-            <StatCard
-              title="Revenue (MTD)"
-              value={
-                stats.revenue_mtd != null
-                  ? `€${Number(stats.revenue_mtd).toLocaleString()}`
-                  : '—'
-              }
-              icon={AttachMoney}
-              color="success"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} lg={3}>
-            <StatCard
-              title="Occupancy Rate"
-              value={
-                stats.occupancy_rate != null
-                  ? `${stats.occupancy_rate}%`
-                  : '—'
-              }
-              icon={Hotel}
-              color="warning"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} lg={3}>
-            <StatCard
-              title="Active Guests"
-              value={stats.active_guests}
-              icon={People}
-              color="secondary"
-            />
-          </Grid>
-        </Grid>
+        </Box>
       )}
     </AppLayout>
   )
