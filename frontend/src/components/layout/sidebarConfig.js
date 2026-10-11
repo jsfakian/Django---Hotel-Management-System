@@ -1,70 +1,118 @@
 /**
- * Ops sidebar navigation.
- * Items may include `group` for section headings: Front desk | Revenue | Property | System
+ * Ops sidebar — Phase 1 simplified IA.
+ * Primary nav stays short; setup lives under Settings hubs.
+ *
+ * Groups: Operations | Revenue | Distribution | (Settings is separate)
  */
+
+/** Nested links shown on /admin/settings (and role variants). */
+export const SETTINGS_SECTIONS = {
+  admin: [
+    {
+      name: 'Property',
+      description: 'Hotels, agencies, and staff',
+      items: [
+        { label: 'Properties', path: '/admin/properties', icon: 'Business' },
+        { label: 'Travel agencies', path: '/admin/travel-agencies', icon: 'DirectionsBus' },
+        { label: 'Employees', path: '/admin/employees', icon: 'BadgeOutlined' },
+        { label: 'Rooms', path: '/admin/rooms', icon: 'MeetingRoom' },
+      ],
+    },
+    {
+      name: 'Rates catalog',
+      description: 'Room types, plans, and inventory',
+      items: [
+        { label: 'Room types', path: '/admin/room-types', icon: 'Category' },
+        { label: 'Rate plans', path: '/admin/rate-plans', icon: 'LocalOffer' },
+        { label: 'Availability calendar', path: '/admin/availability-calendar', icon: 'CalendarMonth' },
+        { label: 'Inventory', path: '/admin/inventory', icon: 'GridView' },
+      ],
+    },
+    {
+      name: 'Billing',
+      description: 'Invoices, refunds, and contracts',
+      items: [
+        { label: 'Invoices', path: '/admin/invoices', icon: 'Receipt' },
+        { label: 'Refunds', path: '/admin/refunds', icon: 'MoneyOff' },
+        { label: 'Contracts', path: '/admin/contracts', icon: 'Description' },
+        { label: 'Dynamic pricing', path: '/admin/pricing', icon: 'TrendingUp' },
+      ],
+    },
+    {
+      name: 'Operations',
+      description: 'Tasks, services, and hotel ops',
+      items: [
+        { label: 'Tasks', path: '/admin/tasks', icon: 'Assignment' },
+        { label: 'Room services', path: '/admin/room-services', icon: 'RoomService' },
+        { label: 'Events', path: '/admin/events', icon: 'Event' },
+        { label: 'Announcements', path: '/admin/announcements', icon: 'Campaign' },
+        { label: 'Storage', path: '/admin/storage', icon: 'Inventory' },
+      ],
+    },
+    {
+      name: 'System',
+      description: 'Access and notifications',
+      items: [
+        { label: 'Users', path: '/admin/users', icon: 'People' },
+        { label: 'Notifications', path: '/admin/notifications', icon: 'Notifications' },
+      ],
+    },
+  ],
+  manager: [
+    {
+      name: 'Operations',
+      description: 'Day-to-day property tools',
+      items: [
+        { label: 'Tasks', path: '/manager/tasks', icon: 'Assignment' },
+        { label: 'Events', path: '/manager/events', icon: 'Event' },
+        { label: 'Announcements', path: '/manager/announcements', icon: 'Campaign' },
+        { label: 'Contracts', path: '/manager/contracts', icon: 'Description' },
+      ],
+    },
+  ],
+}
+
 export const SIDEBAR_ITEMS = {
   admin: [
-    { label: 'Dashboard', path: '/admin/dashboard', icon: 'Dashboard', group: 'Front desk' },
-    { label: 'Bookings', path: '/admin/bookings', icon: 'EventNote', group: 'Front desk' },
-    { label: 'Guests', path: '/admin/guests', icon: 'PersonOutline', group: 'Front desk' },
-    { label: 'Rooms', path: '/admin/rooms', icon: 'MeetingRoom', group: 'Front desk' },
-    { label: 'Tape Chart', path: '/receptionist/tape-chart', icon: 'ViewTimeline', group: 'Front desk' },
-    { label: 'Housekeeping', path: '/receptionist/housekeeping', icon: 'CleaningServices', group: 'Front desk' },
-    { label: 'Tasks', path: '/admin/tasks', icon: 'Assignment', group: 'Front desk' },
-    { label: 'Room Services', path: '/admin/room-services', icon: 'RoomService', group: 'Front desk' },
-    { label: 'Events', path: '/admin/events', icon: 'Event', group: 'Front desk' },
-    { label: 'Announcements', path: '/admin/announcements', icon: 'Campaign', group: 'Front desk' },
+    { label: 'Dashboard', path: '/admin/dashboard', icon: 'Dashboard', group: 'Operations' },
+    { label: 'Calendar', path: '/receptionist/tape-chart', icon: 'ViewTimeline', group: 'Operations' },
+    { label: 'Reservations', path: '/admin/bookings', icon: 'EventNote', group: 'Operations' },
+    { label: 'Guests', path: '/admin/guests', icon: 'PersonOutline', group: 'Operations' },
+    { label: 'Housekeeping', path: '/receptionist/housekeeping', icon: 'CleaningServices', group: 'Operations' },
 
+    { label: 'Rates & availability', path: '/admin/rates', icon: 'LocalOffer', group: 'Revenue' },
     { label: 'Payments', path: '/admin/payments', icon: 'Payment', group: 'Revenue' },
-    { label: 'Invoices', path: '/admin/invoices', icon: 'Receipt', group: 'Revenue' },
-    { label: 'Refunds', path: '/admin/refunds', icon: 'MoneyOff', group: 'Revenue' },
-    { label: 'Dynamic Pricing', path: '/admin/pricing', icon: 'TrendingUp', group: 'Revenue' },
-    { label: 'Contracts', path: '/admin/contracts', icon: 'Description', group: 'Revenue' },
-    { label: 'Analytics', path: '/analytics', icon: 'BarChart', group: 'Revenue' },
+    { label: 'Reports', path: '/analytics', icon: 'BarChart', group: 'Revenue' },
 
-    { label: 'Properties', path: '/admin/properties', icon: 'Business', group: 'Property' },
-    { label: 'Travel Agencies', path: '/admin/travel-agencies', icon: 'DirectionsBus', group: 'Property' },
-    { label: 'Room Types', path: '/admin/room-types', icon: 'Category', group: 'Property' },
-    { label: 'Rate Plans', path: '/admin/rate-plans', icon: 'LocalOffer', group: 'Property' },
-    { label: 'Availability', path: '/admin/availability-calendar', icon: 'CalendarMonth', group: 'Property' },
-    { label: 'Inventory', path: '/admin/inventory', icon: 'GridView', group: 'Property' },
-    { label: 'OTA Channels', path: '/admin/channels', icon: 'CloudSync', group: 'Property' },
-    { label: 'Storage', path: '/admin/storage', icon: 'Inventory', group: 'Property' },
-    { label: 'Employees', path: '/admin/employees', icon: 'BadgeOutlined', group: 'Property' },
+    { label: 'Channels', path: '/admin/channels', icon: 'CloudSync', group: 'Distribution' },
 
-    { label: 'Users', path: '/admin/users', icon: 'People', group: 'System' },
-    { label: 'Notifications', path: '/admin/notifications', icon: 'Notifications', group: 'System' },
+    { label: 'Settings', path: '/admin/settings', icon: 'Settings', group: 'Account' },
   ],
 
   manager: [
-    { label: 'Dashboard', path: '/manager/dashboard', icon: 'Dashboard', group: 'Front desk' },
-    { label: 'Bookings', path: '/manager/bookings', icon: 'EventNote', group: 'Front desk' },
-    { label: 'Rooms', path: '/manager/rooms', icon: 'MeetingRoom', group: 'Front desk' },
-    { label: 'Tasks', path: '/manager/tasks', icon: 'Assignment', group: 'Front desk' },
-    { label: 'Events', path: '/manager/events', icon: 'Event', group: 'Front desk' },
-    { label: 'Announcements', path: '/manager/announcements', icon: 'Campaign', group: 'Front desk' },
+    { label: 'Dashboard', path: '/manager/dashboard', icon: 'Dashboard', group: 'Operations' },
+    { label: 'Reservations', path: '/manager/bookings', icon: 'EventNote', group: 'Operations' },
+    { label: 'Rooms', path: '/manager/rooms', icon: 'MeetingRoom', group: 'Operations' },
     { label: 'Payments', path: '/manager/payments', icon: 'Payment', group: 'Revenue' },
-    { label: 'Contracts', path: '/manager/contracts', icon: 'Description', group: 'Revenue' },
-    { label: 'Analytics', path: '/manager/analytics', icon: 'BarChart', group: 'Revenue' },
+    { label: 'Reports', path: '/manager/analytics', icon: 'BarChart', group: 'Revenue' },
+    { label: 'Settings', path: '/manager/settings', icon: 'Settings', group: 'Account' },
   ],
 
   receptionist: [
-    { label: 'Dashboard', path: '/receptionist/dashboard', icon: 'Dashboard', group: 'Front desk' },
-    { label: 'Bookings', path: '/receptionist/bookings', icon: 'EventNote', group: 'Front desk' },
-    { label: 'Check-In / Out', path: '/receptionist/check-in', icon: 'HotelOutlined', group: 'Front desk' },
-    { label: 'Tape Chart', path: '/receptionist/tape-chart', icon: 'ViewTimeline', group: 'Front desk' },
-    { label: 'Housekeeping', path: '/receptionist/housekeeping', icon: 'CleaningServices', group: 'Front desk' },
-    { label: 'Rooms', path: '/receptionist/rooms', icon: 'MeetingRoom', group: 'Front desk' },
-    { label: 'Guests', path: '/receptionist/guests', icon: 'People', group: 'Front desk' },
+    { label: 'Dashboard', path: '/receptionist/dashboard', icon: 'Dashboard', group: 'Operations' },
+    { label: 'Calendar', path: '/receptionist/tape-chart', icon: 'ViewTimeline', group: 'Operations' },
+    { label: 'Reservations', path: '/receptionist/bookings', icon: 'EventNote', group: 'Operations' },
+    { label: 'Check-in / out', path: '/receptionist/check-in', icon: 'HotelOutlined', group: 'Operations' },
+    { label: 'Guests', path: '/receptionist/guests', icon: 'People', group: 'Operations' },
+    { label: 'Housekeeping', path: '/receptionist/housekeeping', icon: 'CleaningServices', group: 'Operations' },
     { label: 'Payments', path: '/receptionist/payments', icon: 'Payment', group: 'Revenue' },
   ],
 
   staff: [
-    { label: 'Dashboard', path: '/staff/dashboard', icon: 'Dashboard', group: 'Front desk' },
-    { label: 'Tasks', path: '/staff/tasks', icon: 'Assignment', group: 'Front desk' },
+    { label: 'Dashboard', path: '/staff/dashboard', icon: 'Dashboard', group: 'Operations' },
+    { label: 'Tasks', path: '/staff/tasks', icon: 'Assignment', group: 'Operations' },
   ],
 
-  // Guests use GuestLayout; keep config for fallback
   guest: [
     { label: 'Dashboard', path: '/guest/dashboard', icon: 'Dashboard' },
     { label: 'My Bookings', path: '/guest/bookings', icon: 'EventNote' },

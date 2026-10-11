@@ -50,6 +50,7 @@ import {
   CalendarMonth,
   ViewTimeline,
   CleaningServices,
+  Settings,
 } from '@mui/icons-material'
 import { clearCredentials, selectCurrentUser, selectUserRole } from '../../features/auth/authSlice'
 import { SIDEBAR_ITEMS, groupSidebarItems } from './sidebarConfig'
@@ -89,6 +90,7 @@ const ICON_MAP = {
   CalendarMonth,
   ViewTimeline,
   CleaningServices,
+  Settings,
 }
 
 const ROLE_LABELS = {
@@ -161,12 +163,15 @@ export default function Sidebar({ mobileOpen, onDrawerToggle }) {
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar sx={{ px: 2 }}>
+      <Toolbar sx={{ px: 2, flexDirection: 'column', alignItems: 'flex-start', py: 1.5 }}>
         <Typography
           variant="h6"
-          sx={{ fontFamily: '"Fraunces", Georgia, serif', color: 'primary.main' }}
+          sx={{ fontFamily: '"Fraunces", Georgia, serif', color: 'primary.main', lineHeight: 1.2 }}
         >
           Nephele
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: '0.04em' }}>
+          by Stechi
         </Typography>
       </Toolbar>
       <Box sx={{ px: 2, pb: 1.5 }}>

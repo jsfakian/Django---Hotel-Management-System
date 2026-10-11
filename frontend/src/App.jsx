@@ -100,6 +100,10 @@ const AvailabilityCalendarPage = lazy(() => import('./pages/admin/catalog/Availa
 // Admin — inventory
 const InventoryPage = lazy(() => import('./pages/admin/inventory/InventoryPage'))
 
+// Admin — IA hubs (Phase 1 simplified nav)
+const SettingsHubPage = lazy(() => import('./pages/admin/SettingsHubPage'))
+const RatesHubPage = lazy(() => import('./pages/admin/RatesHubPage'))
+
 // Public booking engine
 const BookingSearchPage = lazy(() => import('./pages/public/booking/BookingSearchPage'))
 const BookingResultsPage = lazy(() => import('./pages/public/booking/BookingResultsPage'))
@@ -275,6 +279,10 @@ function adminRoutes() {
 
         {/* Inventory */}
         <Route path="/admin/inventory" element={<PR roles={ADMIN_MANAGER}><InventoryPage /></PR>} />
+
+        {/* Simplified nav hubs */}
+        <Route path="/admin/rates" element={<PR roles={ADMIN_MANAGER}><RatesHubPage /></PR>} />
+        <Route path="/admin/settings" element={<PR roles={['admin']}><SettingsHubPage /></PR>} />
     </>
   )
 }
@@ -321,6 +329,7 @@ export default function App() {
         <Route path="/manager/contracts" element={<PR roles={['manager']}><ContractsListPage /></PR>} />
         <Route path="/manager/tasks" element={<PR roles={['manager']}><AdminTasksListPage /></PR>} />
         <Route path="/manager/announcements" element={<PR roles={['manager']}><AnnouncementsListPage /></PR>} />
+        <Route path="/manager/settings" element={<PR roles={['manager']}><SettingsHubPage /></PR>} />
 
         {/* ── RECEPTIONIST ── */}
         <Route path="/receptionist/dashboard" element={<PR roles={RECEPTION_UP}><ReceptionistDashboard /></PR>} />

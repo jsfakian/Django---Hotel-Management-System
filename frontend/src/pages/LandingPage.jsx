@@ -33,6 +33,13 @@ function LandingHeader({ isLoggedIn, navigate }) {
         }}
       >
         Nephele
+        <Typography
+          component="span"
+          variant="caption"
+          sx={{ display: 'block', opacity: 0.75, fontFamily: '"Source Sans 3", sans-serif', fontWeight: 400, letterSpacing: '0.06em', mt: 0.25 }}
+        >
+          by Stechi
+        </Typography>
       </Typography>
       <Button
         color="inherit"
