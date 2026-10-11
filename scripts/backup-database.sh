@@ -43,8 +43,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -f "$ENV_FILE" ]] || die "Environment file not found: $ENV_FILE"
-# shellcheck disable=SC1090
-set -a; source "$ENV_FILE"; set +a
+# shellcheck source=scripts/lib/load-dotenv.sh
+source "$SCRIPT_DIR/lib/load-dotenv.sh"
+load_dotenv "$ENV_FILE" || die "Failed to load $ENV_FILE"
 
 DB_NAME="${POSTGRES_DB:-${DB_NAME:-}}"
 DB_USER="${POSTGRES_USER:-${DB_USER:-}}"

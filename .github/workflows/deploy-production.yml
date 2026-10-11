@@ -303,15 +303,25 @@ jobs:
         ssh-keyscan -p "$PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
         
         echo "Creating pre-deployment backup..."
+        # Prefer Compose --env-file (handles SECRET_KEY with '('); avoid bash `source` of .env.prod.
         ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
           "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") bash -s" << 'EOF'
         set -euo pipefail
         cd "$DEPLOY_PATH"
-        if [ -x ./scripts/backup-database.sh ]; then
+        mkdir -p backup
+        COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele"
+        TS="$(date +%Y%m%d_%H%M%S)"
+        OUT="backup/nephele_predeploy_${TS}.sql.gz"
+        if $COMPOSE ps --status running --services 2>/dev/null | grep -qx postgres; then
+          $COMPOSE exec -T postgres \
+            sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-acl' \
+            | gzip -c > "$OUT"
+          echo "Backup created successfully: $OUT"
+        elif [ -x ./scripts/backup-database.sh ]; then
           ./scripts/backup-database.sh
-          echo "Backup created successfully"
+          echo "Backup created successfully (script fallback)"
         else
-          echo "Backup script missing — skipping"
+          echo "Postgres not running and backup script missing — skipping"
         fi
         EOF
 
