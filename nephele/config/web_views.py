@@ -1084,7 +1084,7 @@ def backend_navigation(request):
             'title': 'Core System',
             'items': [
                 {'label': 'Health Check', 'method': 'GET', 'path': '/healthz/'},
-                {'label': 'Django Admin', 'method': 'GET', 'path': '/admin/'},
+                {'label': 'Django Admin', 'method': 'GET', 'path': '/django-admin/'},
                 {'label': 'OpenAPI Schema', 'method': 'GET', 'path': '/api/v1/schema/'},
                 {'label': 'Swagger UI', 'method': 'GET', 'path': '/api/v1/docs/swagger/'},
             ],

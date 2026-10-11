@@ -36,8 +36,8 @@ urlpatterns = [
     # Prometheus metrics endpoint
     path('metrics/', include('django_prometheus.urls')),
     
-    # Django Admin
-    path('admin/', admin.site.urls),
+    # Django Admin (moved so React SPA can own /admin/* ops routes)
+    path('django-admin/', admin.site.urls),
     
     # Analytics Dashboard Web Views
     path('analytics/', include('analytics.web_urls')),

@@ -33,7 +33,7 @@ def test_api_endpoints():
         ('GET', '/api/v1/bookings/pricing/models/', 200, 'Available Models'),
         ('GET', '/api/v1/bookings/pricing/summary/', 401, 'Summary API (auth required)'),
         ('GET', '/', 200, 'Home Page'),
-        ('GET', '/admin/', 302, 'Admin Login Redirect'),
+        ('GET', '/django-admin/', 302, 'Admin Login Redirect'),
     ]
     
     passed = 0

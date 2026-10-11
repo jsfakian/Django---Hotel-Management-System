@@ -264,6 +264,36 @@ services:
       - ALL
 
   # ============================================================================
+  # React SPA (production static build)
+  # ============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: nginx
+      args:
+        VITE_API_BASE_URL: /api/v1
+    image: nephele-frontend-prod:latest
+    container_name: nephele-frontend-prod
+    restart: unless-stopped
+    networks:
+      - nephele-network-prod
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+        labels: "service=frontend"
+
+  # ============================================================================
   # Nginx Reverse Proxy (Production)
   # ============================================================================
   nginx:
@@ -282,6 +312,7 @@ services:
       - nginx_logs:/var/log/nginx
     depends_on:
       - django
+      - frontend
     networks:
       - nephele-network-prod
     deploy:

@@ -234,9 +234,9 @@ jobs:
         else
           git pull --ff-only origin "$DEPLOY_BRANCH"
         fi
-        # Local image name (hms-django-prod) is not on a registry — build from checkout.
-        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele build django
-        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele up -d
+        # Local image names are not on a registry — build from checkout (API + React SPA).
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele build django frontend
+        docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele up -d --remove-orphans
         docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele exec -T django python manage.py migrate
         docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele exec -T django python manage.py collectstatic --noinput
         EOF

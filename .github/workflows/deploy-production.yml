@@ -372,8 +372,8 @@ jobs:
 
         COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env.prod -p nephele"
 
-        echo "Building Docker images from checkout..."
-        $COMPOSE build django
+        echo "Building Docker images from checkout (django + React SPA)..."
+        $COMPOSE build django frontend
 
         echo "Recreating services (project nephele — same stack as staging)..."
         $COMPOSE up -d --remove-orphans
@@ -427,7 +427,7 @@ jobs:
         BASE="${BASE:-https://${DEPLOY_HOST}}"
         echo "Running smoke tests against $BASE"
         # Accept 2xx/3xx/401/403 — schema/admin may require auth but must not 5xx.
-        for endpoint in /health/ /admin/ /api/v1/schema/; do
+        for endpoint in /health/ / /login /api/v1/schema/ /django-admin/; do
           code=$(curl -sk -o /dev/null -w '%{http_code}' "$BASE$endpoint" || echo 000)
           case "$code" in
             2*|3*|401|403) echo "✓ $endpoint → HTTP $code" ;;

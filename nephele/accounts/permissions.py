@@ -255,7 +255,7 @@ class RoleBasedAccessMiddleware:
     OPEN_URLS = [
         '/login/',
         '/register/',
-        '/admin/',
+        '/django-admin/',
     ]
     
     def __init__(self, get_response):
