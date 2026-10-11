@@ -153,6 +153,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Lowercase image name for GHCR
+      run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
@@ -190,7 +193,7 @@ jobs:
       continue-on-error: true
       uses: aquasecurity/trivy-action@master
       with:
-        # meta.outputs.tags is multiline — Trivy needs a single ref
+        # meta.outputs.tags is multiline — Trivy needs a single lowercase ref
         image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:production-latest
         format: 'sarif'
         output: 'trivy-results.sarif'
