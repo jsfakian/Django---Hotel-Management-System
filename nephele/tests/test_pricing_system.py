@@ -362,7 +362,7 @@ class TestAdminInterface(TestCase):
             confidence_score=Decimal('0.85'),
         )
         
-        response = self.client.get('/admin/bookings/pricinghistory/')
+        response = self.client.get('/django-admin/bookings/pricinghistory/')
         
         assert response.status_code == 200
         # Verify the pricing history record is accessible
@@ -390,7 +390,7 @@ class TestAdminInterface(TestCase):
         )
         
         # Filter by season
-        response = self.client.get('/admin/bookings/pricinghistory/?season=high')
+        response = self.client.get('/django-admin/bookings/pricinghistory/?season=high')
         
         assert response.status_code == 200
 

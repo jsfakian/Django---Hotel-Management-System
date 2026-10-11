@@ -130,7 +130,9 @@ jobs:
       run: |
         semgrep --config=p/security-audit nephele/ || true
 
+    # Skip on workflow_dispatch — base/HEAD resolve to the same commit and the action errors.
     - name: SAST - Check for hardcoded secrets
+      if: github.event_name == 'push'
       continue-on-error: true
       uses: trufflesecurity/trufflehog@main
       with:
