@@ -184,7 +184,15 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings
     command: celery -A config worker -l info --concurrency=4 --max-tasks-per-child=1000
     volumes:
+      - media_volume_prod:/app/nephele/media
       - logs_volume_prod:/app/logs
+    # The image HEALTHCHECK curls Django on :8000, which workers do not serve
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q pong"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
     networks:
       - nephele-network-prod
     deploy:
@@ -240,6 +248,12 @@ services:
     volumes:
       - logs_volume_prod:/app/logs
       - celery_beat_data:/app/celery-beat
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, redis; redis.Redis.from_url(os.environ['CELERY_BROKER_URL']).ping()"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - nephele-network-prod
     deploy:
