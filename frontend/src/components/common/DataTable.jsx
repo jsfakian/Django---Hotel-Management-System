@@ -77,7 +77,8 @@ export default function DataTable({
                   {columns.map((col) => (
                     <TableCell key={col.field}>
                       {col.renderCell
-                        ? col.renderCell({ row, value: row[col.field] })
+                        // Row fields are spread in too: many pages write renderCell: (r) => r.amount
+                        ? col.renderCell({ ...row, row, value: row[col.field] })
                         : row[col.field] ?? '—'}
                     </TableCell>
                   ))}
