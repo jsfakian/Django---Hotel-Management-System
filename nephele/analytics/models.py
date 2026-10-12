@@ -215,7 +215,9 @@ class CustomReport(models.Model):
         ('occupancy', 'Occupancy Report'),
         ('guest', 'Guest Analytics Report'),
         ('pricing', 'Pricing Analysis Report'),
-        ('custom', 'Custom Report'),
+        ('booking', 'Bookings Report'),
+        ('payment', 'Payments Report'),
+        ('custom', 'Executive Summary'),
     )
     
     EXPORT_FORMATS = (
@@ -224,7 +226,10 @@ class CustomReport(models.Model):
         ('csv', 'CSV'),
     )
     
-    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='custom_reports')
+    property = models.ForeignKey(
+        Property, on_delete=models.CASCADE, related_name='custom_reports',
+        null=True, blank=True, help_text="Empty means all properties",
+    )
     created_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='reports_created')
     
     name = models.CharField(max_length=255)
@@ -658,6 +663,7 @@ class CancellationPrediction(models.Model):
     lead_time_days = models.IntegerField(null=True, blank=True)
     booking_source = models.CharField(max_length=50, null=True, blank=True)
     customer_type = models.CharField(max_length=50, null=True, blank=True)
+    risk_factors = models.JSONField(default=dict, blank=True)
     refund_policy = models.CharField(max_length=50, null=True, blank=True)
     price_per_night = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
@@ -743,6 +749,7 @@ class NoShowPrediction(models.Model):
     advance_checkin_days = models.IntegerField(null=True, blank=True)
     price_per_night = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     special_requests_count = models.IntegerField(null=True, blank=True)
+    risk_factors = models.JSONField(default=dict, blank=True)
     
     # Model info
     model_version = models.CharField(max_length=50, default='v1.0')

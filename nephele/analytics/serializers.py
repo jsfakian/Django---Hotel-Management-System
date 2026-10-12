@@ -165,9 +165,17 @@ class DashboardGuestAnalyticsSerializer(serializers.ModelSerializer):
 
 class CustomReportSerializer(serializers.ModelSerializer):
     """Serializer for Custom Reports"""
-    
-    property_name = serializers.CharField(source='property.name', read_only=True)
+
+    property_name = serializers.CharField(source='property.name', read_only=True, allow_null=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    report_type_display = serializers.CharField(source='get_report_type_display', read_only=True)
+
+    def validate(self, attrs):
+        from_date = attrs.get('from_date', getattr(self.instance, 'from_date', None))
+        to_date = attrs.get('to_date', getattr(self.instance, 'to_date', None))
+        if from_date and to_date and from_date > to_date:
+            raise serializers.ValidationError({'to_date': 'End date must be on or after the start date.'})
+        return attrs
     
     class Meta:
         model = CustomReport
@@ -180,6 +188,7 @@ class CustomReportSerializer(serializers.ModelSerializer):
             'name',
             'description',
             'report_type',
+            'report_type_display',
             'from_date',
             'to_date',
             'include_charts',
@@ -483,6 +492,9 @@ class CancellationPredictionSerializer(serializers.ModelSerializer):
     
     property_name = serializers.CharField(source='property.name', read_only=True)
     booking_id = serializers.CharField(source='booking.id', read_only=True, allow_null=True)
+    guest_name = serializers.SerializerMethodField()
+    check_in_date = serializers.DateField(source='booking.check_in_date', read_only=True, allow_null=True)
+    room_number = serializers.CharField(source='booking.room.room_number', read_only=True, allow_null=True)
     days_to_checkin = serializers.SerializerMethodField()
     
     class Meta:
@@ -495,8 +507,12 @@ class CancellationPredictionSerializer(serializers.ModelSerializer):
             'booking_id',
             'prediction_date',
             'prediction_time',
+            'guest_name',
+            'check_in_date',
+            'room_number',
             'cancellation_risk_score',
             'risk_level',
+            'risk_factors',
             'days_to_checkin',
             'lead_time_days',
             'booking_source',
@@ -512,6 +528,10 @@ class CancellationPredictionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'prediction_date', 'prediction_time']
     
+    def get_guest_name(self, obj) -> str | None:
+        guest = obj.booking.guest if obj.booking else None
+        return f"{guest.first_name} {guest.last_name}".strip() if guest else None
+
     def get_days_to_checkin(self, obj) -> int | None:
         """Calculate days until check-in if booking exists"""
         if obj.booking and obj.booking.check_in_date:
@@ -525,6 +545,9 @@ class NoShowPredictionSerializer(serializers.ModelSerializer):
     
     property_name = serializers.CharField(source='property.name', read_only=True)
     booking_id = serializers.CharField(source='booking.id', read_only=True, allow_null=True)
+    guest_name = serializers.SerializerMethodField()
+    check_in_date = serializers.DateField(source='booking.check_in_date', read_only=True, allow_null=True)
+    room_number = serializers.CharField(source='booking.room.room_number', read_only=True, allow_null=True)
     days_to_checkin = serializers.SerializerMethodField()
     
     class Meta:
@@ -537,8 +560,12 @@ class NoShowPredictionSerializer(serializers.ModelSerializer):
             'booking_id',
             'prediction_date',
             'prediction_time',
+            'guest_name',
+            'check_in_date',
+            'room_number',
             'noshow_risk_score',
             'risk_level',
+            'risk_factors',
             'days_to_checkin',
             'customer_country',
             'booking_source',
@@ -554,6 +581,10 @@ class NoShowPredictionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'prediction_date', 'prediction_time']
     
+    def get_guest_name(self, obj) -> str | None:
+        guest = obj.booking.guest if obj.booking else None
+        return f"{guest.first_name} {guest.last_name}".strip() if guest else None
+
     def get_days_to_checkin(self, obj) -> int | None:
         """Calculate days until check-in if booking exists"""
         if obj.booking and obj.booking.check_in_date:

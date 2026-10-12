@@ -11,12 +11,16 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import OpenApiTypes, extend_schema, inline_serializer
+
+from django.http import HttpResponse
+from django.utils.text import slugify
 
 from accounts.permissions import has_permission
 from properties.models import Property
 from room.models import Booking
 
+from . import metrics
 from .models import (
     DashboardExecutiveMetrics,
     DashboardOperationalStatus,
@@ -83,6 +87,18 @@ def _accessible_property_queryset(user):
 
     return queryset.distinct()
 
+
+def _overview_scope(request):
+    """(accessible properties, selected properties, period) for overview endpoints."""
+    accessible = list(_accessible_property_queryset(request.user).order_by('name'))
+    property_id = request.query_params.get('property_id') or request.query_params.get('property')
+    selected = [p for p in accessible if str(p.id) == str(property_id)] if property_id else accessible
+    period = request.query_params.get('period', 'month')
+    if period not in metrics.PERIOD_DAYS:
+        period = 'month'
+    return accessible, selected, period
+
+
 class ExecutiveDashboardViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Executive Dashboard endpoint
@@ -133,6 +149,12 @@ class ExecutiveDashboardViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(metrics)
         return Response(serializer.data)
     
+    @extend_schema(responses={200: OpenApiTypes.OBJECT}, description='Live executive KPIs, trend and YoY.')
+    @action(detail=False, methods=['get'])
+    def overview(self, request):
+        accessible, selected, period = _overview_scope(request)
+        return Response(metrics.executive_overview(accessible, selected, period))
+
     @action(detail=False, methods=['get'])
     def trend(self, request):
         """Get historical trend for selected metric"""
@@ -181,6 +203,12 @@ class OperationalDashboardViewSet(viewsets.ReadOnlyModelViewSet):
         
         return self.queryset.none()
     
+    @extend_schema(responses={200: OpenApiTypes.OBJECT}, description="Today's rooms, arrivals, departures and tasks.")
+    @action(detail=False, methods=['get'])
+    def overview(self, request):
+        accessible, selected, _period = _overview_scope(request)
+        return Response(metrics.operational_overview(accessible, selected))
+
     @action(detail=False, methods=['get'])
     def current(self, request):
         """Get latest operational status"""
@@ -238,6 +266,12 @@ class RevenueAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         
         return queryset.order_by('-metric_date')
     
+    @extend_schema(responses={200: OpenApiTypes.OBJECT}, description='Live revenue KPIs, sources and payments.')
+    @action(detail=False, methods=['get'])
+    def overview(self, request):
+        accessible, selected, period = _overview_scope(request)
+        return Response(metrics.revenue_overview(accessible, selected, period))
+
     @action(detail=False, methods=['get'])
     def summary(self, request):
         """Get revenue summary statistics"""
@@ -325,6 +359,12 @@ class GuestAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         
         return queryset.order_by('-analytics_date')
     
+    @extend_schema(responses={200: OpenApiTypes.OBJECT}, description='Live guest KPIs, segments and nationalities.')
+    @action(detail=False, methods=['get'])
+    def overview(self, request):
+        accessible, selected, period = _overview_scope(request)
+        return Response(metrics.guest_overview(accessible, selected, period))
+
     @action(detail=False, methods=['get'])
     def segments(self, request):
         """Get guest segmentation data"""
@@ -387,50 +427,46 @@ class CustomReportViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, AnalyticsPermission]
     
     def get_queryset(self):
-        """Filter reports by property and user"""
+        """Reports for the requested property, else the current user's reports."""
+        queryset = self.queryset.select_related('property', 'created_by').order_by('-created_at')
         property_id = self.request.query_params.get('property_id')
-        
+
         if property_id:
-            return self.queryset.filter(property_id=property_id)
-        
-        return self.queryset.filter(created_by=self.request.user)
-    
+            return queryset.filter(property_id=property_id)
+
+        return queryset.filter(created_by=self.request.user)
+
     def perform_create(self, serializer):
         """Set created_by to current user"""
         serializer.save(created_by=self.request.user)
-    
+
     @action(detail=True, methods=['post'])
     def generate(self, request, pk=None):
-        """Generate/export the report"""
-        report = self.get_object()
-        
-        # Trigger async report generation task
-        from .tasks import generate_custom_report
-        generate_custom_report.delay(report.id)
-        
-        return Response({
-            'message': 'Report generation started',
-            'status': 'pending',
-            'report_id': report.id
-        })
-    
+        """Build the report now and store the rendered file."""
+        from .tasks import run_custom_report
+
+        report = run_custom_report(self.get_object())
+        return Response(self.get_serializer(report).data)
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT}, description='Report columns, rows and summary for preview.')
+    @action(detail=True, methods=['get'])
+    def data(self, request, pk=None):
+        from .reports import build_report
+
+        return Response(build_report(self.get_object()))
+
+    @extend_schema(responses={(200, 'application/octet-stream'): OpenApiTypes.BINARY})
     @action(detail=True, methods=['get'])
     def download(self, request, pk=None):
-        """Download generated report"""
+        """Download the report rendered from current data (CSV, Excel or PDF)."""
+        from .reports import render_report
+
         report = self.get_object()
-        
-        if report.status != 'generated' or not report.file_path:
-            return Response(
-                {'error': 'Report not yet generated'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Return file download response
-        return Response({
-            'download_url': f'/media/{report.file_path}',
-            'format': report.export_format,
-            'generated_at': report.generated_at
-        })
+        content, content_type, extension = render_report(report)
+        filename = f"{slugify(report.name) or 'report'}-{report.from_date}-{report.to_date}.{extension}"
+        response = HttpResponse(content, content_type=content_type)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 def _latest_dashboard_data(property_id, dashboard_type):

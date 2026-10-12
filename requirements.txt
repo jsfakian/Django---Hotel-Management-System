@@ -35,6 +35,10 @@ pandas==2.3.3
 scikit-learn==1.9.1
 xgboost==3.4.1
 
+# Report exports (Excel / PDF)
+openpyxl==3.1.5
+reportlab==5.0.1
+
 # Testing
 pytest==8.3.5
 pytest-django==4.10.0

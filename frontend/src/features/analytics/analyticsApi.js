@@ -13,6 +13,14 @@ const reportEndpoints = (builder) => ({
     query: (data) => ({ url: '/analytics/custom-reports/', method: 'POST', data }),
     invalidatesTags: [{ type: 'Dashboard', id: 'REPORT_LIST' }],
   }),
+  generateCustomReport: builder.mutation({
+    query: (id) => ({ url: `/analytics/custom-reports/${id}/generate/`, method: 'POST' }),
+    invalidatesTags: (result, error, id) => [{ type: 'Dashboard', id: `report-${id}` }, { type: 'Dashboard', id: 'REPORT_LIST' }],
+  }),
+  getCustomReportData: builder.query({
+    query: (id) => ({ url: `/analytics/custom-reports/${id}/data/`, method: 'GET' }),
+    providesTags: (result, error, id) => [{ type: 'Dashboard', id: `report-${id}` }],
+  }),
   deleteCustomReport: builder.mutation({
     query: (id) => ({ url: `/analytics/custom-reports/${id}/`, method: 'DELETE' }),
     invalidatesTags: [{ type: 'Dashboard', id: 'REPORT_LIST' }],
@@ -64,7 +72,25 @@ const reportEndpoints = (builder) => ({
 
 export const analyticsApi = api.injectEndpoints({
   endpoints: (builder) => ({
-    // Dashboards
+    // Dashboard overviews (aggregated KPIs computed from bookings/payments)
+    getExecutiveOverview: builder.query({
+      query: (params = {}) => ({ url: '/analytics/executive-dashboard/overview/', method: 'GET', params }),
+      providesTags: () => [{ type: 'Dashboard' }],
+    }),
+    getRevenueOverview: builder.query({
+      query: (params = {}) => ({ url: '/analytics/revenue-analytics/overview/', method: 'GET', params }),
+      providesTags: () => [{ type: 'Dashboard' }],
+    }),
+    getGuestOverview: builder.query({
+      query: (params = {}) => ({ url: '/analytics/guest-analytics/overview/', method: 'GET', params }),
+      providesTags: () => [{ type: 'Dashboard' }],
+    }),
+    getOperationalOverview: builder.query({
+      query: (params = {}) => ({ url: '/analytics/operational-dashboard/overview/', method: 'GET', params }),
+      providesTags: () => [{ type: 'Dashboard' }],
+    }),
+
+    // Dashboards (raw metric rows)
     getExecutiveDashboard: builder.query({
       query: (params = {}) => ({ url: '/analytics/executive-dashboard/', method: 'GET', params }),
       providesTags: () => [{ type: 'Dashboard' }],
@@ -144,6 +170,10 @@ export const analyticsApi = api.injectEndpoints({
 })
 
 export const {
+  useGetExecutiveOverviewQuery,
+  useGetRevenueOverviewQuery,
+  useGetGuestOverviewQuery,
+  useGetOperationalOverviewQuery,
   useGetExecutiveDashboardQuery,
   useGetOperationalDashboardQuery,
   useGetRevenueAnalyticsQuery,
@@ -163,6 +193,8 @@ export const {
   useGetCustomReportsQuery,
   useCreateCustomReportMutation,
   useDeleteCustomReportMutation,
+  useGenerateCustomReportMutation,
+  useGetCustomReportDataQuery,
   useGetScheduledReportsQuery,
   useCreateScheduledReportMutation,
   useTriggerScheduledReportMutation,
