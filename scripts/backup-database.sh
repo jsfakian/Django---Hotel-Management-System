@@ -13,6 +13,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="${ENV_FILE:-$PROJECT_DIR/.env.prod}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 COMPOSE="${COMPOSE:-docker compose}"
+PROJECT_NAME="${PROJECT_NAME:-nephele}"
 BACKUP_ROOT="${BACKUP_DIR:-$PROJECT_DIR/backup}"
 RETENTION_DAYS=30
 SUBDIR=""
@@ -66,12 +67,12 @@ RAW_SQL="$OUT_DIR/nephele_full_${TIMESTAMP}.sql"
 LOG_FILE="$BACKUP_ROOT/logs/backup_${TIMESTAMP}.log"
 
 postgres_container_running() {
-  (cd "$PROJECT_DIR" && $COMPOSE -f "$COMPOSE_FILE" ps --status running --services 2>/dev/null | grep -qx postgres)
+  (cd "$PROJECT_DIR" && $COMPOSE -p "$PROJECT_NAME" -f "$COMPOSE_FILE" ps --status running --services 2>/dev/null | grep -qx postgres)
 }
 
 dump_via_docker() {
   log "Dumping via Docker Compose ($COMPOSE_FILE → postgres)"
-  (cd "$PROJECT_DIR" && $COMPOSE -f "$COMPOSE_FILE" exec -T \
+  (cd "$PROJECT_DIR" && $COMPOSE -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T \
     -e PGPASSWORD="$DB_PASSWORD" \
     postgres \
     pg_dump -U "$DB_USER" -d "$DB_NAME" --clean --if-exists --no-owner --no-acl) \

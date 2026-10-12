@@ -85,3 +85,6 @@ terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/crash.log
 **/.terraform.lock.hcl
+
+# Local database dumps (contain guest data)
+backup/

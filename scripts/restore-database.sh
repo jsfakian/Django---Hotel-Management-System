@@ -12,6 +12,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="${ENV_FILE:-$PROJECT_DIR/.env.prod}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 COMPOSE="${COMPOSE:-docker compose}"
+PROJECT_NAME="${PROJECT_NAME:-nephele}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -65,11 +66,11 @@ else
 fi
 
 postgres_running() {
-  (cd "$PROJECT_DIR" && $COMPOSE -f "$COMPOSE_FILE" ps --status running --services 2>/dev/null | grep -qx postgres)
+  (cd "$PROJECT_DIR" && $COMPOSE -p "$PROJECT_NAME" -f "$COMPOSE_FILE" ps --status running --services 2>/dev/null | grep -qx postgres)
 }
 
 psql_docker() {
-  (cd "$PROJECT_DIR" && $COMPOSE -f "$COMPOSE_FILE" exec -T \
+  (cd "$PROJECT_DIR" && $COMPOSE -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T \
     -e PGPASSWORD="$DB_PASSWORD" \
     postgres \
     psql -U "$DB_USER" -d "$1")

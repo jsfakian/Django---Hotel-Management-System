@@ -74,11 +74,11 @@ deploy-ps:
 
 backup:
 	@chmod +x $(BACKUP_SCRIPT) $(DAILY_SCRIPT)
-	ENV_FILE=$(ENV_FILE) COMPOSE_FILE=$(COMPOSE_FILE) ./$(BACKUP_SCRIPT)
+	ENV_FILE=$(ENV_FILE) COMPOSE_FILE=$(COMPOSE_FILE) PROJECT_NAME=$(PROJECT_NAME) ./$(BACKUP_SCRIPT)
 
 backup-daily:
 	@chmod +x $(BACKUP_SCRIPT) $(DAILY_SCRIPT)
-	ENV_FILE=$(ENV_FILE) COMPOSE_FILE=$(COMPOSE_FILE) ./$(DAILY_SCRIPT)
+	ENV_FILE=$(ENV_FILE) COMPOSE_FILE=$(COMPOSE_FILE) PROJECT_NAME=$(PROJECT_NAME) ./$(DAILY_SCRIPT)
 
 backup-list:
 	@echo "=== Daily ===" && ls -lht backup/daily/nephele_full_*.sql* 2>/dev/null | head -10 || echo "(none)"
@@ -87,7 +87,7 @@ backup-list:
 db-restore:
 	@test -n "$(FILE)" || (echo "Usage: make db-restore FILE=backup/daily/nephele_full_YYYYMMDD_HHMMSS.sql.gz"; exit 1)
 	@chmod +x scripts/restore-database.sh
-	ENV_FILE=$(ENV_FILE) COMPOSE_FILE=$(COMPOSE_FILE) ./scripts/restore-database.sh "$(FILE)"
+	ENV_FILE=$(ENV_FILE) COMPOSE_FILE=$(COMPOSE_FILE) PROJECT_NAME=$(PROJECT_NAME) ./scripts/restore-database.sh "$(FILE)"
 
 # ── Cron (daily backup) ─────────────────────────────────────────────────────
 
