@@ -278,24 +278,75 @@ def _segment(booking):
     return "Couple" if adults == 2 else "Solo"
 
 
-def guest_overview(all_properties, properties, period):
-    start, end = period_window(period)
-    ledger = NightLedger(properties, start, end)
-    stays = [b for b in ledger.bookings if b.guest_id]
-    guest_ids = {b.guest_id for b in stays}
+def _stay_nights(booking):
+    return (booking.check_out_date - booking.check_in_date).days
+
+
+def _returning_guest_ids(guest_ids, stays, start):
     returning = set(
         Booking.objects.filter(
             guest_id__in=guest_ids, status__in=REVENUE_STATUSES, check_in_date__lt=start
         ).values_list("guest_id", flat=True)
     )
     stay_counts = defaultdict(int)
-    for b in stays:
-        stay_counts[b.guest_id] += 1
-    returning |= {g for g, n in stay_counts.items() if n > 1}
+    for booking in stays:
+        stay_counts[booking.guest_id] += 1
+    returning |= {guest for guest, count in stay_counts.items() if count > 1}
+    return returning
 
-    def nights(b):
-        return (b.check_out_date - b.check_in_date).days
 
+def _avg_or_zero(values, digits=1):
+    return round(sum(values) / len(values), digits) if values else 0.0
+
+
+def _guest_kpis(guest_ids, returning, stays, properties, leads):
+    return {
+        "total_guests": len(guest_ids),
+        "new_guests": len(guest_ids - returning),
+        "repeat_guests": len(guest_ids & returning),
+        "repeat_rate": pct(len(guest_ids & returning), len(guest_ids)),
+        "avg_stay": _avg_or_zero([_stay_nights(b) for b in stays]),
+        "avg_lead_time": _avg_or_zero(leads),
+        "in_house": Booking.objects.filter(
+            room__property__in=properties, status="checked_in"
+        ).count(),
+    }
+
+
+def _guest_segment_rows(stays, revenue_by_booking):
+    segments = defaultdict(list)
+    for booking in stays:
+        segments[_segment(booking)].append(booking)
+    rows = [
+        {
+            "segment": name,
+            "count": len(items),
+            "revenue": money(sum((revenue_by_booking[b.id] for b in items), ZERO)),
+            "avg_stay": round(sum(map(_stay_nights, items)) / len(items), 1),
+        }
+        for name, items in segments.items()
+    ]
+    return sorted(rows, key=lambda row: row["count"], reverse=True)
+
+
+def _nationality_rows(stays, guest_ids):
+    countries = defaultdict(set)
+    for booking in stays:
+        country = booking.guest.country or booking.guest.nationality or "Unknown"
+        countries[country].add(booking.guest_id)
+    rows = [
+        {"country": country, "guests": len(guests), "pct": pct(len(guests), len(guest_ids))}
+        for country, guests in countries.items()
+    ]
+    return sorted(rows, key=lambda row: row["guests"], reverse=True)
+
+
+def guest_overview(all_properties, properties, period):
+    start, end = period_window(period)
+    ledger = NightLedger(properties, start, end)
+    stays = [b for b in ledger.bookings if b.guest_id]
+    guest_ids = {b.guest_id for b in stays}
+    returning = _returning_guest_ids(guest_ids, stays, start)
     leads = [
         (b.check_in_date - b.date_of_reservation).days
         for b in stays
@@ -304,66 +355,63 @@ def guest_overview(all_properties, properties, period):
     revenue_by_booking = defaultdict(lambda: ZERO)
     for _, booking, rate in ledger.nights:
         revenue_by_booking[booking.id] += rate
-
-    segments = defaultdict(list)
-    for b in stays:
-        segments[_segment(b)].append(b)
-    countries = defaultdict(set)
-    for b in stays:
-        countries[b.guest.country or b.guest.nationality or "Unknown"].add(b.guest_id)
-
     return {
         **_window_payload(period, start, end, all_properties),
-        "kpis": {
-            "total_guests": len(guest_ids),
-            "new_guests": len(guest_ids - returning),
-            "repeat_guests": len(guest_ids & returning),
-            "repeat_rate": pct(len(guest_ids & returning), len(guest_ids)),
-            "avg_stay": (
-                round(sum(map(nights, stays)) / len(stays), 1) if stays else 0.0
-            ),
-            "avg_lead_time": round(sum(leads) / len(leads), 1) if leads else 0.0,
-            "in_house": Booking.objects.filter(
-                room__property__in=properties, status="checked_in"
-            ).count(),
-        },
-        "guest_segments": sorted(
-            [
-                {
-                    "segment": name,
-                    "count": len(items),
-                    "revenue": money(
-                        sum((revenue_by_booking[b.id] for b in items), ZERO)
-                    ),
-                    "avg_stay": round(sum(map(nights, items)) / len(items), 1),
-                }
-                for name, items in segments.items()
-            ],
-            key=lambda r: r["count"],
-            reverse=True,
-        ),
-        "nationalities": sorted(
-            [
-                {"country": c, "guests": len(g), "pct": pct(len(g), len(guest_ids))}
-                for c, g in countries.items()
-            ],
-            key=lambda r: r["guests"],
-            reverse=True,
-        ),
+        "kpis": _guest_kpis(guest_ids, returning, stays, properties, leads),
+        "guest_segments": _guest_segment_rows(stays, revenue_by_booking),
+        "nationalities": _nationality_rows(stays, guest_ids),
     }
 
 
 def _movement(booking, multi):
+    guest_name = "Guest"
+    if booking.guest:
+        guest_name = f"{booking.guest.first_name} {booking.guest.last_name}".strip()
+    room_number = booking.room.room_number if booking.room else "—"
+    property_name = ""
+    if booking.room and multi:
+        property_name = booking.room.property.name
     return {
         "booking_id": booking.id,
-        "guest_name": (
-            f"{booking.guest.first_name} {booking.guest.last_name}".strip()
-            if booking.guest
-            else "Guest"
-        ),
-        "room_number": booking.room.room_number if booking.room else "—",
-        "property_name": booking.room.property.name if booking.room and multi else "",
+        "guest_name": guest_name,
+        "room_number": room_number,
+        "property_name": property_name,
         "status": booking.status,
+    }
+
+
+def _room_status_payload(rooms):
+    counts = defaultdict(int)
+    for room in rooms:
+        key = "blocked" if room.status == "reserved" else room.status
+        counts[key] += 1
+    return {
+        "occupied": counts["occupied"],
+        "available": counts["available"],
+        "cleaning": counts["cleaning"],
+        "maintenance": counts["maintenance"],
+        "blocked": counts["blocked"],
+        "total": len(rooms),
+    }
+
+
+def _staff_task_row(task):
+    employee_name = "—"
+    if task.employee and task.employee.user:
+        employee_name = (
+            task.employee.user.get_full_name() or task.employee.user.username
+        )
+    due_time = ""
+    if task.end_time:
+        due_time = timezone.localtime(task.end_time).strftime("%H:%M")
+    return {
+        "id": task.id,
+        "title": task.title,
+        "employee_name": employee_name,
+        "priority": task.priority,
+        "status": task.status,
+        "due_time": due_time,
+        "property_name": task.property.name if task.property else "",
     }
 
 
@@ -377,9 +425,6 @@ def operational_overview(all_properties, properties):
         .select_related("property")
         .order_by("property__name", "room_number")
     )
-    counts = defaultdict(int)
-    for room in rooms:
-        counts["blocked" if room.status == "reserved" else room.status] += 1
     movements = (
         Booking.objects.filter(room__property__in=properties)
         .exclude(status__in=["cancelled", "no_show", "held"])
@@ -395,40 +440,14 @@ def operational_overview(all_properties, properties):
     return {
         "date": today.isoformat(),
         "properties": _properties_payload(all_properties),
-        "room_status": {
-            "occupied": counts["occupied"],
-            "available": counts["available"],
-            "cleaning": counts["cleaning"],
-            "maintenance": counts["maintenance"],
-            "blocked": counts["blocked"],
-            "total": len(rooms),
-        },
+        "room_status": _room_status_payload(rooms),
         "checkins_today": [
             _movement(b, multi) for b in movements.filter(check_in_date=today)
         ],
         "checkouts_today": [
             _movement(b, multi) for b in movements.filter(check_out_date=today)
         ],
-        "staff_tasks": [
-            {
-                "id": t.id,
-                "title": t.title,
-                "employee_name": (
-                    (t.employee.user.get_full_name() or t.employee.user.username)
-                    if t.employee and t.employee.user
-                    else "—"
-                ),
-                "priority": t.priority,
-                "status": t.status,
-                "due_time": (
-                    timezone.localtime(t.end_time).strftime("%H:%M")
-                    if t.end_time
-                    else ""
-                ),
-                "property_name": t.property.name if t.property else "",
-            }
-            for t in tasks
-        ],
+        "staff_tasks": [_staff_task_row(t) for t in tasks],
         "rooms": [
             {
                 "id": r.id,

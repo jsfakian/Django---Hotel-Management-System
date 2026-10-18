@@ -381,149 +381,157 @@ class Command(BaseCommand):
             )
         self.methods = {m.name: m for m in PaymentMethod.objects.filter(is_active=True)}
 
+    def _create_property(self, idx, spec):
+        room_count = sum(t[6] for t in spec["types"])
+        prop = Property.objects.create(
+            name=spec["name"],
+            location=spec["location"],
+            address=spec["address"],
+            city=spec["city"],
+            postal_code=spec["postal_code"],
+            country="Greece",
+            phone_number=spec["phone_number"],
+            email=spec["email"],
+            website=f"https://{spec['email'].split('@')[1]}",
+            total_rooms=room_count,
+            star_rating=spec["star_rating"],
+            is_active=True,
+            mhte_number=f"1167K0{idx + 1}3K0{idx + 4}21{idx}00",
+            tax_id=f"80012345{idx}",
+        )
+        prop.price_factor = spec["price_factor"]
+        for amenity in spec["amenities"]:
+            PropertyAmenity.objects.create(property=prop, amenity_type=amenity)
+        pet_policy = (
+            "Small pets on request (€25/night)." if idx == 2 else "No pets allowed."
+        )
+        PropertyPolicy.objects.create(
+            property=prop,
+            check_in_time=time(15),
+            check_out_time=time(11),
+            cancellation_policy="Free cancellation up to 7 days before arrival; first night charged afterwards.",
+            pet_policy=pet_policy,
+            smoking_policy="Non-smoking property.",
+            children_policy="Children of all ages welcome; cots free.",
+        )
+        return prop
+
+    def _create_rate_plans(self, prop):
+        plans = [
+            RatePlan.objects.create(
+                property=prop,
+                code="BAR",
+                name="Flexible – Breakfast included",
+                meal_plan="BB",
+                is_refundable=True,
+                cancellation_policy="Free cancellation until 7 days before arrival.",
+            ),
+            RatePlan.objects.create(
+                property=prop,
+                code="NRF",
+                name="Non-refundable – Room only",
+                meal_plan="RO",
+                is_refundable=False,
+                cancellation_policy="Non-refundable.",
+            ),
+            RatePlan.objects.create(
+                property=prop,
+                code="HB",
+                name="Half board",
+                meal_plan="HB",
+                is_refundable=True,
+                cancellation_policy="Free cancellation until 3 days before arrival.",
+            ),
+        ]
+        self.rate_plans[prop.id] = plans
+        return plans
+
+    def _create_rooms_for_type(self, prop, plans, idx, type_spec, floor_counter):
+        code, name, legacy, cap, beds, base, count = type_spec
+        amenities = ["wifi", "ac", "minibar", "safe"] + (["sea_view"] if idx > 0 else [])
+        rt = RoomType.objects.create(
+            property=prop,
+            code=code,
+            name=name,
+            capacity=cap,
+            max_occupancy=cap,
+            base_occupancy=min(2, cap),
+            base_price=money(base),
+            description=f"{name} at {prop.name}",
+            amenities=amenities,
+        )
+        self.room_types[rt.id] = rt
+        for plan in plans:
+            plan.room_types.add(rt)
+        floor = 1 + len(floor_counter) % 4
+        for _ in range(count):
+            floor_counter[floor] = floor_counter.get(floor, 0) + 1
+            room = Room.objects.create(
+                property=prop,
+                room_number=f"{floor}{floor_counter[floor]:02d}",
+                floor=floor,
+                room_type=legacy,
+                room_type_fk=rt,
+                capacity=cap,
+                number_of_beds=beds,
+                base_price=money(base),
+                current_price=nightly_rate(base, self.today),
+                status="available",
+                amenities=rt.amenities,
+            )
+            room.rt = rt
+            self.rooms.append(room)
+            if floor_counter[floor] >= 8:
+                floor += 1
+
+    def _occupancy_price_map(self, price, max_occupancy):
+        by_occ = {}
+        for occupancy in range(1, max_occupancy + 1):
+            factor = (
+                Decimal("0.85")
+                if occupancy == 1
+                else 1 + Decimal("0.18") * max(0, occupancy - 2)
+            )
+            by_occ[str(occupancy)] = str(money(price * factor))
+        return by_occ
+
+    def _seed_rate_plan_prices(self, prop, plans):
+        plan_factor = {
+            "BAR": Decimal("1"),
+            "NRF": Decimal("0.88"),
+            "HB": Decimal("1.22"),
+        }
+        prices = []
+        room_types = [t for t in self.room_types.values() if t.property_id == prop.id]
+        for rt in room_types:
+            for offset in range((self.end - self.today).days + 60):
+                d = self.today + timedelta(days=offset)
+                bar = nightly_rate(rt.base_price, d)
+                for plan in plans:
+                    p = bar * plan_factor[plan.code]
+                    by_occ = self._occupancy_price_map(p, rt.max_occupancy)
+                    prices.append(
+                        RatePlanPrice(
+                            rate_plan=plan,
+                            room_type=rt,
+                            date=d,
+                            price_1=Decimal(by_occ["1"]),
+                            price_2=Decimal(by_occ.get("2", by_occ["1"])),
+                            price_by_occupancy=by_occ,
+                        )
+                    )
+        RatePlanPrice.objects.bulk_create(prices, batch_size=2000)
+
     def _properties(self):
         self.props, self.rooms, self.room_types, self.rate_plans = [], [], {}, {}
         for idx, spec in enumerate(PROPERTIES):
-            room_count = sum(t[6] for t in spec["types"])
-            prop = Property.objects.create(
-                name=spec["name"],
-                location=spec["location"],
-                address=spec["address"],
-                city=spec["city"],
-                postal_code=spec["postal_code"],
-                country="Greece",
-                phone_number=spec["phone_number"],
-                email=spec["email"],
-                website=f"https://{spec['email'].split('@')[1]}",
-                total_rooms=room_count,
-                star_rating=spec["star_rating"],
-                is_active=True,
-                mhte_number=f"1167K0{idx + 1}3K0{idx + 4}21{idx}00",
-                tax_id=f"80012345{idx}",
-            )
-            prop.price_factor = spec["price_factor"]
+            prop = self._create_property(idx, spec)
             self.props.append(prop)
-            for amenity in spec["amenities"]:
-                PropertyAmenity.objects.create(property=prop, amenity_type=amenity)
-            PropertyPolicy.objects.create(
-                property=prop,
-                check_in_time=time(15),
-                check_out_time=time(11),
-                cancellation_policy="Free cancellation up to 7 days before arrival; first night charged afterwards.",
-                pet_policy=(
-                    "Small pets on request (€25/night)."
-                    if idx == 2
-                    else "No pets allowed."
-                ),
-                smoking_policy="Non-smoking property.",
-                children_policy="Children of all ages welcome; cots free.",
-            )
-
-            plans = [
-                RatePlan.objects.create(
-                    property=prop,
-                    code="BAR",
-                    name="Flexible – Breakfast included",
-                    meal_plan="BB",
-                    is_refundable=True,
-                    cancellation_policy="Free cancellation until 7 days before arrival.",
-                ),
-                RatePlan.objects.create(
-                    property=prop,
-                    code="NRF",
-                    name="Non-refundable – Room only",
-                    meal_plan="RO",
-                    is_refundable=False,
-                    cancellation_policy="Non-refundable.",
-                ),
-                RatePlan.objects.create(
-                    property=prop,
-                    code="HB",
-                    name="Half board",
-                    meal_plan="HB",
-                    is_refundable=True,
-                    cancellation_policy="Free cancellation until 3 days before arrival.",
-                ),
-            ]
-            self.rate_plans[prop.id] = plans
-
+            plans = self._create_rate_plans(prop)
             floor_counter = {}
-            for code, name, legacy, cap, beds, base, count in spec["types"]:
-                rt = RoomType.objects.create(
-                    property=prop,
-                    code=code,
-                    name=name,
-                    capacity=cap,
-                    max_occupancy=cap,
-                    base_occupancy=min(2, cap),
-                    base_price=money(base),
-                    description=f"{name} at {prop.name}",
-                    amenities=["wifi", "ac", "minibar", "safe"]
-                    + (["sea_view"] if idx > 0 else []),
-                )
-                self.room_types[rt.id] = rt
-                for plan in plans:
-                    plan.room_types.add(rt)
-                floor = 1 + len(floor_counter) % 4
-                for n in range(count):
-                    floor_counter[floor] = floor_counter.get(floor, 0) + 1
-                    room = Room.objects.create(
-                        property=prop,
-                        room_number=f"{floor}{floor_counter[floor]:02d}",
-                        floor=floor,
-                        room_type=legacy,
-                        room_type_fk=rt,
-                        capacity=cap,
-                        number_of_beds=beds,
-                        base_price=money(base),
-                        current_price=nightly_rate(base, self.today),
-                        status="available",
-                        amenities=rt.amenities,
-                    )
-                    room.rt = rt
-                    self.rooms.append(room)
-                    if floor_counter[floor] >= 8:
-                        floor += 1
-
-            # Bookable rates for the public booking engine
-            prices = []
-            for rt in [t for t in self.room_types.values() if t.property_id == prop.id]:
-                for offset in range((self.end - self.today).days + 60):
-                    d = self.today + timedelta(days=offset)
-                    bar = nightly_rate(rt.base_price, d)
-                    for plan in plans:
-                        p = (
-                            bar
-                            * {
-                                "BAR": Decimal("1"),
-                                "NRF": Decimal("0.88"),
-                                "HB": Decimal("1.22"),
-                            }[plan.code]
-                        )
-                        by_occ = {
-                            str(o): str(
-                                money(
-                                    p
-                                    * (
-                                        Decimal("0.85")
-                                        if o == 1
-                                        else 1 + Decimal("0.18") * max(0, o - 2)
-                                    )
-                                )
-                            )
-                            for o in range(1, rt.max_occupancy + 1)
-                        }
-                        prices.append(
-                            RatePlanPrice(
-                                rate_plan=plan,
-                                room_type=rt,
-                                date=d,
-                                price_1=Decimal(by_occ["1"]),
-                                price_2=Decimal(by_occ.get("2", by_occ["1"])),
-                                price_by_occupancy=by_occ,
-                            )
-                        )
-            RatePlanPrice.objects.bulk_create(prices, batch_size=2000)
+            for type_spec in spec["types"]:
+                self._create_rooms_for_type(prop, plans, idx, type_spec, floor_counter)
+            self._seed_rate_plan_prices(prop, plans)
 
     def _agencies_and_contracts(self):
         self.agencies = []
@@ -677,8 +685,7 @@ class Command(BaseCommand):
             return self.rng.choice(self.repeaters)
         return self.rng.choice(self.guests)
 
-    def _bookings(self):
-        sources, weights = zip(*SOURCES)
+    def _seed_room_stay_rows(self, sources, weights):
         rows = []
         for room in self.rooms:
             prop = next(p for p in self.props if p.id == room.property_id)
@@ -697,16 +704,9 @@ class Command(BaseCommand):
                     )
                 )
                 d = check_out + timedelta(days=self.rng.choice([0, 0, 0, 1, 2]))
+        return rows
 
-        # Guarantee a busy front desk today: arrivals and departures per property
-        Booking.objects.bulk_create(rows, batch_size=1000)
-        self.bookings = list(
-            Booking.objects.filter(room__property__in=self.props).select_related(
-                "room", "guest"
-            )
-        )
-
-        # Give the demo guest a past, current-ish and upcoming stay
+    def _seed_demo_guest_stays(self, sources, weights):
         for ci, co, status in [
             (-60, -55, "checked_out"),
             (-20, -17, "checked_out"),
@@ -715,10 +715,9 @@ class Command(BaseCommand):
             room = self.rng.choice(
                 [r for r in self.rooms if r.property_id == self.props[1].id]
             )
-            ci_d, co_d = self.today + timedelta(days=ci), self.today + timedelta(
-                days=co
-            )
-            b = self._make_booking(
+            ci_d = self.today + timedelta(days=ci)
+            co_d = self.today + timedelta(days=co)
+            booking = self._make_booking(
                 room,
                 self.props[1],
                 ci_d,
@@ -730,67 +729,61 @@ class Command(BaseCommand):
                 source="direct_website",
                 check_conflicts=True,
             )
-            if b:
-                b.save()
-                self.bookings.append(b)
+            if booking:
+                booking.save()
+                self.bookings.append(booking)
 
+    def _link_agency_group_bookings(self):
         group = [
             b
             for b in self.bookings
             if b.travel_agency_id and b.check_in_date > self.today
         ][:3]
-        for b in group[1:]:
-            b.related_bookings = group[0]
-            b.save(update_fields=["related_bookings"])
+        for booking in group[1:]:
+            booking.related_bookings = group[0]
+            booking.save(update_fields=["related_bookings"])
 
-    def _make_booking(
-        self,
-        room,
-        prop,
-        check_in,
-        check_out,
-        sources,
-        weights,
-        guest=None,
-        status=None,
-        source=None,
-        check_conflicts=False,
-    ):
-        if (
-            check_conflicts
-            and Booking.objects.filter(
-                room=room,
-                check_in_date__lt=check_out,
-                check_out_date__gt=check_in,
-                status__in=["confirmed", "checked_in", "checked_out", "pending"],
-            ).exists()
-        ):
-            return None
-        guest = guest or self._pick_guest()
-        source = source or self.rng.choices(sources, weights)[0]
-        nights = (check_out - check_in).days
-        lead = self.rng.choices([1, 5, 14, 30, 60, 120], [10, 15, 25, 25, 15, 10])[
-            0
-        ] + self.rng.randint(0, 6)
-        reserved = min(check_in - timedelta(days=lead), self.today)
+    def _bookings(self):
+        sources, weights = zip(*SOURCES)
+        rows = self._seed_room_stay_rows(sources, weights)
+        Booking.objects.bulk_create(rows, batch_size=1000)
+        self.bookings = list(
+            Booking.objects.filter(room__property__in=self.props).select_related(
+                "room", "guest"
+            )
+        )
+        self._seed_demo_guest_stays(sources, weights)
+        self._link_agency_group_bookings()
 
-        if status is None:
-            r = self.rng.random()
-            if check_out < self.today or (check_out == self.today and r < 0.45):
-                status = (
-                    "cancelled"
-                    if r > 0.92
-                    else "no_show" if r > 0.90 else "checked_out"
-                )
-            elif check_in < self.today or (check_in == self.today and r < 0.4):
-                status = "checked_in"
-            elif check_in == self.today:
-                status = "confirmed"
-            else:
-                status = (
-                    "cancelled" if r > 0.93 else "pending" if r > 0.85 else "confirmed"
-                )
+    def _past_departure_status(self, roll):
+        if roll > 0.92:
+            return "cancelled"
+        if roll > 0.90:
+            return "no_show"
+        return "checked_out"
 
+    def _future_arrival_status(self, roll):
+        if roll > 0.93:
+            return "cancelled"
+        if roll > 0.85:
+            return "pending"
+        return "confirmed"
+
+    def _resolve_booking_status(self, check_in, check_out, status):
+        if status is not None:
+            return status
+        roll = self.rng.random()
+        departed = check_out < self.today or (check_out == self.today and roll < 0.45)
+        if departed:
+            return self._past_departure_status(roll)
+        arrived = check_in < self.today or (check_in == self.today and roll < 0.4)
+        if arrived:
+            return "checked_in"
+        if check_in == self.today:
+            return "confirmed"
+        return self._future_arrival_status(roll)
+
+    def _booking_pricing(self, room, prop, check_in, nights):
         plan = self.rng.choices(self.rate_plans[prop.id], [60, 25, 15])[0]
         plan_factor = {
             "BAR": Decimal("1"),
@@ -807,10 +800,58 @@ class Command(BaseCommand):
         subtotal = money(
             subtotal * plan_factor * Decimal(str(self.rng.uniform(0.95, 1.06)))
         )
-        taxes = compute_taxes(subtotal, nights)
+        return plan, subtotal, compute_taxes(subtotal, nights)
+
+    def _in_house_guest_fields(self, guest, in_house):
+        if not in_house:
+            return {
+                "guest_document_type": "",
+                "guest_document_number": "",
+                "guest_nationality": "",
+                "guest_birth_date": None,
+                "shima_stay_purpose": "",
+            }
+        return {
+            "guest_document_type": guest.document_type,
+            "guest_document_number": guest.document_number,
+            "guest_nationality": guest.nationality,
+            "guest_birth_date": guest.birth_date,
+            "shima_stay_purpose": "leisure",
+        }
+
+    def _make_booking(
+        self,
+        room,
+        prop,
+        check_in,
+        check_out,
+        sources,
+        weights,
+        guest=None,
+        status=None,
+        source=None,
+        check_conflicts=False,
+    ):
+        if check_conflicts and Booking.objects.filter(
+            room=room,
+            check_in_date__lt=check_out,
+            check_out_date__gt=check_in,
+            status__in=["confirmed", "checked_in", "checked_out", "pending"],
+        ).exists():
+            return None
+        guest = guest or self._pick_guest()
+        source = source or self.rng.choices(sources, weights)[0]
+        nights = (check_out - check_in).days
+        lead = self.rng.choices([1, 5, 14, 30, 60, 120], [10, 15, 25, 25, 15, 10])[
+            0
+        ] + self.rng.randint(0, 6)
+        reserved = min(check_in - timedelta(days=lead), self.today)
+        status = self._resolve_booking_status(check_in, check_out, status)
+        plan, subtotal, taxes = self._booking_pricing(room, prop, check_in, nights)
         adults = min(room.capacity, self.rng.choice([1, 2, 2, 2, 3]))
         children = self.rng.choice([0, 0, 0, 1, 2]) if room.capacity >= 4 else 0
         in_house = status in ("checked_in", "checked_out")
+        agency = self.rng.choice(self.agencies) if source == "travel_agency" else None
         return Booking(
             room=room,
             room_type=room.rt,
@@ -829,16 +870,10 @@ class Command(BaseCommand):
             vat_amount=taxes["vat_amount"],
             climate_resilience_fee=taxes["climate_resilience_fee"],
             booking_source=source,
-            travel_agency=(
-                self.rng.choice(self.agencies) if source == "travel_agency" else None
-            ),
+            travel_agency=agency,
             special_requests=self.rng.choice(SPECIAL_REQUESTS),
-            guest_document_type=guest.document_type if in_house else "",
-            guest_document_number=guest.document_number if in_house else "",
-            guest_nationality=guest.nationality if in_house else "",
-            guest_birth_date=guest.birth_date if in_house else None,
-            shima_stay_purpose="leisure" if in_house else "",
             mhte_registry_number=prop.mhte_number,
+            **self._in_house_guest_fields(guest, in_house),
         )
 
     def _sync_inventory(self):
@@ -889,57 +924,98 @@ class Command(BaseCommand):
             )
 
     # ── money ──────────────────────────────────────────────────────────────
+    def _payment_amount_for_booking(self, booking, total, created):
+        if booking.status == "checked_out":
+            processed = timezone.make_aware(
+                datetime.combine(booking.check_out_date, time(10, 30))
+            )
+            return total, "completed", processed
+        if booking.status == "checked_in":
+            status = "completed" if self.rng.random() < 0.6 else "pending"
+            return total, status, created
+        if booking.status == "cancelled":
+            if self.rng.random() < 0.5:
+                return None
+            return money(total * Decimal("0.3")), "refunded", created
+        # confirmed: 30% deposit taken for most
+        if self.rng.random() < 0.25:
+            return total, "pending", None
+        return money(total * Decimal("0.3")), "completed", created
+
+    def _create_refund_if_needed(self, payment, booking, amount, status):
+        if status != "refunded":
+            return
+        RefundRequest.objects.create(
+            payment=payment,
+            guest=booking.guest,
+            refund_amount=amount,
+            reason="cancellation",
+            description="Guest cancelled within free-cancellation window.",
+            status=self.rng.choice(["processed", "processed", "approved", "pending"]),
+            processed_by=self.users["demo_manager"],
+        )
+
+    def _create_invoice_if_needed(self, payment, booking, total, status):
+        tax_amount = (booking.vat_amount or 0) + (booking.climate_resilience_fee or 0)
+        if booking.status == "checked_out":
+            Invoice.objects.create(
+                guest=booking.guest,
+                payment=payment,
+                booking=booking,
+                amount=booking.base_price,
+                tax_amount=tax_amount,
+                total_amount=total,
+                status="paid",
+                description=(
+                    f"Accommodation {booking.check_in_date:%d/%m} – "
+                    f"{booking.check_out_date:%d/%m/%Y}"
+                ),
+                issued_date=timezone.make_aware(
+                    datetime.combine(booking.check_out_date, time(10))
+                ),
+                due_date=booking.check_out_date,
+                paid_date=booking.check_out_date,
+            )
+            return
+        if booking.status == "checked_in" and status == "pending":
+            Invoice.objects.create(
+                guest=booking.guest,
+                payment=payment,
+                booking=booking,
+                amount=booking.base_price,
+                tax_amount=tax_amount,
+                total_amount=total,
+                status="issued",
+                description="Pro-forma for current stay",
+                due_date=booking.check_out_date,
+            )
+
     def _payments_and_invoices(self):
         card, cash, bank, wallet = (
             self.methods[n]
             for n in ("Credit Card", "Cash", "Bank Transfer", "Viva Wallet")
         )
-        for b in self.bookings:
-            if b.status in ("pending", "no_show"):
+        for booking in self.bookings:
+            if booking.status in ("pending", "no_show"):
                 continue
             method = (
                 bank
-                if b.booking_source == "travel_agency"
+                if booking.booking_source == "travel_agency"
                 else self.rng.choices([card, wallet, cash], [70, 18, 12])[0]
             )
-            total = b.actual_price
+            total = booking.actual_price
             created = timezone.make_aware(
-                datetime.combine(b.date_of_reservation, time(self.rng.randint(8, 22)))
+                datetime.combine(
+                    booking.date_of_reservation, time(self.rng.randint(8, 22))
+                )
             )
-            if b.status == "checked_out":
-                amount, status, processed = (
-                    total,
-                    "completed",
-                    timezone.make_aware(
-                        datetime.combine(b.check_out_date, time(10, 30))
-                    ),
-                )
-            elif b.status == "checked_in":
-                amount, status, processed = (
-                    total,
-                    "completed" if self.rng.random() < 0.6 else "pending",
-                    created,
-                )
-            elif b.status == "cancelled":
-                if self.rng.random() < 0.5:
-                    continue
-                amount, status, processed = (
-                    money(total * Decimal("0.3")),
-                    "refunded",
-                    created,
-                )
-            else:  # confirmed: 30% deposit taken for most
-                if self.rng.random() < 0.25:
-                    amount, status, processed = total, "pending", None
-                else:
-                    amount, status, processed = (
-                        money(total * Decimal("0.3")),
-                        "completed",
-                        created,
-                    )
+            details = self._payment_amount_for_booking(booking, total, created)
+            if details is None:
+                continue
+            amount, status, processed = details
             payment = Payment.objects.create(
-                guest=b.guest,
-                booking=b,
+                guest=booking.guest,
+                booking=booking,
                 payment_method=method,
                 amount=amount,
                 currency="EUR",
@@ -948,49 +1024,14 @@ class Command(BaseCommand):
                 reference_code=f"DEMO-{secrets.token_hex(5).upper()}",
                 processed_at=processed if status != "pending" else None,
                 is_verified=status == "completed",
-                description=f"{(b.check_out_date - b.check_in_date).days}-night stay, room {b.room.room_number}",
+                description=(
+                    f"{(booking.check_out_date - booking.check_in_date).days}-night "
+                    f"stay, room {booking.room.room_number}"
+                ),
             )
             Payment.objects.filter(pk=payment.pk).update(created_at=created)
-            if status == "refunded":
-                RefundRequest.objects.create(
-                    payment=payment,
-                    guest=b.guest,
-                    refund_amount=amount,
-                    reason="cancellation",
-                    description="Guest cancelled within free-cancellation window.",
-                    status=self.rng.choice(
-                        ["processed", "processed", "approved", "pending"]
-                    ),
-                    processed_by=self.users["demo_manager"],
-                )
-            if b.status == "checked_out":
-                Invoice.objects.create(
-                    guest=b.guest,
-                    payment=payment,
-                    booking=b,
-                    amount=b.base_price,
-                    tax_amount=(b.vat_amount or 0) + (b.climate_resilience_fee or 0),
-                    total_amount=total,
-                    status="paid",
-                    description=f"Accommodation {b.check_in_date:%d/%m} – {b.check_out_date:%d/%m/%Y}",
-                    issued_date=timezone.make_aware(
-                        datetime.combine(b.check_out_date, time(10))
-                    ),
-                    due_date=b.check_out_date,
-                    paid_date=b.check_out_date,
-                )
-            elif b.status == "checked_in" and status == "pending":
-                Invoice.objects.create(
-                    guest=b.guest,
-                    payment=payment,
-                    booking=b,
-                    amount=b.base_price,
-                    tax_amount=(b.vat_amount or 0) + (b.climate_resilience_fee or 0),
-                    total_amount=total,
-                    status="issued",
-                    description="Pro-forma for current stay",
-                    due_date=b.check_out_date,
-                )
+            self._create_refund_if_needed(payment, booking, amount, status)
+            self._create_invoice_if_needed(payment, booking, total, status)
 
     def _channels(self):
         mapping = {
@@ -1033,99 +1074,101 @@ class Command(BaseCommand):
         ChannelBooking.objects.bulk_create(links, batch_size=1000)
 
     # ── pricing / ML ───────────────────────────────────────────────────────
-    def _pricing(self):
+    def _occupancy_by_prop_day(self):
         occ_by_prop_day = {}
-        for b in self.bookings:
-            if b.status in ("cancelled", "no_show"):
+        for booking in self.bookings:
+            if booking.status in ("cancelled", "no_show"):
                 continue
-            d = b.check_in_date
-            while d < b.check_out_date:
-                key = (b.room.property_id, d)
+            day = booking.check_in_date
+            while day < booking.check_out_date:
+                key = (booking.room.property_id, day)
                 occ_by_prop_day[key] = occ_by_prop_day.get(key, 0) + 1
-                d += timedelta(days=1)
+                day += timedelta(days=1)
+        return occ_by_prop_day
+
+    def _pricing_history_row(self, room, prop, day, occ_by_prop_day):
+        occ = Decimal(
+            min(100, 100 * occ_by_prop_day.get((prop.id, day), 0) / prop.total_rooms)
+        ).quantize(TWO)
+        base = nightly_rate(room.base_price, day)
+        uplift = Decimal(
+            str(1 + (float(occ) - 60) / 400 + self.rng.uniform(-0.03, 0.03))
+        )
+        dynamic = money(base * uplift)
+        future = day >= self.today
+        conf = Decimal(str(round(self.rng.uniform(0.72, 0.96), 2)))
+        return PricingHistory(
+            room=room,
+            date=day,
+            weekday=day.weekday(),
+            base_price=base,
+            dynamic_price=dynamic,
+            competitor_price=money(base * Decimal(str(self.rng.uniform(0.9, 1.15)))),
+            occupancy_rate=occ,
+            demand_score=min(
+                Decimal("100"),
+                occ * Decimal("0.8") + Decimal(self.rng.randint(5, 25)),
+            ),
+            bookings_count=occ_by_prop_day.get((prop.id, day), 0),
+            cancellation_rate=Decimal(str(round(self.rng.uniform(3, 11), 2))),
+            season=season_label(day),
+            predicted_by_model=future,
+            model_version="xgb-2026.09" if future else "",
+            confidence_score=conf if future else Decimal("0"),
+            ai_recommended_price=dynamic if future else None,
+            ensemble_prediction=dynamic if future else None,
+            occupancy_impact_percentage=Decimal(
+                str(round((float(occ) - 60) / 4, 2))
+            ),
+            seasonal_impact_percentage=Decimal(
+                str(round((season_factor(day) - 1) * 100, 2))
+            ),
+        )
+
+    def _competitor_rows_for_room(self, room, prop):
+        if not (room.room_number.endswith("01") or room.room_number.endswith("02")):
+            return []
+        rows = []
+        for offset in range(-30, 31, 2):
+            day = self.today + timedelta(days=offset)
+            for name in COMPETITORS[prop.city]:
+                rows.append(
+                    CompetitorPrice(
+                        room=room,
+                        competitor_name=name,
+                        date=day,
+                        price=money(
+                            nightly_rate(room.base_price, day)
+                            * Decimal(str(self.rng.uniform(0.85, 1.25)))
+                        ),
+                    )
+                )
+        return rows
+
+    def _pricing(self):
+        occ_by_prop_day = self._occupancy_by_prop_day()
         history, competitors = [], []
         for room in self.rooms:
             prop = next(p for p in self.props if p.id == room.property_id)
             for offset in range(-(self.today - self.start).days, 31):
-                d = self.today + timedelta(days=offset)
-                occ = Decimal(
-                    min(
-                        100,
-                        100 * occ_by_prop_day.get((prop.id, d), 0) / prop.total_rooms,
-                    )
-                ).quantize(TWO)
-                base = nightly_rate(room.base_price, d)
-                uplift = Decimal(
-                    str(1 + (float(occ) - 60) / 400 + self.rng.uniform(-0.03, 0.03))
-                )
-                dynamic = money(base * uplift)
-                comp = money(base * Decimal(str(self.rng.uniform(0.9, 1.15))))
-                future = d >= self.today
-                conf = Decimal(str(round(self.rng.uniform(0.72, 0.96), 2)))
+                day = self.today + timedelta(days=offset)
                 history.append(
-                    PricingHistory(
-                        room=room,
-                        date=d,
-                        weekday=d.weekday(),
-                        base_price=base,
-                        dynamic_price=dynamic,
-                        competitor_price=comp,
-                        occupancy_rate=occ,
-                        demand_score=min(
-                            Decimal("100"),
-                            occ * Decimal("0.8") + Decimal(self.rng.randint(5, 25)),
-                        ),
-                        bookings_count=occ_by_prop_day.get((prop.id, d), 0),
-                        cancellation_rate=Decimal(
-                            str(round(self.rng.uniform(3, 11), 2))
-                        ),
-                        season=season_label(d),
-                        predicted_by_model=future,
-                        model_version="xgb-2026.09" if future else "",
-                        confidence_score=conf if future else Decimal("0"),
-                        ai_recommended_price=dynamic if future else None,
-                        ensemble_prediction=dynamic if future else None,
-                        occupancy_impact_percentage=Decimal(
-                            str(round((float(occ) - 60) / 4, 2))
-                        ),
-                        seasonal_impact_percentage=Decimal(
-                            str(round((season_factor(d) - 1) * 100, 2))
-                        ),
-                    )
+                    self._pricing_history_row(room, prop, day, occ_by_prop_day)
                 )
-            if room.room_number.endswith("01") or room.room_number.endswith("02"):
-                for offset in range(-30, 31, 2):
-                    d = self.today + timedelta(days=offset)
-                    for name in COMPETITORS[prop.city]:
-                        competitors.append(
-                            CompetitorPrice(
-                                room=room,
-                                competitor_name=name,
-                                date=d,
-                                price=money(
-                                    nightly_rate(room.base_price, d)
-                                    * Decimal(str(self.rng.uniform(0.85, 1.25)))
-                                ),
-                            )
-                        )
+            competitors.extend(self._competitor_rows_for_room(room, prop))
         PricingHistory.objects.bulk_create(history, batch_size=2000)
         CompetitorPrice.objects.bulk_create(competitors, batch_size=2000)
 
     # ── operations ─────────────────────────────────────────────────────────
-    def _operations(self):
-        staff = Employee.objects.get(user=self.users["demo_staff"])
-        tech = Employee.objects.get(user=self.users["demo_maintenance"])
-        now = timezone.now().replace(minute=0, second=0, microsecond=0)
-        athens_rooms = [r for r in self.rooms if r.property_id == self.props[0].id]
+    def _seed_cleaning_tasks(self, staff, now):
         dirty = list(
             Room.objects.filter(
                 property=self.props[0], status__in=["cleaning", "occupied"]
             )
         )[:10]
-        for i, room in enumerate(dirty):
-            status = ["completed", "completed", "in_progress", "pending", "pending"][
-                i % 5
-            ]
+        statuses = ["completed", "completed", "in_progress", "pending", "pending"]
+        for index, room in enumerate(dirty):
+            status = statuses[index % 5]
             Task.objects.create(
                 employee=staff,
                 property=self.props[0],
@@ -1135,12 +1178,14 @@ class Command(BaseCommand):
                     if room.status == "cleaning"
                     else "Stay-over service"
                 ),
-                start_time=now + timedelta(minutes=30 * i),
-                end_time=now + timedelta(minutes=30 * i + 30),
+                start_time=now + timedelta(minutes=30 * index),
+                end_time=now + timedelta(minutes=30 * index + 30),
                 status=status,
                 priority="high" if room.status == "cleaning" else "medium",
                 completed_at=now if status == "completed" else None,
             )
+
+    def _seed_maintenance_tasks(self, tech, now, athens_rooms):
         for title, prio in [
             ("Fix A/C in room", "urgent"),
             ("Replace bathroom light", "low"),
@@ -1158,26 +1203,29 @@ class Command(BaseCommand):
                 priority=prio,
             )
 
+    def _seed_room_services(self):
+        descriptions = {
+            "food": "Breakfast in room for two",
+            "cleaning": "Extra towels",
+            "laundry": "Express shirt pressing",
+            "concierge": "Book sunset cruise",
+            "technical": "TV remote not working",
+        }
         in_house = [b for b in self.bookings if b.status == "checked_in"]
-        for b in self.rng.sample(in_house, min(14, len(in_house))):
+        for booking in self.rng.sample(in_house, min(14, len(in_house))):
             kind = self.rng.choice(
                 ["food", "food", "cleaning", "laundry", "concierge", "technical"]
             )
             RoomService.objects.create(
-                booking=b,
-                room=b.room,
+                booking=booking,
+                room=booking.room,
                 service_type=kind,
                 status=self.rng.choice(["pending", "in_progress", "completed"]),
-                description={
-                    "food": "Breakfast in room for two",
-                    "cleaning": "Extra towels",
-                    "laundry": "Express shirt pressing",
-                    "concierge": "Book sunset cruise",
-                    "technical": "TV remote not working",
-                }[kind],
+                description=descriptions[kind],
                 price=money(self.rng.choice([0, 18, 24, 35, 60])),
             )
 
+    def _seed_announcements_events_storage(self):
         mgr = Employee.objects.get(user=self.users["demo_manager"])
         for text in [
             "Fire drill Thursday 10:00 – all departments.",
@@ -1221,6 +1269,16 @@ class Command(BaseCommand):
             Storage.objects.create(
                 itemName=f"[demo] {name}", itemType=kind, quantitiy=qty
             )
+
+    def _operations(self):
+        staff = Employee.objects.get(user=self.users["demo_staff"])
+        tech = Employee.objects.get(user=self.users["demo_maintenance"])
+        now = timezone.now().replace(minute=0, second=0, microsecond=0)
+        athens_rooms = [r for r in self.rooms if r.property_id == self.props[0].id]
+        self._seed_cleaning_tasks(staff, now)
+        self._seed_maintenance_tasks(tech, now, athens_rooms)
+        self._seed_room_services()
+        self._seed_announcements_events_storage()
 
     def _guest_stats(self):
         for g in self.guests + [self.demo_guest]:

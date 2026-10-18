@@ -306,6 +306,53 @@ def calculate_revenue_metrics(property_id=None, metric_date=None):
             )
 
 
+def _new_returning_guest_counts(guest_ids, analytics_date):
+    new_guests = 0
+    returning_guests = 0
+    for guest_id in guest_ids:
+        has_prior_booking = Booking.objects.filter(
+            guest_id=guest_id,
+            status__in=REVENUE_STATUSES,
+            check_out_date__lte=analytics_date,
+        ).exists()
+        if has_prior_booking:
+            returning_guests += 1
+        else:
+            new_guests += 1
+    return new_guests, returning_guests
+
+
+def _store_guest_analytics(property_obj, analytics_date):
+    """Compute and persist guest analytics for one property/day."""
+    bookings = _active_bookings_for(property_obj, analytics_date)
+    stay_lengths = [
+        (b.check_out_date - b.check_in_date).days
+        for b in bookings.only('check_in_date', 'check_out_date')
+    ]
+    avg_stay = round(sum(stay_lengths) / len(stay_lengths), 2) if stay_lengths else 0
+    guest_ids = list(bookings.values_list('guest_id', flat=True).distinct())
+    new_guests, returning_guests = _new_returning_guest_counts(guest_ids, analytics_date)
+    retention_rate = (
+        round((returning_guests / len(guest_ids) * 100), 2) if guest_ids else 0
+    )
+    values = {
+        'total_unique_guests': len(guest_ids),
+        'new_guests': new_guests,
+        'returning_guests': returning_guests,
+        'avg_length_of_stay': avg_stay,
+        'retention_rate': retention_rate,
+    }
+    analytics, created = DashboardGuestAnalytics.objects.get_or_create(
+        property=property_obj,
+        analytics_date=analytics_date,
+        defaults=values,
+    )
+    if not created:
+        for field_name, value in values.items():
+            setattr(analytics, field_name, value)
+        analytics.save(update_fields=list(values.keys()))
+
+
 @shared_task
 def calculate_guest_analytics(property_id=None, analytics_date=None):
     """
@@ -317,62 +364,13 @@ def calculate_guest_analytics(property_id=None, analytics_date=None):
     """
     if analytics_date is None:
         analytics_date = timezone.now().date()
-    
-    properties = Property.objects.all()
-    if property_id:
-        properties = properties.filter(id=property_id)
-    
-    for property_obj in properties:
+
+    for property_obj in _properties_for(property_id):
         try:
-            # Get active bookings for the day
-            bookings = _active_bookings_for(property_obj, analytics_date)
-            stay_lengths = [
-                (b.check_out_date - b.check_in_date).days
-                for b in bookings.only('check_in_date', 'check_out_date')
-            ]
-            avg_stay = round(sum(stay_lengths) / len(stay_lengths), 2) if stay_lengths else 0
-
-            guest_ids = list(bookings.values_list('guest_id', flat=True).distinct())
-            new_guests = 0
-            returning_guests = 0
-
-            for guest_id in guest_ids:
-                has_prior_booking = Booking.objects.filter(
-                    guest_id=guest_id,
-                    status__in=REVENUE_STATUSES,
-                    check_out_date__lte=analytics_date,
-                ).exists()
-                if has_prior_booking:
-                    returning_guests += 1
-                else:
-                    new_guests += 1
-            
-            # Create analytics record
-            analytics, created = DashboardGuestAnalytics.objects.get_or_create(
-                property=property_obj,
-                analytics_date=analytics_date,
-                defaults={
-                    'total_unique_guests': len(guest_ids),
-                    'new_guests': new_guests,
-                    'returning_guests': returning_guests,
-                    'avg_length_of_stay': avg_stay,
-                    'retention_rate': round((returning_guests / len(guest_ids) * 100), 2) if len(guest_ids) > 0 else 0,
-                }
-            )
-
-            if not created:
-                analytics.total_unique_guests = len(guest_ids)
-                analytics.new_guests = new_guests
-                analytics.returning_guests = returning_guests
-                analytics.retention_rate = round((returning_guests / len(guest_ids) * 100), 2) if len(guest_ids) > 0 else 0
-                analytics.avg_length_of_stay = avg_stay
-                analytics.save(update_fields=['total_unique_guests', 'new_guests', 'returning_guests',
-                                              'retention_rate', 'avg_length_of_stay'])
-            
+            _store_guest_analytics(property_obj, analytics_date)
             logger.info(
                 f"Calculated guest analytics for {property_obj.name} on {analytics_date}"
             )
-            
         except Exception as e:
             logger.error(
                 f"Error calculating guest analytics for property {property_id}: {str(e)}"
