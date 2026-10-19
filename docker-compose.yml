@@ -204,14 +204,13 @@ services:
       - "9093:9093"
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # slack_webhook_url / pagerduty_service_key files (gitignored; see monitoring/secrets/README.md)
+      - ./monitoring/secrets:/etc/alertmanager/secrets:ro
       - alertmanager_data:/alertmanager
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
       - '--log.level=info'
-    environment:
-      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
-      PAGERDUTY_SERVICE_KEY: ${PAGERDUTY_SERVICE_KEY:-}
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
       interval: 10s

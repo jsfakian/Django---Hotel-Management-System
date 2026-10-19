@@ -1,6 +1,9 @@
 global:
   resolve_timeout: 5m
-  slack_api_url: '${SLACK_WEBHOOK_URL:-}'
+  # Alertmanager never expands ${ENV} in its config: secrets come from files mounted at
+  # /etc/alertmanager/secrets (monitoring/secrets/, gitignored). A missing file only makes
+  # that notification fail; the config still loads and alerts stay visible in the UI.
+  slack_api_url_file: /etc/alertmanager/secrets/slack_webhook_url
   pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
 
 # The root route with all parameters
@@ -72,7 +75,7 @@ receivers:
         color: 'danger'
         send_resolved: true
     pagerduty_configs:
-      - service_key: '${PAGERDUTY_SERVICE_KEY:-}'
+      - service_key_file: /etc/alertmanager/secrets/pagerduty_service_key
         description: '{{ .GroupLabels.alertname }}'
 
   # Warning alerts

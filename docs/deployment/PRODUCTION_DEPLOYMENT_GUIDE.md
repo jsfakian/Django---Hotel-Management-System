@@ -418,17 +418,19 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ### Alert Configuration
 
-Update alerting destinations in `.env.prod`:
+Alertmanager can't expand environment variables, so Slack and PagerDuty secrets are files in
+`monitoring/secrets/` (gitignored, mounted read-only into the container):
 
 ```bash
-# Slack
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-
-# PagerDuty
-PAGERDUTY_SERVICE_KEY=your-pagerduty-key
-
-# Email (configured via SMTP settings)
+printf '%s\n' 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL' > monitoring/secrets/slack_webhook_url
+printf '%s\n' 'your-pagerduty-key' > monitoring/secrets/pagerduty_service_key
+chmod 600 monitoring/secrets/*
+docker compose restart alertmanager
+# Email: configured via the SMTP settings
 ```
+
+Without the files the config still loads and alerts stay visible in the Alertmanager UI; only
+those notifications fail (see `monitoring/secrets/README.md`).
 
 ---
 

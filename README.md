@@ -133,7 +133,7 @@ Copy `.env.example` → `.env` for development. Important variables:
 | `DJANGO_SUPERUSER_*` | Bootstrap admin |
 | `MYDATA_*`, `HOTEL_TAX_ID` | Greek AADE MyData |
 | `STRIPE_*` | Optional card payments |
-| `SLACK_WEBHOOK_URL` | Alertmanager (compose) |
+| — | Alertmanager Slack/PagerDuty secrets: files in `monitoring/secrets/` (Alertmanager can't read env vars) |
 
 Production templates: `.env.prod.example` (root) and `deployment/.env.prod.example`. Frontend API base: `frontend/.env.development` (`VITE_API_BASE_URL=http://localhost:8000/api/v1`). Deploy runbooks: `docs/deployment/`.
 

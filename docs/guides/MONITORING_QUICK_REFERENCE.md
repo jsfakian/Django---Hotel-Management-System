@@ -153,9 +153,8 @@ GRAFANA_ADMIN_USER=admin
 GRAFANA_ADMIN_PASSWORD=your_secure_password
 GRAFANA_URL=http://localhost:3000
 
-# Alerting (Optional)
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-PAGERDUTY_SERVICE_KEY=your_pagerduty_key
+# Alerting (optional): Slack/PagerDuty secrets are files in monitoring/secrets/,
+# not env vars (see "Configure Slack Alerts" below).
 
 # Monitoring
 ENVIRONMENT=development
@@ -171,14 +170,16 @@ ENVIRONMENT=development
    - Add "Incoming Webhooks" feature
    - Create new webhook URL
 
-2. Add to `.env`:
+2. Write it to the secrets file (Alertmanager can't read env vars; the file is gitignored):
    ```bash
-   SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+   printf '%s\n' 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL' > monitoring/secrets/slack_webhook_url
+   chmod 600 monitoring/secrets/slack_webhook_url
    ```
+   PagerDuty works the same way with `monitoring/secrets/pagerduty_service_key`.
 
-3. Restart services:
+3. Restart Alertmanager:
    ```bash
-   docker-compose restart alertmanager
+   docker compose restart alertmanager
    ```
 
 ---

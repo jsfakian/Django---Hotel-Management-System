@@ -173,7 +173,7 @@ Key variables (see `.env` for full list):
 | `CELERY_TASK_ALWAYS_EAGER` | Set `True` in tests to run tasks synchronously |
 | `DJANGO_SUPERUSER_USERNAME/EMAIL/PASSWORD` | Auto-created admin on bootstrap |
 | `MYDATA_USERNAME/SUBSCRIPTION_KEY` | Greek AADE MyData API credentials |
-| `SLACK_WEBHOOK_URL` | Alertmanager Slack notifications |
+| — | Alertmanager Slack/PagerDuty secrets are files in `monitoring/secrets/`, not env vars (see its README) |
 
 ## Infrastructure Ports (dev)
 | Service | Port |
