@@ -1097,6 +1097,8 @@ class Command(BaseCommand):
             str(1 + (float(occ) - 60) / 400 + self.rng.uniform(-0.03, 0.03))
         )
         dynamic = money(base * uplift)
+        # RNG order must match the pre-refactor body: competitor before confidence.
+        competitor = money(base * Decimal(str(self.rng.uniform(0.9, 1.15))))
         future = day >= self.today
         conf = Decimal(str(round(self.rng.uniform(0.72, 0.96), 2)))
         return PricingHistory(
@@ -1105,7 +1107,7 @@ class Command(BaseCommand):
             weekday=day.weekday(),
             base_price=base,
             dynamic_price=dynamic,
-            competitor_price=money(base * Decimal(str(self.rng.uniform(0.9, 1.15)))),
+            competitor_price=competitor,
             occupancy_rate=occ,
             demand_score=min(
                 Decimal("100"),
