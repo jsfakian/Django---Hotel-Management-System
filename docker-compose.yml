@@ -240,7 +240,9 @@ services:
 
   # Redis Exporter
   redis-exporter:
-    image: oliver006/redis_exporter:latest
+    # The default image is FROM scratch (no shell or wget), so no CMD healthcheck can run in it;
+    # the -alpine build is the same exporter with busybox wget.
+    image: oliver006/redis_exporter:v1.94.0-alpine
     container_name: nephele-redis-exporter
     restart: unless-stopped
     ports:
@@ -248,7 +250,8 @@ services:
     environment:
       REDIS_ADDR: redis://redis:6379
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9121/metrics"]
+      # /health answers without scraping Redis (/metrics would poll Redis on every check).
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9121/health"]
       interval: 10s
       timeout: 5s
       retries: 5
