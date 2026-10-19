@@ -851,6 +851,8 @@ class Command(BaseCommand):
         adults = min(room.capacity, self.rng.choice([1, 2, 2, 2, 3]))
         children = self.rng.choice([0, 0, 0, 1, 2]) if room.capacity >= 4 else 0
         in_house = status in ("checked_in", "checked_out")
+        # RNG order must match the pre-refactor body: ages before agency choice.
+        children_ages = [self.rng.randint(2, 12) for _ in range(children)]
         agency = self.rng.choice(self.agencies) if source == "travel_agency" else None
         return Booking(
             room=room,
@@ -863,7 +865,7 @@ class Command(BaseCommand):
             number_of_guests=adults + children,
             adults=adults,
             children=children,
-            children_ages=[self.rng.randint(2, 12) for _ in range(children)],
+            children_ages=children_ages,
             status=status,
             base_price=subtotal,
             actual_price=taxes["total_with_taxes"],
